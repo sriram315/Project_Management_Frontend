@@ -1,6 +1,6 @@
 import { Project, TeamMember, Task } from '../types';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://72.60.101.240:5005/api';
 
 export interface CreateProjectData {
   name: string;
