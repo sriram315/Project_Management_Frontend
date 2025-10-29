@@ -15295,7 +15295,7 @@
       [e, t, n]
     );
   }
-  const Et = "http://72.60.101.24:5005/api",
+  const Et = "http://72.60.101.240:5005/api",
     Ct = {
       getAll: async () => {
         const e = await fetch("".concat(Et, "/projects"));
@@ -30140,7 +30140,7 @@
             e.preventDefault();
             try {
               const e = await Hd.post(
-                "http://72.60.101.24:5005/api/auth/login",
+                "http://72.60.101.240:5005/api/auth/login",
                 { username: n, password: a }
               );
               t(e.data);
@@ -30283,7 +30283,7 @@
       }, []);
       const p = async () => {
           try {
-            const e = await Hd.get("http://72.60.101.24:5005/api/users");
+            const e = await Hd.get("http://72.60.101.240:5005/api/users");
             t(e.data);
           } catch (e) {
             console.error("Error fetching users:", e);
@@ -30423,7 +30423,7 @@
                                     continue;
                                   }
                                   await Hd.post(
-                                    "http://72.60.101.24:5005/api/users",
+                                    "http://72.60.101.240:5005/api/users",
                                     {
                                       username: n.username,
                                       password: n.password,
@@ -30520,7 +30520,7 @@
                     onSubmit: async (e) => {
                       e.preventDefault();
                       try {
-                        await Hd.post("http://72.60.101.24:5005/api/users", {
+                        await Hd.post("http://72.60.101.240:5005/api/users", {
                           username: h.username,
                           password: h.password,
                           role: h.role,
@@ -30760,7 +30760,7 @@
                                         )
                                           try {
                                             await Hd.delete(
-                                              "http://72.60.101.24:5005/api/users/".concat(
+                                              "http://72.60.101.240:5005/api/users/".concat(
                                                 e
                                               )
                                             ),
@@ -30821,7 +30821,7 @@
                       if ((e.preventDefault(), s))
                         try {
                           await Hd.put(
-                            "http://72.60.101.24:5005/api/users/".concat(s.id),
+                            "http://72.60.101.240:5005/api/users/".concat(s.id),
                             {
                               username: s.username,
                               email: s.email,

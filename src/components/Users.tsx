@@ -29,7 +29,7 @@ const Users: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get("http://72.60.101.24:5005/api/users");
+      const response = await axios.get("http://72.60.101.240:5005/api/users");
       setUsers(response.data);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -40,7 +40,7 @@ const Users: React.FC = () => {
     e.preventDefault();
     try {
       // Create user account only
-      await axios.post("http://72.60.101.24:5005/api/users", {
+      await axios.post("http://72.60.101.240:5005/api/users", {
         username: newUser.username,
         password: newUser.password,
         role: newUser.role,
@@ -72,7 +72,7 @@ const Users: React.FC = () => {
     if (!editingUser) return;
 
     try {
-      await axios.put(`http://72.60.101.24:5005/api/users/${editingUser.id}`, {
+      await axios.put(`http://72.60.101.240:5005/api/users/${editingUser.id}`, {
         username: editingUser.username,
         email: editingUser.email,
         role: editingUser.role,
@@ -91,7 +91,7 @@ const Users: React.FC = () => {
   const handleDeleteUser = async (userId: number) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
       try {
-        await axios.delete(`http://72.60.101.24:5005/api/users/${userId}`);
+        await axios.delete(`http://72.60.101.240:5005/api/users/${userId}`);
         fetchUsers();
       } catch (error) {
         console.error("Error deleting user:", error);
@@ -160,7 +160,7 @@ const Users: React.FC = () => {
             }
 
             // Create user account only
-            await axios.post("http://72.60.101.24:5005/api/users", {
+            await axios.post("http://72.60.101.240:5005/api/users", {
               username: userData.username,
               password: userData.password,
               role: userData.role,

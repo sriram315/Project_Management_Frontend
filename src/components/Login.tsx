@@ -14,7 +14,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     e.preventDefault();
     try {
       const response = await axios.post(
-        "http://72.60.101.24:5005/api/auth/login",
+        "http://72.60.101.240:5005/api/auth/login",
         {
           username,
           password,
