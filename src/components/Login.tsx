@@ -1,25 +1,28 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState } from "react";
+import axios from "axios";
 
 interface LoginProps {
   onLogin: (userData: any) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', {
-        username,
-        password
-      });
+      const response = await axios.post(
+        "http://72.60.101.24:5005/api/auth/login",
+        {
+          username,
+          password,
+        }
+      );
       onLogin(response.data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed');
+      setError(err.response?.data?.message || "Login failed");
     }
   };
 
@@ -51,29 +54,31 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             required
           />
         </div>
-        <button type="submit" className="login-button">Login</button>
-        
+        <button type="submit" className="login-button">
+          Login
+        </button>
+
         <div className="demo-logins">
           <h3>Demo Logins (Click to auto-fill):</h3>
           <div className="demo-buttons">
-            <button 
-              type="button" 
-              className="demo-btn manager" 
-              onClick={() => handleDemoLogin('john.manager', 'password123')}
+            <button
+              type="button"
+              className="demo-btn manager"
+              onClick={() => handleDemoLogin("john.manager", "password123")}
             >
               Manager Login
             </button>
-            <button 
-              type="button" 
-              className="demo-btn teamlead" 
-              onClick={() => handleDemoLogin('sarah.lead', 'password123')}
+            <button
+              type="button"
+              className="demo-btn teamlead"
+              onClick={() => handleDemoLogin("sarah.lead", "password123")}
             >
               Team Lead Login
             </button>
-            <button 
-              type="button" 
-              className="demo-btn employee" 
-              onClick={() => handleDemoLogin('mike.dev', 'password123')}
+            <button
+              type="button"
+              className="demo-btn employee"
+              onClick={() => handleDemoLogin("mike.dev", "password123")}
             >
               Employee Login
             </button>
