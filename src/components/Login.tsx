@@ -29,7 +29,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   return (
     <div className="login-container">
       <form onSubmit={handleSubmit} className="login-form">
-        <h2>Project Management Tool</h2>
+        <h2>Project management tool</h2>
         {error && <div className="error-message">{error}</div>}
         <div className="form-group">
           <label>Username:</label>
