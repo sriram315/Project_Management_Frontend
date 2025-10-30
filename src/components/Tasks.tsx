@@ -92,7 +92,9 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
     if (filters.dueDate) {
       filtered = filtered.filter(task => {
         if (!task.due_date) return false;
-        return task.due_date === filters.dueDate;
+        // Extract just the date part (YYYY-MM-DD) from task.due_date
+        const taskDate = task.due_date.split('T')[0];
+        return taskDate === filters.dueDate;
       });
     }
 

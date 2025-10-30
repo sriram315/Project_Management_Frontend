@@ -14,6 +14,33 @@ body {
   min-height: 100vh;
 }
 
+/* Global Select/Dropdown Styles with Scrolling */
+select {
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+/* Custom scrollbar for select elements (WebKit browsers) */
+select::-webkit-scrollbar {
+  width: 8px;
+}
+
+select::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+select::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+select::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 /* Navbar Styles */
 .navbar {
   display: flex;
@@ -811,6 +838,8 @@ body {
   font-size: 1rem;
   background-color: white;
   transition: all 0.3s ease;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .form-select:focus {
@@ -2142,6 +2171,8 @@ body {
   font-size: 0.875rem;
   background: white;
   transition: border-color 0.2s;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .filter-select:focus {

@@ -228,8 +228,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskUpdate, onDelete
         status: 'completed',
         actual_hours: data.actualHours,
         work_description: data.comments,
-        attachments: data.links,
-        productivity_rating: data.productivityRating
+        attachments: data.links
       });
       onTaskUpdate?.();
       setShowCompleteModal(null);
