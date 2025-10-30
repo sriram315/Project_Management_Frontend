@@ -13,7 +13,6 @@ export interface CompleteTaskData {
   actualHours: number;
   comments: string;
   links: string;
-  productivityRating: number;
 }
 
 const CompleteTaskModal: React.FC<CompleteTaskModalProps> = ({ 
@@ -26,8 +25,7 @@ const CompleteTaskModal: React.FC<CompleteTaskModalProps> = ({
   const [formData, setFormData] = useState({
     actualHours: plannedHours,
     comments: '',
-    links: '',
-    productivityRating: 5
+    links: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,8 +34,8 @@ const CompleteTaskModal: React.FC<CompleteTaskModalProps> = ({
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'actualHours' || name === 'productivityRating' 
-        ? parseInt(value) || 0 
+      [name]: name === 'actualHours' 
+        ? parseFloat(value) || 0 
         : value
     }));
   };
@@ -50,19 +48,13 @@ const CompleteTaskModal: React.FC<CompleteTaskModalProps> = ({
       return;
     }
 
-    if (formData.productivityRating < 1 || formData.productivityRating > 10) {
-      setError('Productivity rating must be between 1 and 10');
-      return;
-    }
-
     setLoading(true);
     
     try {
       const completeData: CompleteTaskData = {
         actualHours: formData.actualHours,
         comments: formData.comments.trim(),
-        links: formData.links.trim(),
-        productivityRating: formData.productivityRating
+        links: formData.links.trim()
       };
       
       onConfirm(completeData);
@@ -91,36 +83,19 @@ const CompleteTaskModal: React.FC<CompleteTaskModalProps> = ({
             <small className="form-help">Planned hours: {plannedHours}h</small>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="actualHours">Hours Taken *</label>
-              <input
-                type="number"
-                id="actualHours"
-                name="actualHours"
-                value={formData.actualHours}
-                onChange={handleInputChange}
-                min="0"
-                step="0.5"
-                required
-                placeholder="Enter actual hours"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="productivityRating">Productivity Rating (1-10) *</label>
-              <input
-                type="number"
-                id="productivityRating"
-                name="productivityRating"
-                value={formData.productivityRating}
-                onChange={handleInputChange}
-                min="1"
-                max="10"
-                required
-                placeholder="Rate your productivity"
-              />
-            </div>
+          <div className="form-group">
+            <label htmlFor="actualHours">Hours Taken *</label>
+            <input
+              type="number"
+              id="actualHours"
+              name="actualHours"
+              value={formData.actualHours}
+              onChange={handleInputChange}
+              min="0"
+              step="0.5"
+              required
+              placeholder="Enter actual hours"
+            />
           </div>
 
           <div className="form-group">

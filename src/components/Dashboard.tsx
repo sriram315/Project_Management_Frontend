@@ -71,17 +71,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       setEmployees(employeesRes);
       setTaskStatusData(taskStatusRes);
 
-      // Set default date range to last week
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 7);
+      // Set default date range to Monday-Friday of current week
+      const today = new Date();
+      const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      
+      // Calculate Monday of current week
+      const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+      const monday = new Date(today);
+      monday.setDate(today.getDate() + diffToMonday);
+      
+      // Calculate Friday of current week (4 days after Monday)
+      const friday = new Date(monday);
+      friday.setDate(monday.getDate() + 4);
       
       // For employee role, automatically set employeeId filter to logged-in user
       setFilters(prev => ({
         ...prev,
         employeeId: user?.role === 'employee' ? user.id : undefined,
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
+        startDate: monday.toISOString().split('T')[0],
+        endDate: friday.toISOString().split('T')[0],
       }));
     } catch (error) {
       console.error('Error fetching initial data:', error);
@@ -140,8 +148,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const productivity = dashboardData.productivityData.length > 0 
     ? Math.round(dashboardData.productivityData[dashboardData.productivityData.length - 1].productivity) 
     : 0;
+  
+  // Calculate average utilization across all weeks (weighted average)
+  // Total capacity per week = plannedHours + availableHours (remaining)
   const utilization = dashboardData.utilizationData.length > 0 
-    ? Math.round(dashboardData.utilizationData[dashboardData.utilizationData.length - 1].utilization) 
+    ? (() => {
+        const totalPlanned = dashboardData.utilizationData.reduce((sum, week) => sum + (week.plannedHours || 0), 0);
+        const totalCapacity = dashboardData.utilizationData.reduce((sum, week) => 
+          sum + (week.plannedHours || 0) + (week.availableHours || 0), 0);
+        return totalCapacity > 0 ? Math.round((totalPlanned / totalCapacity) * 100) : 0;
+      })()
     : 0;
 
   // Metric cards
@@ -278,7 +294,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         <div className="flex-1" style={{ paddingLeft: '20px' }}>
                           <p className="font-medium text-sm text-gray-900">{task.title}</p>
                           <p className="text-xs text-gray-500">{task.assignee}</p>
-                          <p className="text-xs text-gray-600 mt-1">Estimated: {task.estimated}h | Logged: {task.logged}h</p>
+                          <p className="text-xs text-gray-600 mt-1">Estimated: {task.estimated}h</p>
                         </div>
                       </div>
                       <span className={`text-sm font-semibold ${statusTextClass}`}>{task.status}</span>
@@ -319,7 +335,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         <div className="flex-1" style={{ paddingLeft: '20px' }}>
                           <p className="font-medium text-sm text-gray-900">{task.title}</p>
                           <p className="text-xs text-gray-500">{task.assignee}</p>
-                          <p className="text-xs text-gray-600 mt-1">Estimated: {task.estimated}h | Logged: {task.logged}h</p>
+                          <p className="text-xs text-gray-600 mt-1">Estimated: {task.estimated}h</p>
                         </div>
                       </div>
                       <span className={`text-sm font-semibold ${statusTextClass}`}>{task.status}</span>
