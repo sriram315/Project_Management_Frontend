@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { taskAPI, projectAPI, teamAPI, userAPI } from '../services/api';
 import { Task, Project, TeamMember } from '../types';
 import AddTask from './AddTask';
+import EditTask from './EditTask';
 import KanbanBoard from './KanbanBoard';
+import Toast from './Toast';
+import { useToast } from '../hooks/useToast';
+import { FilterX } from 'lucide-react';
 import '../App.css';
 
 interface TaskFilters {
@@ -29,6 +33,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
     assigneeId: null,
     dueDate: ''
   });
+  const { toast, showToast, hideToast } = useToast();
 
   useEffect(() => {
     fetchData();
@@ -112,17 +117,28 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
   const handleTaskAdded = () => {
     fetchData();
     setShowAddTask(false);
+    showToast('Task created successfully!', 'success');
+  };
+
+  const handleTaskUpdated = () => {
+    fetchData();
+    setEditingTask(null);
+    showToast('Task updated successfully!', 'success');
   };
 
   const handleDeleteTask = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      try {
-        await taskAPI.delete(id);
-        fetchData();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to delete task');
-      }
+    try {
+      await taskAPI.delete(id);
+      fetchData();
+      showToast('Task deleted successfully!', 'success');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to delete task';
+      showToast(errorMessage, 'error');
     }
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
   };
 
   const handleTaskUpdate = () => {
@@ -139,14 +155,36 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
 
   return (
     <div className="users-page">
-      <div className="page-header">
-        <h1>{user?.role === 'employee' ? 'My Tasks' : 'Task Management'}</h1>
+      <div className="page-header" style={{ marginBottom: '2rem' }}>
+        <div>
+          <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#000', marginBottom: '0.5rem' }}>
+            {user?.role === 'employee' ? 'My Tasks' : 'Task Management'}
+          </h1>
+          <p style={{ color: '#6b7280', fontSize: '0.95rem', marginTop: '0.25rem' }}>
+            Manage and track all your tasks in one place
+          </p>
+        </div>
         {user?.role !== 'employee' && (
           <button 
-            className="btn-enterprise btn-primary"
             onClick={() => setShowAddTask(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.65rem 1.25rem',
+              backgroundColor: '#6366f1',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: '500',
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap'
+            }}
           >
-            + Add New Task
+            <span style={{ fontSize: '1.1rem' }}>+</span>
+            Add New Task
           </button>
         )}
       </div>
@@ -200,9 +238,25 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
 
           <div className="filter-group">
             <button 
-              className="btn-secondary"
               onClick={clearFilters}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                padding: '0.75rem 1.25rem',
+                backgroundColor: 'white',
+                color: '#374151',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                marginTop: '1.55rem'
+              }}
             >
+              <FilterX size={18} />
               Clear Filters
             </button>
           </div>
@@ -225,6 +279,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
             tasks={filteredTasks}
             onTaskUpdate={handleTaskUpdate}
             onDeleteTask={handleDeleteTask}
+            onEditTask={handleEditTask}
           />
         )}
       </div>
@@ -232,12 +287,23 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
       {showAddTask && (
         <AddTask
           onTaskAdded={handleTaskAdded}
-          onClose={() => {
-            setShowAddTask(false);
-            setEditingTask(null);
-          }}
-          projectId={editingTask?.project_id}
-          assigneeId={editingTask?.assignee_id}
+          onClose={() => setShowAddTask(false)}
+        />
+      )}
+
+      {editingTask && (
+        <EditTask
+          task={editingTask}
+          onTaskUpdated={handleTaskUpdated}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
+
+      {toast.isVisible && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
         />
       )}
     </div>

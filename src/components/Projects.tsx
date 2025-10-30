@@ -5,6 +5,9 @@ import { Project } from '../types';
 import ProjectList from './ProjectList';
 import AddProject from './AddProject';
 import EditProject from './EditProject';
+import Toast from './Toast';
+import { useToast } from '../hooks/useToast';
+import ConfirmationModal from './ConfirmationModal';
 import '../App.css';
 
 interface ProjectsProps {
@@ -19,6 +22,16 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
   const [showAddProject, setShowAddProject] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const { toast, showToast, hideToast } = useToast();
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    projectId: number | null;
+    projectName: string;
+  }>({
+    isOpen: false,
+    projectId: null,
+    projectName: '',
+  });
 
   useEffect(() => {
     fetchProjects();
@@ -48,26 +61,44 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
 
   const handleProjectAdded = () => {
     fetchProjects(); // Refresh the project list
+    showToast('Project created successfully!', 'success');
   };
 
   const handleProjectUpdated = () => {
     fetchProjects(); // Refresh the project list
     setEditingProject(null);
+    showToast('Project updated successfully!', 'success');
   };
 
   const handleEditProject = (project: Project) => {
     setEditingProject(project);
   };
 
-  const handleDeleteProject = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this project?')) {
-      try {
-        await projectAPI.delete(id);
-        fetchProjects(); // Refresh the project list
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to delete project');
-      }
+  const handleDeleteProject = async (id: number, name: string) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      projectId: id,
+      projectName: name,
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmation.projectId) return;
+
+    try {
+      await projectAPI.delete(deleteConfirmation.projectId);
+      fetchProjects();
+      showToast('Project deleted successfully!', 'success');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to delete project';
+      showToast(errorMessage, 'error');
+    } finally {
+      setDeleteConfirmation({ isOpen: false, projectId: null, projectName: '' });
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmation({ isOpen: false, projectId: null, projectName: '' });
   };
 
   const handleManageTeam = (projectId: number, projectName: string) => {
@@ -86,8 +117,8 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
 
   return (
     <div className="users-page">
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{ marginBottom: '1rem' }}>
+      <div className="page-header" style={{ marginBottom: '2rem' }}>
+        <div>
           <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#000', marginBottom: '0.5rem' }}>
             {user?.role === 'employee' ? 'My Projects' : 'Project Management'}
           </h1>
@@ -95,7 +126,7 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
             Manage and track all your projects in one place
           </p>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+        <div className="header-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <input
             type="text"
             placeholder="Search projects by name, description..."
@@ -105,8 +136,7 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
               padding: '0.65rem 1rem', 
               border: '1px solid #e5e7eb', 
               borderRadius: '8px',
-              flex: '1',
-              maxWidth: '400px',
+              width: '280px',
               fontSize: '0.9rem',
               outline: 'none'
             }}
@@ -190,6 +220,25 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
           onClose={() => setEditingProject(null)}
         />
       )}
+
+      {toast.isVisible && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+        />
+      )}
+
+      <ConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        title="Delete Project"
+        message={`Are you sure you want to delete "${deleteConfirmation.projectName}"? This action cannot be undone and will remove all associated data including team members and tasks.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        variant="danger"
+      />
     </div>
   );
 };

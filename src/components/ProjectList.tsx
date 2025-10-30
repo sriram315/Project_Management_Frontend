@@ -5,7 +5,7 @@ import '../App.css';
 
 interface ProjectListProps {
   projects: Project[];
-  onDeleteProject?: (id: number) => void;
+  onDeleteProject?: (id: number, name: string) => void;
   onManageTeam?: (projectId: number, projectName: string) => void;
   onEditProject?: (project: Project) => void;
   userRole?: string;
@@ -54,9 +54,10 @@ const ProjectList: React.FC<ProjectListProps> = ({
   };
 
   return (
-    <div style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+    <div style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb', maxHeight: '600px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ overflow: 'auto', flex: 1 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
+        <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
           <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
             <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>Project</th>
             <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>Status</th>
@@ -193,7 +194,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
                       )}
                       {onDeleteProject && (
                         <button 
-                          onClick={() => onDeleteProject(project.id)}
+                          onClick={() => onDeleteProject(project.id, project.name)}
                           title="Delete project"
                           style={{
                             display: 'flex',
@@ -222,6 +223,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 };

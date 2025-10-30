@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { projectAPI, teamAPI, CreateProjectData } from '../services/api';
 import { TeamMember } from '../types';
+import Toast from './Toast';
+import { useToast } from '../hooks/useToast';
 import '../App.css';
 
 interface AddProjectProps {
@@ -21,6 +23,8 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
+  const { toast, showToast, hideToast } = useToast();
 
   useEffect(() => {
     fetchTeamMembers();
@@ -39,12 +43,62 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'budget' || name === 'team_lead_id' ? Number(value) : value
+      [name]: name === 'budget' || name === 'estimated_hours' || name === 'team_lead_id' ? Number(value) : value
     }));
+    // Clear error for this field when user types
+    if (formErrors[name]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const validateForm = () => {
+    const errors: {[key: string]: string} = {};
+
+    // Project name validation
+    if (!formData.name.trim()) {
+      errors.name = 'Project name is required';
+    } else if (formData.name.length < 3) {
+      errors.name = 'Project name must be at least 3 characters';
+    } else if (formData.name.length > 100) {
+      errors.name = 'Project name must not exceed 100 characters';
+    }
+
+    // Budget validation
+    if (formData.budget && formData.budget < 0) {
+      errors.budget = 'Budget cannot be negative';
+    }
+
+    // Estimated hours validation
+    if (formData.estimated_hours && formData.estimated_hours < 0) {
+      errors.estimated_hours = 'Estimated hours cannot be negative';
+    }
+
+    // Date validation
+    if (formData.start_date && formData.end_date) {
+      const startDate = new Date(formData.start_date);
+      const endDate = new Date(formData.end_date);
+      
+      if (endDate < startDate) {
+        errors.end_date = 'End date must be after start date';
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      showToast('Please fix the validation errors', 'error');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -52,8 +106,10 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
       await projectAPI.create(formData);
       onProjectAdded();
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create project');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to create project';
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
@@ -61,24 +117,29 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
 
   return (
     <div className="modal-overlay">
-      <div className="modal">
-        <div className="modal-header">
-          <h2>Add New Project</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+      <div className="modal" style={{ maxWidth: '600px' }}>
+        <div className="modal-header" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', margin: '-2rem -2rem 1.5rem -2rem', padding: '1.5rem 2rem', borderRadius: '12px 12px 0 0' }}>
+          <h2 style={{ margin: 0, color: 'white' }}>Add New Project</h2>
+          <button className="close-btn" onClick={onClose} style={{ color: 'white' }}>×</button>
         </div>
         
         <form onSubmit={handleSubmit} className="user-form">
           <div className="form-group">
-            <label htmlFor="name">Project Name *</label>
+            <label htmlFor="name">Project Name <span style={{ color: '#ef4444' }}>*</span></label>
             <input
               type="text"
               id="name"
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              required
+              style={{ borderColor: formErrors.name ? '#ef4444' : '#e1e8ed' }}
               placeholder="Enter project name"
             />
+            {formErrors.name && (
+              <small style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+                {formErrors.name}
+              </small>
+            )}
           </div>
 
           <div className="form-group">
@@ -101,10 +162,16 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
               name="budget"
               value={formData.budget}
               onChange={handleInputChange}
+              style={{ borderColor: formErrors.budget ? '#ef4444' : '#e1e8ed' }}
               placeholder="0"
               min="0"
               step="0.01"
             />
+            {formErrors.budget && (
+              <small style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+                {formErrors.budget}
+              </small>
+            )}
           </div>
 
           <div className="form-group">
@@ -115,10 +182,16 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
               name="estimated_hours"
               value={formData.estimated_hours}
               onChange={handleInputChange}
+              style={{ borderColor: formErrors.estimated_hours ? '#ef4444' : '#e1e8ed' }}
               placeholder="0"
               min="0"
               step="1"
             />
+            {formErrors.estimated_hours && (
+              <small style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+                {formErrors.estimated_hours}
+              </small>
+            )}
           </div>
 
           <div className="form-group">
@@ -155,7 +228,13 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
               name="end_date"
               value={formData.end_date}
               onChange={handleInputChange}
+              style={{ borderColor: formErrors.end_date ? '#ef4444' : '#e1e8ed' }}
             />
+            {formErrors.end_date && (
+              <small style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+                {formErrors.end_date}
+              </small>
+            )}
           </div>
 
           {error && <div className="error-message">{error}</div>}
@@ -171,6 +250,14 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
             </button>
           </div>
         </form>
+
+        {toast.isVisible && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={hideToast}
+          />
+        )}
       </div>
     </div>
   );

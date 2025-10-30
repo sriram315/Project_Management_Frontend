@@ -1,36 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { taskAPI, projectAPI, teamAPI } from '../services/api';
 import { Task, Project, TeamMember } from '../types';
-import WorkloadWarningModal from './WorkloadWarningModal';
 import Toast from './Toast';
 import { useToast } from '../hooks/useToast';
 import '../App.css';
 
-interface AddTaskProps {
-  onTaskAdded?: () => void;
-  onClose?: () => void;
-  projectId?: number;
-  assigneeId?: number;
+interface EditTaskProps {
+  task: Task;
+  onTaskUpdated: () => void;
+  onClose: () => void;
 }
 
-const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assigneeId }) => {
+const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    assignee_id: assigneeId || 0,
-    project_id: projectId || 0,
-    planned_hours: 0,
-    priority: 'p2' as 'p1' | 'p2' | 'p3' | 'p4',
-    task_type: 'development' as 'development' | 'testing' | 'design' | 'documentation' | 'review' | 'meeting' | 'other',
-    due_date: '',
-    attachments: ''
+    name: task.name || '',
+    description: task.description || '',
+    assignee_id: task.assignee_id || 0,
+    project_id: task.project_id || 0,
+    planned_hours: task.planned_hours || 0,
+    priority: task.priority || 'p2',
+    task_type: task.task_type || 'development',
+    due_date: task.due_date || '',
+    attachments: task.attachments || '',
+    status: task.status || 'todo'
   });
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showWorkloadWarning, setShowWorkloadWarning] = useState<any>(null);
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
   const { toast, showToast, hideToast } = useToast();
 
@@ -125,134 +123,24 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
     setError('');
 
     try {
-      // Validate workload if due date is provided
-      if (formData.due_date && formData.assignee_id && formData.project_id && formData.planned_hours > 0) {
-        const validationResult = await taskAPI.validateWorkload({
-          assignee_id: formData.assignee_id,
-          project_id: formData.project_id,
-          planned_hours: formData.planned_hours,
-          due_date: formData.due_date
-        });
-
-        // If there are warnings, show the warning modal
-        if (validationResult.warningLevel !== 'none') {
-          setShowWorkloadWarning({
-            warnings: validationResult.warnings,
-            warningLevel: validationResult.warningLevel,
-            workload: validationResult.workload,
-            formData: { ...formData }
-          });
-          setLoading(false);
-          return;
-        }
-      }
-
-      // If no warnings or validation passed, create the task
-      await createTask();
+      await taskAPI.update(task.id, formData);
+      onTaskUpdated();
+      onClose();
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to create task';
-      setError(errorMessage);
-      showToast(errorMessage, 'error');
-      setLoading(false);
-    }
-  };
-
-  const createTask = async () => {
-    try {
-      // Set default status to 'todo' for new tasks
-      const taskData = { ...formData, status: 'todo' as const };
-      await taskAPI.create(taskData);
-      setFormData({
-        name: '',
-        description: '',
-        assignee_id: assigneeId || 0,
-        project_id: projectId || 0,
-        planned_hours: 0,
-        priority: 'p2',
-        task_type: 'development',
-        due_date: '',
-        attachments: ''
-      });
-      setFormErrors({});
-      onTaskAdded?.();
-      onClose?.();
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to create task';
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to update task';
       setError(errorMessage);
       showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
-  };
-
-  const createTaskWithWorkload = async (workloadData: any) => {
-    try {
-      // Set default status to 'todo' for new tasks
-      const taskData = { 
-        ...formData, 
-        status: 'todo' as const,
-        workload_warning_level: workloadData.warningLevel,
-        workload_warnings: JSON.stringify(workloadData.warnings),
-        utilization_percentage: workloadData.workload.utilizationPercentage,
-        allocation_utilization: workloadData.workload.allocationUtilization,
-        weeks_until_due: workloadData.workload.weeksUntilDue,
-        current_task_count: workloadData.workload.currentTaskCount,
-        total_workload_hours: workloadData.workload.totalHours,
-        available_hours: workloadData.workload.availableHours,
-        allocated_hours: workloadData.workload.allocatedHours
-      };
-      await taskAPI.create(taskData);
-      setFormData({
-        name: '',
-        description: '',
-        assignee_id: assigneeId || 0,
-        project_id: projectId || 0,
-        planned_hours: 0,
-        priority: 'p2',
-        task_type: 'development',
-        due_date: '',
-        attachments: ''
-      });
-      setFormErrors({});
-      onTaskAdded?.();
-      onClose?.();
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to create task';
-      setError(errorMessage);
-      showToast(errorMessage, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleWorkloadWarningConfirm = async () => {
-    setLoading(true);
-    try {
-      await createTaskWithWorkload(showWorkloadWarning);
-      setShowWorkloadWarning(null);
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to create task';
-      setError(errorMessage);
-      showToast(errorMessage, 'error');
-      setLoading(false);
-    }
-  };
-
-  const handleWorkloadWarningCancel = () => {
-    setShowWorkloadWarning(null);
-    setLoading(false);
   };
 
   return (
     <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: '700px' }}>
         <div className="modal-header" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', margin: '-2rem -2rem 1.5rem -2rem', padding: '1.5rem 2rem', borderRadius: '12px 12px 0 0' }}>
-          <h2 style={{ margin: 0, color: 'white' }}>Create New Task</h2>
-          {onClose && (
-            <button className="close-btn" onClick={onClose} style={{ color: 'white' }}>
-              ×
-            </button>
-          )}
+          <h2 style={{ margin: 0, color: 'white' }}>Edit Task</h2>
+          <button className="close-btn" onClick={onClose} style={{ color: 'white' }}>×</button>
         </div>
 
         <form onSubmit={handleSubmit} className="user-form">
@@ -410,6 +298,21 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
           </div>
 
           <div className="form-group">
+            <label htmlFor="status">Status</label>
+            <select
+              id="status"
+              name="status"
+              value={formData.status}
+              onChange={handleInputChange}
+            >
+              <option value="todo">To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+
+          <div className="form-group">
             <label htmlFor="attachments">Attachments</label>
             <input
               type="text"
@@ -428,7 +331,7 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
             </button>
             <button type="submit" className="btn-enterprise btn-primary" disabled={loading}>
               <span className="btn-icon">✅</span>
-              {loading ? 'Creating...' : 'Create Task'}
+              {loading ? 'Updating...' : 'Update Task'}
             </button>
           </div>
         </form>
@@ -441,19 +344,9 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
           />
         )}
       </div>
-
-      {/* Workload Warning Modal */}
-      {showWorkloadWarning && (
-        <WorkloadWarningModal
-          warnings={showWorkloadWarning.warnings}
-          warningLevel={showWorkloadWarning.warningLevel}
-          workload={showWorkloadWarning.workload}
-          onConfirm={handleWorkloadWarningConfirm}
-          onCancel={handleWorkloadWarningCancel}
-        />
-      )}
     </div>
   );
 };
 
-export default AddTask;
+export default EditTask;
+

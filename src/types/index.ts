@@ -88,6 +88,8 @@ export interface WeeklyData {
   utilization: number;
   completed: number;
   hours: number;
+  productivity: number;
+  plannedHours: number;
   availableHours: number;
 }
 

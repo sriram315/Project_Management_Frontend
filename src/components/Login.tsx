@@ -26,11 +26,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
-  const handleDemoLogin = (demoUser: string, demoPass: string) => {
-    setUsername(demoUser);
-    setPassword(demoPass);
-  };
-
   return (
     <div className="login-container">
       <form onSubmit={handleSubmit} className="login-form">
@@ -57,33 +52,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <button type="submit" className="login-button">
           Login
         </button>
-
-        <div className="demo-logins">
-          <h3>Demo Logins (Click to auto-fill):</h3>
-          <div className="demo-buttons">
-            <button
-              type="button"
-              className="demo-btn manager"
-              onClick={() => handleDemoLogin("john.manager", "password123")}
-            >
-              Manager Login
-            </button>
-            <button
-              type="button"
-              className="demo-btn teamlead"
-              onClick={() => handleDemoLogin("sarah.lead", "password123")}
-            >
-              Team Lead Login
-            </button>
-            <button
-              type="button"
-              className="demo-btn employee"
-              onClick={() => handleDemoLogin("mike.dev", "password123")}
-            >
-              Employee Login
-            </button>
-          </div>
-        </div>
       </form>
     </div>
   );

@@ -1,11 +1,14 @@
 import React from 'react';
 import { DashboardFilters as FilterType } from '../types';
+import CustomSelect from './CustomSelect';
+import './DashboardFilters.css';
 
 interface DashboardFiltersProps {
   filters: FilterType;
   projects: Array<{ id: number; name: string; status: string }>;
   employees: Array<{ id: number; username: string; email: string; role: string }>;
   onFilterChange: (filters: FilterType) => void;
+  userRole?: string; // Add user role to control visibility
 }
 
 const DashboardFilters: React.FC<DashboardFiltersProps> = ({
@@ -13,6 +16,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   projects,
   employees,
   onFilterChange,
+  userRole,
 }) => {
   const handleProjectChange = (projectId: string) => {
     onFilterChange({
@@ -35,39 +39,48 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
     });
   };
 
+  // Prepare project options for CustomSelect
+  const projectOptions = [
+    { value: 'all', label: 'All Projects' },
+    ...projects.map(project => ({
+      value: project.id,
+      label: project.name
+    }))
+  ];
+
+  // Prepare employee options for CustomSelect
+  const employeeOptions = [
+    { value: 'all', label: 'All Employees' },
+    ...employees.map(employee => ({
+      value: employee.id,
+      label: `${employee.username} (${employee.role})`
+    }))
+  ];
+
   return (
     <div className="flex flex-wrap gap-4">
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-muted-foreground">Project:</label>
-        <select
+        <CustomSelect
           value={filters.projectId || 'all'}
-          onChange={(e) => handleProjectChange(e.target.value)}
-          className="w-[180px] bg-background border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-        >
-          <option value="all">All Projects</option>
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.name}
-            </option>
-          ))}
-        </select>
+          onChange={handleProjectChange}
+          options={projectOptions}
+          placeholder="Select Project"
+        />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-muted-foreground">Employee:</label>
-        <select
-          value={filters.employeeId || 'all'}
-          onChange={(e) => handleEmployeeChange(e.target.value)}
-          className="w-[180px] bg-background border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-        >
-          <option value="all">All Employees</option>
-          {employees.map((employee) => (
-            <option key={employee.id} value={employee.id}>
-              {employee.username} ({employee.role})
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Hide employee filter for employee role */}
+      {userRole !== 'employee' && (
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-muted-foreground">Employee:</label>
+          <CustomSelect
+            value={filters.employeeId || 'all'}
+            onChange={handleEmployeeChange}
+            options={employeeOptions}
+            placeholder="Select Employee"
+          />
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-muted-foreground">Date Range:</label>
