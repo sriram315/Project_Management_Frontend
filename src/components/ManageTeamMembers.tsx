@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { projectTeamAPI } from '../services/api';
+import ConfirmationModal from './ConfirmationModal';
+import Toast from './Toast';
+import { useToast } from '../hooks/useToast';
 import '../App.css';
 
 interface ProjectTeamMember {
@@ -37,11 +40,20 @@ const ManageTeamMembers: React.FC<ManageTeamMembersProps> = ({
   const [projectTeam, setProjectTeam] = useState<ProjectTeamMember[]>([]);
   const [availableTeam, setAvailableTeam] = useState<AvailableTeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
   const [selectedMember, setSelectedMember] = useState<number | null>(null);
-  const [allocatedHours, setAllocatedHours] = useState<number>(40); // Default 40 hours per week
+  const [allocatedHours, setAllocatedHours] = useState<number>(40);
   const [editingMember, setEditingMember] = useState<ProjectTeamMember | null>(null);
   const [editHours, setEditHours] = useState<number>(40);
+  const { toast, showToast, hideToast } = useToast();
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    memberId: number | null;
+    memberName: string;
+  }>({
+    isOpen: false,
+    memberId: null,
+    memberName: '',
+  });
 
   useEffect(() => {
     fetchData();
@@ -58,6 +70,7 @@ const ManageTeamMembers: React.FC<ManageTeamMembersProps> = ({
       setAvailableTeam(availableTeamData);
     } catch (error) {
       console.error('Error fetching team data:', error);
+      showToast('Failed to load team data', 'error');
     } finally {
       setLoading(false);
     }
@@ -65,7 +78,10 @@ const ManageTeamMembers: React.FC<ManageTeamMembersProps> = ({
 
   const handleAddTeamMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedMember) return;
+    if (!selectedMember) {
+      showToast('Please select a user', 'warning');
+      return;
+    }
 
     const selectedUser = availableTeam.find(user => user.user_id === selectedMember);
     if (!selectedUser) return;
@@ -78,26 +94,41 @@ const ManageTeamMembers: React.FC<ManageTeamMembersProps> = ({
         selectedUser.username,
         selectedUser.role
       );
-      setShowAddForm(false);
       setSelectedMember(null);
       setAllocatedHours(40);
-      fetchData(); // Refresh data
-    } catch (error) {
-      console.error('Error adding team member:', error);
-      alert('Failed to add team member to project');
+      await fetchData();
+      showToast(`${selectedUser.username} added to project successfully!`, 'success');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to add team member to project';
+      showToast(errorMessage, 'error');
     }
   };
 
-  const handleRemoveTeamMember = async (teamMemberId: number) => {
-    if (window.confirm('Are you sure you want to remove this team member from the project?')) {
-      try {
-        await projectTeamAPI.removeTeamMember(projectId, teamMemberId);
-        fetchData(); // Refresh data
-      } catch (error) {
-        console.error('Error removing team member:', error);
-        alert('Failed to remove team member from project');
-      }
+  const handleRemoveTeamMember = (userId: number, memberName: string) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      memberId: userId,
+      memberName,
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmation.memberId) return;
+
+    try {
+      await projectTeamAPI.removeTeamMember(projectId, deleteConfirmation.memberId);
+      await fetchData();
+      showToast(`${deleteConfirmation.memberName} removed from project successfully!`, 'success');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to remove team member from project';
+      showToast(errorMessage, 'error');
+    } finally {
+      setDeleteConfirmation({ isOpen: false, memberId: null, memberName: '' });
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmation({ isOpen: false, memberId: null, memberName: '' });
   };
 
   const handleEditTeamMember = (member: ProjectTeamMember) => {
@@ -113,237 +144,416 @@ const ManageTeamMembers: React.FC<ManageTeamMembersProps> = ({
       await projectTeamAPI.updateTeamMember(projectId, editingMember.user_id, editHours);
       setEditingMember(null);
       setEditHours(40);
-      fetchData(); // Refresh data
-    } catch (error) {
-      console.error('Error updating team member:', error);
-      alert('Failed to update team member hours');
+      await fetchData();
+      showToast(`${editingMember.team_member_name}'s hours updated successfully!`, 'success');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to update team member hours';
+      showToast(errorMessage, 'error');
     }
   };
 
   const calculateDailyHours = (weeklyHours: number) => {
-    return Math.round((weeklyHours / 5) * 10) / 10; // 5 working days
+    return Math.round((weeklyHours / 5) * 10) / 10;
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  };
+
+  const getAvatarColor = (name: string) => {
+    const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
   };
 
   if (loading) {
     return (
-      <div className="page-container">
-        <div className="page-header">
-          <h1>Manage Team Members - {projectName}</h1>
-          <button onClick={onClose} className="btn-enterprise btn-secondary">
-            ← Back to Projects
-          </button>
+      <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid #e5e7eb' }}>
+          <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#000', margin: 0 }}>
+            Manage Team Members - {projectName}
+          </h1>
         </div>
-        <div className="loading">Loading team members...</div>
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>Loading team members...</div>
       </div>
     );
   }
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1>Manage Team Members - {projectName}</h1>
-        <button onClick={onClose} className="btn-enterprise btn-secondary">
+    <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid #e5e7eb' }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#000', margin: 0 }}>
+          Manage Team Members - {projectName}
+        </h1>
+        <button 
+          onClick={onClose}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.65rem 1.25rem',
+            backgroundColor: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+            fontWeight: '500',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4b5563'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#6b7280'}
+        >
           ← Back to Projects
         </button>
       </div>
 
-        <div className="team-management-content">
-          {/* Current Team Members */}
-          <div className="team-section">
-            <div className="section-header">
-              <h3>Current Team Members</h3>
+      {/* Current Team Members Section */}
+      <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '1.5rem', marginBottom: '2rem', border: '1px solid #e5e7eb' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '600', color: '#000', margin: 0 }}>
+            Current Team Members
+          </h2>
+          {/* Removed the add button from here as per the image, add form is always visible below */}
+        </div>
+
+        {projectTeam.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280', backgroundColor: '#f9fafb', borderRadius: '8px' }}>
+            <p style={{ margin: 0 }}>No team members assigned to this project yet.</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>AVATAR</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>NAME</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ROLE</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>USERNAME</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>EMAIL</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>HOURS/WEEK</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>HOURS/DAY</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projectTeam.map((member) => (
+                  <tr key={member.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                    <td style={{ padding: '1rem' }}>
+                      <div style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '50%',
+                        backgroundColor: getAvatarColor(member.team_member_name),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontWeight: '600',
+                        fontSize: '0.9rem'
+                      }}>
+                        {getInitials(member.team_member_name)}
+                      </div>
+                    </td>
+                    <td style={{ padding: '1rem', fontWeight: '500', color: '#111827' }}>
+                      {member.team_member_name}
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '0.35rem 0.75rem',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        backgroundColor: member.team_member_role.toLowerCase() === 'manager' ? '#d1fae5' : '#dbeafe',
+                        color: member.team_member_role.toLowerCase() === 'manager' ? '#065f46' : '#1e40af'
+                      }}>
+                        {member.team_member_role}
+                      </span>
+                    </td>
+                    <td style={{ padding: '1rem', color: '#6b7280' }}>
+                      {member.username}
+                    </td>
+                    <td style={{ padding: '1rem', color: '#6b7280' }}>
+                      {member.email}
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '0.35rem 0.75rem',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: '500',
+                        backgroundColor: '#dbeafe',
+                        color: '#1e40af'
+                      }}>
+                        {member.allocated_hours_per_week}h/week
+                      </span>
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '0.35rem 0.75rem',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: '500',
+                        backgroundColor: '#d1fae5',
+                        color: '#065f46'
+                      }}>
+                        {calculateDailyHours(member.allocated_hours_per_week)}h/day
+                      </span>
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          onClick={() => handleEditTeamMember(member)}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            backgroundColor: '#6366f1',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '500',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4f46e5'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#6366f1'}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => handleRemoveTeamMember(member.user_id, member.team_member_name)}
+                          style={{
+                            padding: '0.5rem 1rem',
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '500',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ef4444'}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Add Team Member Form - Always Visible */}
+      <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '1.5rem', border: '1px solid #e5e7eb' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#000', marginBottom: '1.5rem' }}>
+          Add Team Member to Project
+        </h2>
+        
+        <form onSubmit={handleAddTeamMember}>
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
+              Select User:
+            </label>
+            <select
+              value={selectedMember || ''}
+              onChange={(e) => setSelectedMember(Number(e.target.value))}
+              style={{
+                width: '100%',
+                padding: '0.65rem 1rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                color: '#374151',
+                backgroundColor: 'white',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              <option value="">Choose a user...</option>
+              {availableTeam.map((user) => (
+                <option key={user.user_id} value={user.user_id}>
+                  {user.username} ({user.email}) - {user.role}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '500', color: '#374151', marginBottom: '0.5rem' }}>
+              Allocated Hours per Week:
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="80"
+              value={allocatedHours}
+              onChange={(e) => setAllocatedHours(Number(e.target.value))}
+              required
+              style={{
+                width: '100%',
+                padding: '0.65rem 1rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                color: '#374151',
+                outline: 'none'
+              }}
+              placeholder="e.g., 40"
+            />
+            <small style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.85rem', color: '#6b7280' }}>
+              {allocatedHours} hours/week = {calculateDailyHours(allocatedHours)} hours/day (5 working days)
+            </small>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedMember(null);
+                setAllocatedHours(40);
+              }}
+              style={{
+                padding: '0.65rem 1.5rem',
+                backgroundColor: '#6b7280',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4b5563'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#6b7280'}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              style={{
+                padding: '0.65rem 1.5rem',
+                backgroundColor: '#6366f1',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4f46e5'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#6366f1'}
+            >
+              ✓ Add to Project
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Edit Team Member Modal */}
+      {editingMember && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '550px' }}>
+            <div className="modal-header" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', margin: '-2rem -2rem 1.5rem -2rem', padding: '1.5rem 2rem', borderRadius: '12px 12px 0 0' }}>
+              <h2 style={{ margin: 0, color: 'white' }}>Edit Team Member Hours</h2>
               <button 
-                onClick={() => setShowAddForm(true)} 
-                className="btn-enterprise btn-primary"
-                disabled={availableTeam.length === 0}
+                onClick={() => {
+                  setEditingMember(null);
+                  setEditHours(40);
+                }}
+                className="close-btn"
+                style={{ color: 'white' }}
               >
-                <span className="btn-icon">➕</span>
-                Add Team Member
+                ×
               </button>
             </div>
 
-            {projectTeam.length === 0 ? (
-              <div className="empty-state">
-                <p>No team members assigned to this project yet.</p>
+            <form onSubmit={handleUpdateTeamMember} className="user-form">
+              <div className="form-group">
+                <label>Team Member:</label>
+                <div style={{ padding: '0.75rem', backgroundColor: '#f9fafb', borderRadius: '8px', marginBottom: '1rem' }}>
+                  <strong>{editingMember.team_member_name}</strong> ({editingMember.username}) - {editingMember.team_member_role}
+                </div>
               </div>
-            ) : (
-              <div className="team-members-table">
-                <table className="users-table">
-                  <thead>
-                    <tr>
-                      <th>Avatar</th>
-                      <th>Name</th>
-                      <th>Role</th>
-                      <th>Username</th>
-                      <th>Email</th>
-                      <th>Hours/Week</th>
-                      <th>Hours/Day</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projectTeam.map((member) => (
-                      <tr key={member.id} className="user-row">
-                        <td>
-                          <div className="user-avatar">
-                            {member.team_member_name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                          </div>
-                        </td>
-                        <td className="user-name">{member.team_member_name}</td>
-                        <td>
-                          <span className={`role-badge role-${member.team_member_role.replace('_', '-')}`}>
-                            {member.team_member_role.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="user-username">{member.username}</td>
-                        <td className="user-email">{member.email}</td>
-                        <td className="hours-cell">
-                          <span className="hours-badge">
-                            {member.allocated_hours_per_week}h/week
-                          </span>
-                        </td>
-                        <td className="hours-cell">
-                          <span className="hours-badge daily">
-                            {calculateDailyHours(member.allocated_hours_per_week)}h/day
-                          </span>
-                        </td>
-                        <td>
-                          <div className="user-actions">
-                            <button 
-                              className="btn-small btn-edit"
-                              onClick={() => handleEditTeamMember(member)}
-                              title="Edit hours"
-                            >
-                              ✏️ Edit
-                            </button>
-                            <button 
-                              className="btn-small btn-delete"
-                              onClick={() => handleRemoveTeamMember(member.user_id)}
-                              title="Remove from project"
-                            >
-                              🗑️ Remove
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+
+              <div className="form-group">
+                <label>Allocated Hours per Week:</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="80"
+                  value={editHours}
+                  onChange={(e) => setEditHours(Number(e.target.value))}
+                  required
+                  placeholder="e.g., 40"
+                />
+                <small style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.85rem', color: '#6b7280' }}>
+                  {editHours} hours/week = {calculateDailyHours(editHours)} hours/day (5 working days)
+                </small>
               </div>
-            )}
+
+              <div className="form-actions">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setEditingMember(null);
+                    setEditHours(40);
+                  }}
+                  className="btn-enterprise btn-secondary"
+                >
+                  <span className="btn-icon">❌</span>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-enterprise btn-primary">
+                  <span className="btn-icon">✅</span>
+                  Update Hours
+                </button>
+              </div>
+            </form>
           </div>
-
-          {/* Add Team Member Form */}
-          {showAddForm && (
-            <div className="add-team-member-form">
-              <h3>Add Team Member to Project</h3>
-              <form onSubmit={handleAddTeamMember}>
-                <div className="form-group">
-                  <label>Select User:</label>
-                  <select
-                    value={selectedMember || ''}
-                    onChange={(e) => setSelectedMember(Number(e.target.value))}
-                    required
-                    className="form-select"
-                  >
-                    <option value="">Choose a user...</option>
-                    {availableTeam.map((user) => (
-                      <option key={user.user_id} value={user.user_id}>
-                        {user.username} ({user.email}) - {user.role}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Allocated Hours per Week:</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="80"
-                    value={allocatedHours}
-                    onChange={(e) => setAllocatedHours(Number(e.target.value))}
-                    required
-                    className="form-input"
-                    placeholder="e.g., 40"
-                  />
-                  <small className="form-help">
-                    {allocatedHours} hours/week = {calculateDailyHours(allocatedHours)} hours/day (5 working days)
-                  </small>
-                </div>
-
-                <div className="form-actions">
-                  <button type="submit" className="btn-enterprise btn-primary">
-                    <span className="btn-icon">✅</span>
-                    Add to Project
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      setShowAddForm(false);
-                      setSelectedMember(null);
-                      setAllocatedHours(40);
-                    }}
-                    className="btn-enterprise btn-secondary"
-                  >
-                    <span className="btn-icon">❌</span>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Edit Team Member Form */}
-          {editingMember && (
-            <div className="edit-team-member-form">
-              <h3>Edit Team Member Hours - {editingMember.team_member_name}</h3>
-              <form onSubmit={handleUpdateTeamMember}>
-                <div className="form-group">
-                  <label>Team Member:</label>
-                  <div className="member-info">
-                    <strong>{editingMember.team_member_name}</strong> ({editingMember.username}) - {editingMember.team_member_role}
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>Allocated Hours per Week:</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="80"
-                    value={editHours}
-                    onChange={(e) => setEditHours(Number(e.target.value))}
-                    required
-                    className="form-input"
-                    placeholder="e.g., 40"
-                  />
-                  <small className="form-help">
-                    {editHours} hours/week = {calculateDailyHours(editHours)} hours/day (5 working days)
-                  </small>
-                </div>
-
-                <div className="form-actions">
-                  <button type="submit" className="btn-enterprise btn-primary">
-                    <span className="btn-icon">✅</span>
-                    Update Hours
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      setEditingMember(null);
-                      setEditHours(40);
-                    }}
-                    className="btn-enterprise btn-secondary"
-                  >
-                    <span className="btn-icon">❌</span>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        title="Remove Team Member"
+        message={`Are you sure you want to remove "${deleteConfirmation.memberName}" from this project? This action cannot be undone.`}
+        confirmText="Remove"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        variant="danger"
+      />
+
+      {/* Toast Notifications */}
+      {toast.isVisible && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+        />
+      )}
     </div>
   );
 };

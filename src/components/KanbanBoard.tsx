@@ -3,12 +3,14 @@ import { Task } from '../types';
 import { taskAPI } from '../services/api';
 import BlockTaskModal, { BlockTaskData } from './BlockTaskModal';
 import CompleteTaskModal, { CompleteTaskData } from './CompleteTaskModal';
+import ConfirmationModal from './ConfirmationModal';
 import '../App.css';
 
 interface KanbanBoardProps {
   tasks: Task[];
   onTaskUpdate?: () => void;
   onDeleteTask?: (id: number) => void;
+  onEditTask?: (task: Task) => void;
 }
 
 interface DragItem {
@@ -16,7 +18,7 @@ interface DragItem {
   sourceStatus: string;
 }
 
-const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskUpdate, onDeleteTask }) => {
+const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskUpdate, onDeleteTask, onEditTask }) => {
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'No due date';
     const date = new Date(dateString);
@@ -31,7 +33,15 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskUpdate, onDelete
   const [showBlockModal, setShowBlockModal] = useState<{ taskId: number; taskName: string } | null>(null);
   const [showCompleteModal, setShowCompleteModal] = useState<{ taskId: number; taskName: string; plannedHours: number } | null>(null);
   const [expandedTask, setExpandedTask] = useState<number | null>(null);
-  const [editingTask, setEditingTask] = useState<number | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    taskId: number | null;
+    taskName: string;
+  }>({
+    isOpen: false,
+    taskId: null,
+    taskName: '',
+  });
 
   const columns = [
     { id: 'todo', title: 'To Do', color: '#6c757d' },
@@ -165,15 +175,29 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskUpdate, onDelete
     }
   };
 
-  const handleDeleteTask = async (taskId: number) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      try {
-        await taskAPI.delete(taskId);
-        onDeleteTask?.(taskId);
-      } catch (error) {
-        console.error('Error deleting task:', error);
-      }
+  const handleDeleteTask = async (taskId: number, taskName: string) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      taskId,
+      taskName,
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmation.taskId) return;
+
+    try {
+      await taskAPI.delete(deleteConfirmation.taskId);
+      onDeleteTask?.(deleteConfirmation.taskId);
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    } finally {
+      setDeleteConfirmation({ isOpen: false, taskId: null, taskName: '' });
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmation({ isOpen: false, taskId: null, taskName: '' });
   };
 
   const handleBlockTask = async (data: BlockTaskData) => {
@@ -289,7 +313,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskUpdate, onDelete
                           className="edit-task-btn"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setEditingTask(task.id);
+                            onEditTask?.(task);
                           }}
                           title="Edit task"
                         >
@@ -299,7 +323,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskUpdate, onDelete
                           className="delete-task-btn"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteTask(task.id);
+                            handleDeleteTask(task.id, task.name);
                           }}
                           title="Delete task"
                         >
@@ -407,6 +431,18 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskUpdate, onDelete
           onCancel={() => setShowCompleteModal(null)}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        title="Delete Task"
+        message={`Are you sure you want to delete "${deleteConfirmation.taskName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        variant="danger"
+      />
     </div>
   );
 };

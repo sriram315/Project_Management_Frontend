@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { dashboardAPI } from '../services/api';
+import { dashboardAPI, userAPI } from '../services/api';
 import { DashboardFilters as FilterType, WeeklyData } from '../types';
 import DashboardFilters from './DashboardFilters';
 import UtilizationChart from './charts/UtilizationChart';
@@ -55,8 +55,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const fetchInitialData = async () => {
     try {
+      // For employees, fetch only their assigned projects
+      // For other roles, fetch all projects
+      const projectsPromise = user?.role === 'employee' 
+        ? userAPI.getUserProjects(user.id)
+        : dashboardAPI.getProjects();
+
       const [projectsRes, employeesRes, taskStatusRes] = await Promise.all([
-        dashboardAPI.getProjects(),
+        projectsPromise,
         dashboardAPI.getEmployees(),
         dashboardAPI.getTaskStatus(),
       ]);
@@ -70,8 +76,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       const startDate = new Date();
       startDate.setDate(endDate.getDate() - 7);
       
+      // For employee role, automatically set employeeId filter to logged-in user
       setFilters(prev => ({
         ...prev,
+        employeeId: user?.role === 'employee' ? user.id : undefined,
         startDate: startDate.toISOString().split('T')[0],
         endDate: endDate.toISOString().split('T')[0],
       }));
@@ -130,8 +138,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const totalTasks = taskStatusData.todo + taskStatusData.in_progress + taskStatusData.completed + taskStatusData.blocked;
   const completedTasks = taskStatusData.completed;
   const productivity = dashboardData.productivityData.length > 0 
-    ? Math.round((dashboardData.productivityData[dashboardData.productivityData.length - 1].completed / 
-        dashboardData.productivityData[dashboardData.productivityData.length - 1].hours) * 100) 
+    ? Math.round(dashboardData.productivityData[dashboardData.productivityData.length - 1].productivity) 
     : 0;
   const utilization = dashboardData.utilizationData.length > 0 
     ? Math.round(dashboardData.utilizationData[dashboardData.utilizationData.length - 1].utilization) 
@@ -217,6 +224,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         projects={projects}
         employees={employees}
         onFilterChange={handleFilterChange}
+        userRole={user?.role}
       />
         </div>
 
@@ -264,10 +272,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     ? '#ef4444'
                     : '#f59e0b';
                   return (
-                    <div key={task.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div style={{ width: '4px', alignSelf: 'stretch', backgroundColor: barColor, borderRadius: '4px' }}></div>
-                        <div className="flex-1">
+                    <div key={task.id} className="flex items-center justify-between p-4 pb-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors" style={{ marginBottom: '10px' }}>
+                      <div className="flex items-center gap-3 flex-1 " >
+                        <div className="px-2" style={{ width: '4px', alignSelf: 'stretch', backgroundColor: barColor, borderRadius: '4px' }}></div>
+                        <div className="flex-1" style={{ paddingLeft: '20px' }}>
                           <p className="font-medium text-sm text-gray-900">{task.title}</p>
                           <p className="text-xs text-gray-500">{task.assignee}</p>
                           <p className="text-xs text-gray-600 mt-1">Estimated: {task.estimated}h | Logged: {task.logged}h</p>
@@ -305,10 +313,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     ? '#ef4444'
                     : '#f59e0b';
                   return (
-                    <div key={task.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div key={task.id} className="flex items-center justify-between p-4 pb-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors" style={{ marginBottom: '10px' }}>
                       <div className="flex items-center gap-3 flex-1">
-                        <div style={{ width: '4px', alignSelf: 'stretch', backgroundColor: barColor, borderRadius: '4px' }}></div>
-                        <div className="flex-1">
+                        <div className="px-2" style={{ width: '4px', alignSelf: 'stretch', backgroundColor: barColor, borderRadius: '4px' }}></div>
+                        <div className="flex-1" style={{ paddingLeft: '20px' }}>
                           <p className="font-medium text-sm text-gray-900">{task.title}</p>
                           <p className="text-xs text-gray-500">{task.assignee}</p>
                           <p className="text-xs text-gray-600 mt-1">Estimated: {task.estimated}h | Logged: {task.logged}h</p>

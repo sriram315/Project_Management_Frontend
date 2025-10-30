@@ -29,18 +29,10 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
     labels: data.map(item => item.week),
     datasets: [
       {
-        label: 'Completed',
-        data: data.map(item => item.completed),
-        backgroundColor: 'rgb(59, 130, 246)',
-        borderColor: 'rgb(59, 130, 246)',
-        borderWidth: 0,
-        borderRadius: 4,
-      },
-      {
-        label: 'Hours',
-        data: data.map(item => item.hours),
-        backgroundColor: 'rgb(251, 146, 60)',
-        borderColor: 'rgb(251, 146, 60)',
+        label: 'Productivity %',
+        data: data.map(item => item.productivity),
+        backgroundColor: 'rgb(34, 197, 94)',
+        borderColor: 'rgb(34, 197, 94)',
         borderWidth: 0,
         borderRadius: 4,
       },
@@ -66,6 +58,19 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
       title: {
         display: false,
       },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            const dataIndex = context.dataIndex;
+            const item = data[dataIndex];
+            return [
+              `Productivity: ${item.productivity.toFixed(1)}%`,
+              `Actual Hours: ${item.hours.toFixed(1)}h`,
+              `Planned Hours: ${item.plannedHours.toFixed(1)}h`
+            ];
+          }
+        }
+      }
     },
     scales: {
       x: {
@@ -86,6 +91,9 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
           font: {
             size: 11,
           },
+          callback: function(value: any) {
+            return value + '%';
+          }
         },
         grid: {
           color: 'rgba(0, 0, 0, 0.1)',
