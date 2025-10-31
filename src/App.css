@@ -41,6 +41,36 @@ select::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
+/* Scrollable Select Styles for dropdowns with many options */
+.scrollable-select {
+  appearance: auto;
+  -webkit-appearance: menulist;
+  -moz-appearance: menulist;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.scrollable-select:hover {
+  border-color: #9ca3af !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.scrollable-select:focus {
+  outline: none;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Enhanced option styling for better readability */
+.scrollable-select option {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.scrollable-select option:hover {
+  background-color: #f3f4f6;
+}
+
 /* Navbar Styles */
 .navbar {
   display: flex;
@@ -62,19 +92,18 @@ select::-webkit-scrollbar-thumb:hover {
   display: flex;
   gap: 2rem;
 }
-
 .nav-links a {
   color: #34495e;
   text-decoration: none;
   font-weight: 500;
+  padding: 0.4rem 0.8rem; 
+  border-radius: 9999px; 
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
-
-/* Active nav pill highlight */
+ 
 .nav-links a.active {
   color: #4f46e5;
   background-color: #eef2ff;
-  padding: 0.4rem 0.8rem;
-  border-radius: 9999px;
   font-weight: 600;
 }
 
@@ -2221,7 +2250,7 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .chart-container {
-  padding: 1.5rem;
+  padding: 0.5rem;
 }
 
 .chart-header {
@@ -2541,6 +2570,23 @@ select::-webkit-scrollbar-thumb:hover {
 .focus\:border-indigo-500:focus {
   border-color: #6366f1;
 }
+
+/* Scrollable dropdown */
+.scrollable-dropdown {
+  max-height: 200px; /* adjust as needed */
+  overflow-y: auto;
+}
+
+/* Optional: smooth scrollbar styling */
+.scrollable-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollable-dropdown::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
 
 .text-2xl {
   font-size: 1.5rem;

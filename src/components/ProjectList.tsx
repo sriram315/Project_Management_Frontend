@@ -59,7 +59,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
           <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>Project</th>
+            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>Projects</th>
             <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>Status</th>
             {userRole !== 'employee' && <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>Budget</th>}
             <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>{userRole === 'employee' ? 'My Hours/Week' : 'Hours'}</th>

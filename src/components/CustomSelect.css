@@ -3,6 +3,15 @@
   width: 180px;
 }
 
+.custom-select-container.custom-select-full-width {
+  width: 100%;
+}
+
+.custom-select-container.custom-select-full-width .custom-select-trigger {
+  border: none;
+  border-radius: 0;
+}
+
 .custom-select-trigger {
   display: flex;
   align-items: center;
@@ -22,9 +31,19 @@
   border-color: #9ca3af;
 }
 
+.custom-select-container.custom-select-full-width .custom-select-trigger:hover {
+  border: none;
+  box-shadow: none;
+}
+
 .custom-select-trigger.open {
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.custom-select-container.custom-select-full-width .custom-select-trigger.open {
+  border: none;
+  box-shadow: none;
 }
 
 .custom-select-value {

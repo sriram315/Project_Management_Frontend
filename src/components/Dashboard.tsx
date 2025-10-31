@@ -186,6 +186,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       trendColor: "text-green-600",
     },
     {
+      label: "Pending",
+      value: displayOrHyphen(totalTasks - completedTasks),
+      icon: "⌛",
+      color: "bg-indigo-500",
+      trend: "+3 this week",
+      trendColor: "text-green-600",
+    },
+    {
       label: "Productivity",
       value: displayOrHyphen(`${isNaN(productivity) ? '-' : productivity}%`),
       icon: "⭐",
@@ -245,7 +253,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </div>
 
         {/* Metric Cards */}
-        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${stats.length === 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+        {/* <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${stats.length === 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
           {stats.map((stat) => {
             return (
               <div key={stat.label} className="border-l-4 border-l-indigo-500 bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-sm border border-gray-200">
@@ -263,12 +271,36 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               </div>
             );
           })}
+        </div> */}
+
+        {/* Metric Cards */}
+<div className="w-full mt-6">
+  <div className="flex gap-4 flex-wrap md:flex-nowrap justify-between">
+    {stats.map((stat) => (
+      <div
+        key={stat.label}
+        className="flex-1 border-l-4 border-l-indigo-500 bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-sm border border-gray-200 p-6"
+        style={{ minWidth: 0 }}
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+            <p className="text-3xl font-bold mt-2 text-gray-900">{stat.value}</p>
+          </div>
+          <div className={`${stat.color} p-3 rounded-lg flex items-center justify-center`}>
+            <span className="text-2xl">{stat.icon}</span>
+          </div>
         </div>
+      </div>
+    ))}
+  </div>
+</div>
+
 
         {/* Tasks This Week and Next Week */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Tasks This Week */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900">Tasks This Week</h3>
               <div className="mt-4 space-y-3">
@@ -309,7 +341,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
 
           {/* Tasks Next Week */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900">Tasks Next Week</h3>
               <div className="mt-4 space-y-3">
@@ -348,7 +380,101 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               </div>
             </div>
           </div>
-        </div>
+        </div> */} 
+
+  {/* Tasks This Week and Next Week */}
+<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  {/* Tasks This Week */}
+  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5" style={{padding:'20px'}}>
+    <h3 className="text-lg font-semibold text-gray-900" style={{paddingBottom:'20px'}}>Tasks This Week</h3>
+    <div className="mt-4 grid grid-cols-2 gap-4">
+      {tasksThisWeek.slice(0, 4).map((task) => {
+        const statusTextClass =
+          task.status === 'Completed'
+            ? 'text-green-600'
+            : task.status === 'In Progress'
+            ? 'text-cyan-600'
+            : task.status === 'Blocked'
+            ? 'text-red-600'
+            : 'text-gray-600';
+        const barColor =
+          task.status === 'Completed'
+            ? '#22c55e'
+            : task.status === 'In Progress'
+            ? '#06b6d4'
+            : task.status === 'Blocked'
+            ? '#ef4444'
+            : '#f59e0b';
+        return (
+          <div
+            key={task.id}
+            className="flex items-center justify-between bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            style={{
+              borderLeft: `4px solid ${barColor}`,
+              padding: '10px 12px',
+            }}
+          >
+            <div className="flex-1" style={{ paddingLeft: '10px' }}>
+              <p className="font-medium text-sm text-gray-900">{task.title}</p>
+              <p className="text-xs text-gray-500">{task.assignee}</p>
+              <p className="text-xs text-gray-600 mt-1">Est: {task.estimated}h</p>
+            </div>
+            <span className={`text-xs font-semibold ${statusTextClass}`}>{task.status}</span>
+          </div>
+        );
+      })}
+      {tasksThisWeek.length === 0 && (
+        <div className="col-span-2 flex items-center justify-center text-gray-400 text-2xl">-</div>
+      )}
+    </div>
+  </div>
+
+  {/* Tasks Next Week */}
+  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5" style={{padding:'20px'}}>
+    <h3 className="text-lg font-semibold text-gray-900" style={{paddingBottom:'20px'}}>Tasks Next Week</h3>
+    <div className="mt-4 grid grid-cols-2 gap-4">
+      {tasksNextWeek.slice(0, 4).map((task) => {
+        const statusTextClass =
+          task.status === 'Completed'
+            ? 'text-green-600'
+            : task.status === 'In Progress'
+            ? 'text-cyan-600'
+            : task.status === 'Blocked'
+            ? 'text-red-600'
+            : 'text-gray-600';
+        const barColor =
+          task.status === 'Completed'
+            ? '#22c55e'
+            : task.status === 'In Progress'
+            ? '#06b6d4'
+            : task.status === 'Blocked'
+            ? '#ef4444'
+            : '#f59e0b';
+        return (
+          <div
+            key={task.id}
+            className="flex items-center justify-between bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+            style={{
+              borderLeft: `4px solid ${barColor}`,
+              padding: '10px 12px',
+            }}
+          >
+            <div className="flex-1" style={{ paddingLeft: '10px' }}>
+              <p className="font-medium text-sm text-gray-900">{task.title}</p>
+              <p className="text-xs text-gray-500">{task.assignee}</p>
+              <p className="text-xs text-gray-600 mt-1">Est: {task.estimated}h</p>
+            </div>
+            <span className={`text-xs font-semibold ${statusTextClass}`}>{task.status}</span>
+          </div>
+        );
+      })}
+      {tasksNextWeek.length === 0 && (
+        <div className="col-span-2 flex items-center justify-center text-gray-400 text-2xl">-</div>
+      )}
+    </div>
+  </div>
+</div>
+
 
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
