@@ -77,9 +77,9 @@ const TaskStatusChart: React.FC<TaskStatusChartProps> = ({ data }) => {
 
   return (
     <div className="chart-container">
-      <div className="chart-header">
+      {/* <div className="chart-header">
         <h3>Task Status Distribution</h3>
-      </div>
+      </div> */}
       <div className="chart-content">
         <Doughnut data={chartData} options={options} />
       </div>

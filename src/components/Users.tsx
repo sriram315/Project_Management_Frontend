@@ -171,6 +171,18 @@ const Users: React.FC = () => {
       errors.username =
         "Username can only contain letters, numbers, dots, hyphens, and underscores";
     }
+    else{
+
+      const usernameExist = users.some(
+        (user) =>
+          user.username.toLowerCase() === editingUser.username.toLowerCase() &&
+          user.id !== editingUser.id
+      );
+      if (usernameExist) {
+        errors.username = "This Username is already in use";
+      }
+
+    }
 
     // Email validation
     if (!editingUser.email.trim()) {

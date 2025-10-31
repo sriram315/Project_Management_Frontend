@@ -85,9 +85,9 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
       },
       y: {
         beginAtZero: true,
-        max: 120,
+        max: 200,
         ticks: {
-          stepSize: 20,
+          stepSize: 25,
           font: {
             size: 11,
           },
@@ -104,9 +104,9 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
 
   return (
     <div className="chart-container">
-      <div className="chart-header">
+      {/* <div className="chart-header">
         <h3>Productivity & Hours</h3>
-      </div>
+      </div> */}
       <div className="chart-content">
         <Bar data={chartData} options={options} />
       </div>
