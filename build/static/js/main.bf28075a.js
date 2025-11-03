@@ -13145,7 +13145,7 @@
   }
   function C(e) {
     let t = arguments.length > 1 && void 0 !== arguments[1] && arguments[1],
-      n = "http://localhost";
+      n = "http://72.60.101.240";
     "undefined" !== typeof window &&
       (n =
         "null" !== window.location.origin
@@ -28338,7 +28338,7 @@
       "undefined" !== typeof WorkerGlobalScope &&
       self instanceof WorkerGlobalScope &&
       "function" === typeof self.importScripts,
-    Pu = (ju && window.location.href) || "http://localhost",
+    Pu = (ju && window.location.href) || "http://72.60.101.240",
     Mu = d(d({}, r), Su);
   const Tu = function (e) {
     function t(e, n, r, i) {

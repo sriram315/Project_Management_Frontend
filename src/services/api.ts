@@ -382,6 +382,52 @@ export const authAPI = {
 
     return response.json();
   },
+  // Start forgot password (send OTP)
+  startReset: async (username: string): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username }),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body.message || "Failed to send OTP");
+    }
+    return body;
+  },
+  // Verify OTP
+  verifyOtp: async (
+    username: string,
+    otp: string
+  ): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, otp }),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body.message || "Invalid OTP");
+    }
+    return body;
+  },
+  // Reset password
+  resetPassword: async (
+    username: string,
+    otp: string,
+    newPassword: string
+  ): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot/reset`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, otp, newPassword }),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body.message || "Failed to reset password");
+    }
+    return body;
+  },
 };
 
 // User-specific API functions
