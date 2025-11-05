@@ -22,18 +22,27 @@ const CustomMultiSelect: React.FC<CustomMultiSelectProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const selectedValues = Array.isArray(value) ? value : [];
-  const selectedOptions = options.filter(opt => selectedValues.includes(opt.value));
+  // Normalize values to strings for comparison to avoid type mismatch issues
+  const normalizedSelectedValues = selectedValues.map(v => String(v));
+  const selectedOptions = options.filter(opt => {
+    const optValue = String(opt.value);
+    return normalizedSelectedValues.includes(optValue);
+  });
   
-  const displayText = selectedOptions.length > 0 
-    ? selectedOptions.length === 1
-      ? selectedOptions[0].label
-      : `${selectedOptions.length} selected`
+  // Ensure we only show valid selected options
+  const validSelectedOptions = selectedOptions.filter(opt => opt && opt.label);
+  
+  const displayText = validSelectedOptions.length > 0 
+    ? validSelectedOptions.length === 1
+      ? validSelectedOptions[0].label
+      : `${validSelectedOptions.length} selected`
     : placeholder;
 
-  // Filter options based on search
-  const filteredOptions = options.filter(opt =>
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter options based on search - ensure options have valid labels
+  const filteredOptions = options.filter(opt => {
+    if (!opt || !opt.label || typeof opt.label !== 'string') return false;
+    return opt.label.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -57,14 +66,17 @@ const CustomMultiSelect: React.FC<CustomMultiSelectProps> = ({
 
   const handleToggle = (optionValue: string | number) => {
     const newValues = [...selectedValues];
-    const index = newValues.findIndex(v => String(v) === String(optionValue));
+    // Normalize both values to strings for comparison
+    const normalizedOptionValue = String(optionValue);
+    const index = newValues.findIndex(v => String(v) === normalizedOptionValue);
     
     if (index >= 0) {
       // Remove if already selected
       newValues.splice(index, 1);
     } else {
-      // Add if not selected
-      newValues.push(optionValue);
+      // Add if not selected - preserve original type (number if it was a number)
+      const valueToAdd = typeof optionValue === 'number' ? optionValue : optionValue;
+      newValues.push(valueToAdd);
     }
     
     onChange(newValues);
@@ -118,7 +130,8 @@ const CustomMultiSelect: React.FC<CustomMultiSelectProps> = ({
           <div className="custom-select-options">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => {
-                const isSelected = selectedValues.includes(option.value);
+                // Normalize both values to strings for comparison
+                const isSelected = normalizedSelectedValues.includes(String(option.value));
                 return (
                   <div
                     key={option.value}
@@ -128,7 +141,7 @@ const CustomMultiSelect: React.FC<CustomMultiSelectProps> = ({
                     <span style={{ marginRight: '8px' }}>
                       {isSelected ? '✓' : '○'}
                     </span>
-                    {option.label}
+                    <span>{option.label || String(option.value)}</span>
                   </div>
                 );
               })

@@ -84,16 +84,22 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   const endDateForInput = formatForInput(filters.endDate);
 
   // Prepare project options for CustomMultiSelect (no "all" option, empty array = all)
-  const projectOptions = projects.map(project => ({
-    value: project.id,
-    label: project.name
-  }));
+  // Filter out invalid projects and ensure all fields are strings
+  const projectOptions = projects
+    .filter(project => project && project.id && project.name)
+    .map(project => ({
+      value: Number(project.id),
+      label: String(project.name || `Project ${project.id}`)
+    }));
 
   // Prepare employee options for CustomMultiSelect (no "all" option, empty array = all)
-  const employeeOptions = employees.map(employee => ({
-    value: employee.id,
-    label: `${employee.username} (${employee.role})`
-  }));
+  // Filter out invalid employees and ensure all fields are strings
+  const employeeOptions = employees
+    .filter(employee => employee && employee.id && employee.username)
+    .map(employee => ({
+      value: Number(employee.id),
+      label: `${String(employee.username || `User ${employee.id}`)} (${String(employee.role || 'employee')})`
+    }));
 
   return (
     <div className="flex flex-wrap gap-4">
