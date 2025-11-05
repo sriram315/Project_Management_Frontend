@@ -4,7 +4,11 @@ import { projectTeamAPI } from '../services/api';
 import ManageTeamMembers from './ManageTeamMembers';
 import '../App.css';
 
-const TeamManagement: React.FC = () => {
+interface TeamManagementProps {
+  user?: any;
+}
+
+const TeamManagement: React.FC<TeamManagementProps> = ({ user }) => {
   const { projectId } = useParams<{ projectId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -27,6 +31,7 @@ const TeamManagement: React.FC = () => {
       projectId={parseInt(projectId)}
       projectName={projectName}
       onClose={handleClose}
+      user={user}
     />
   );
 };

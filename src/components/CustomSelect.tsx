@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './CustomSelect.css';
 
 interface CustomSelectProps {
-  value: number | string;
+  value: number | string | undefined | null;
   onChange: (value: string) => void;
   options: Array<{ value: string | number; label: string }>;
   placeholder?: string;

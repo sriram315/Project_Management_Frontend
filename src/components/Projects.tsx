@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { projectAPI, userAPI } from '../services/api';
+import { projectAPI, userAPI, API_BASE_URL } from '../services/api';
 import { Project } from '../types';
 import ProjectList from './ProjectList';
 import AddProject from './AddProject';
@@ -35,24 +35,50 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, [user]);
 
   const fetchProjects = async () => {
+    if (!user) {
+      console.log("⏳ Projects: Waiting for user to load...");
+      return;
+    }
+
     try {
       setLoading(true);
       let projectData;
       
+      console.log("🔍 Projects component - User:", { id: user?.id, role: user?.role, username: user?.username });
+      
       if (user?.role === 'employee') {
         // For employees, fetch only their assigned projects
         projectData = await userAPI.getUserProjects(user.id);
+      } else if (user?.role === 'manager' || user?.role === 'team_lead') {
+        // For managers and team leads, fetch only their assigned projects
+        console.log(`📋 Fetching projects for ${user.role} (userId: ${user.id})`);
+        if (!user.id || !user.role) {
+          console.error("❌ Missing user.id or user.role!", { user });
+          setError("User information incomplete. Please log in again.");
+          setLoading(false);
+          return;
+        }
+        const url = `${API_BASE_URL}/projects?userId=${user.id}&userRole=${user.role}`;
+        console.log(`🌐 API URL: ${url}`);
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error("Failed to fetch projects");
+        }
+        projectData = await response.json();
+        console.log(`📊 Projects returned: ${projectData.length}`, projectData);
       } else {
-        // For managers and team leads, fetch all projects
+        // For super admin, fetch all projects
+        console.log("👑 Fetching all projects for super admin");
         projectData = await projectAPI.getAll();
       }
       
-      setProjects(projectData);
+      setProjects(projectData || []);
       setError('');
     } catch (err) {
+      console.error("❌ Error fetching projects:", err);
       setError(err instanceof Error ? err.message : 'Failed to fetch projects');
     } finally {
       setLoading(false);

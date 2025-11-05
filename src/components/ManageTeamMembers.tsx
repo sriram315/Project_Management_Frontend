@@ -31,12 +31,14 @@ interface ManageTeamMembersProps {
   projectId: number;
   projectName: string;
   onClose: () => void;
+  user?: any;
 }
 
 const ManageTeamMembers: React.FC<ManageTeamMembersProps> = ({ 
   projectId, 
   projectName, 
-  onClose 
+  onClose,
+  user
 }) => {
   const [projectTeam, setProjectTeam] = useState<ProjectTeamMember[]>([]);
   const [availableTeam, setAvailableTeam] = useState<AvailableTeamMember[]>([]);
@@ -64,8 +66,8 @@ const ManageTeamMembers: React.FC<ManageTeamMembersProps> = ({
     try {
       setLoading(true);
       const [projectTeamData, availableTeamData] = await Promise.all([
-        projectTeamAPI.getProjectTeam(projectId),
-        projectTeamAPI.getAvailableTeam(projectId)
+        projectTeamAPI.getProjectTeam(projectId, user?.id, user?.role),
+        projectTeamAPI.getAvailableTeam(projectId, user?.id, user?.role)
       ]);
       setProjectTeam(projectTeamData);
       setAvailableTeam(availableTeamData);
@@ -361,7 +363,8 @@ const ManageTeamMembers: React.FC<ManageTeamMembersProps> = ({
         )}
       </div>
 
-      {/* Add Team Member Form - Always Visible */}
+      {/* Add Team Member Form - Only for Super Admin */}
+      {user?.role === 'super_admin' && (
       <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '1.5rem', border: '1px solid #e5e7eb' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#000', marginBottom: '1.5rem' }}>
           Add Team Member to Project
@@ -460,6 +463,7 @@ const ManageTeamMembers: React.FC<ManageTeamMembersProps> = ({
           </div>
         </form>
       </div>
+      )}
 
       {/* Edit Team Member Modal */}
       {editingMember && (

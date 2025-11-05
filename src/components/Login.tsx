@@ -12,10 +12,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showForgot, setShowForgot] = useState(false);
-  const [forgotStep, setForgotStep] = useState<1 | 2 | 3>(1);
-  const [otp, setOtp] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [forgotIdentifier, setForgotIdentifier] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast, showToast, hideToast } = useToast();
 
@@ -31,73 +28,18 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
-  const resetForgotState = () => {
-    setForgotStep(1);
-    setOtp("");
-    setNewPassword("");
-    setConfirmPassword("");
-  };
-
-  const handleStartForgot = async (e: React.FormEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username) {
-      showToast("Please enter your username", "warning");
+    if (!forgotIdentifier) {
+      showToast("Please enter your email or username", "warning");
       return;
     }
     setIsSubmitting(true);
     try {
-      await authAPI.startReset(username);
-      showToast("OTP sent to your registered email", "success");
-      setForgotStep(2);
-    } catch (err: any) {
-      showToast(err?.message || "Failed to send OTP", "error");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp) {
-      showToast("Please enter the OTP", "warning");
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await authAPI.verifyOtp(username, otp);
-      showToast("OTP verified. Please enter new password.", "success");
-      setForgotStep(3);
-    } catch (err: any) {
-      showToast(err?.message || "Invalid OTP", "error");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPassword || !confirmPassword) {
-      showToast("Please fill both password fields", "warning");
-      return;
-    }
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-={}\[\]|;:'",.<>\/?`~]).{8,15}$/;
-    if (!passwordRegex.test(newPassword)) {
-      showToast(
-        "Password must be 8-15 chars, include 1 uppercase, 1 lowercase, and 1 special character",
-        "error"
-      );
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      showToast("Passwords do not match", "error");
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await authAPI.resetPassword(username, otp, newPassword);
-      showToast("Password updated. You can now log in.", "success");
+      await authAPI.startReset(forgotIdentifier);
+      showToast("New password sent to your registered email. Please check your inbox.", "success");
       setShowForgot(false);
-      resetForgotState();
+      setForgotIdentifier("");
     } catch (err: any) {
       showToast(err?.message || "Failed to reset password", "error");
     } finally {
@@ -115,11 +57,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <h2>Project management tool</h2>
           {/* {error && <div className="error-message">{error}</div>} */}
           <div className="form-group">
-            <label>Email:</label>
+            <label>Email or Username:</label>
             <input
-              type="email"
+              type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter email or username"
               required
             />
           </div>
@@ -140,7 +83,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               type="button"
               onClick={() => {
                 setShowForgot(true);
-                resetForgotState();
+                setForgotIdentifier("");
               }}
               style={{
                 background: "none",
@@ -155,75 +98,30 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
         </form>
       ) : (
-        <form
-          onSubmit={
-            forgotStep === 1
-              ? handleStartForgot
-              : forgotStep === 2
-              ? handleVerifyOtp
-              : handleResetPassword
-          }
-          className="login-form"
-        >
+        <form onSubmit={handleForgotPassword} className="login-form">
           <h2>Reset your password</h2>
+          <p style={{ color: "#666", fontSize: "14px", marginBottom: "20px" }}>
+            Enter your email or username. A new password will be generated and sent to your registered email address.
+          </p>
           <div className="form-group">
-            <label>Username:</label>
+            <label>Email or Username:</label>
             <input
               type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={forgotIdentifier}
+              onChange={(e) => setForgotIdentifier(e.target.value)}
+              placeholder="Enter email or username"
               required
-              disabled={forgotStep !== 1}
             />
           </div>
-          {forgotStep >= 2 && (
-            <div className="form-group">
-              <label>OTP:</label>
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                required
-                placeholder="Enter the 6-digit code"
-                disabled={forgotStep === 3}
-              />
-            </div>
-          )}
-          {forgotStep === 3 && (
-            <>
-              <div className="form-group">
-                <label>New Password:</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Confirm Password:</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                />
-              </div>
-            </>
-          )}
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <button type="submit" className="login-button" disabled={isSubmitting}>
-              {forgotStep === 1
-                ? isSubmitting ? "Sending..." : "Send OTP"
-                : forgotStep === 2
-                ? isSubmitting ? "Verifying..." : "Verify OTP"
-                : isSubmitting ? "Updating..." : "Set New Password"}
+              {isSubmitting ? "Sending..." : "Reset Password"}
             </button>
             <button
               type="button"
               onClick={() => {
                 setShowForgot(false);
-                resetForgotState();
+                setForgotIdentifier("");
               }}
               className="login-button"
               style={{ backgroundColor: "#6b7280" }}

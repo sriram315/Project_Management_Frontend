@@ -3,16 +3,21 @@ import axios from "axios";
 import Toast from "./Toast";
 import { useToast } from "../hooks/useToast";
 import ConfirmationModal from "./ConfirmationModal";
+import { API_BASE_URL } from "../services/api";
 
 interface User {
   id: number;
   username: string;
-  role: "manager" | "team_lead" | "employee";
+  role: "super_admin" | "manager" | "team_lead" | "employee";
   email: string;
   available_hours_per_week?: number;
 }
 
-const Users: React.FC = () => {
+interface UsersProps {
+  user?: any;
+}
+
+const Users: React.FC<UsersProps> = ({ user }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -43,7 +48,13 @@ const Users: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get("http://72.60.101.240:5005/api/users");
+      const params = new URLSearchParams();
+      if (user?.id && (user?.role === 'manager' || user?.role === 'team_lead')) {
+        params.append('userId', String(user.id));
+        params.append('userRole', user.role);
+      }
+      const url = `${API_BASE_URL}/users${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await axios.get(url);
       setUsers(response.data);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -112,7 +123,7 @@ const Users: React.FC = () => {
 
     try {
       // Create user account only
-      await axios.post("http://72.60.101.240:5005/api/users", {
+      await axios.post(`${API_BASE_URL}/users`, {
         username: newUser.username,
         password: newUser.password,
         role: newUser.role,
@@ -226,7 +237,7 @@ const Users: React.FC = () => {
     }
 
     try {
-      await axios.put(`http://72.60.101.240:5005/api/users/${editingUser.id}`, {
+      await axios.put(`${API_BASE_URL}/users/${editingUser.id}`, {
         username: editingUser.username,
         email: editingUser.email,
         role: editingUser.role,
@@ -260,7 +271,7 @@ const Users: React.FC = () => {
 
     try {
       await axios.delete(
-        `http://72.60.101.240:5005/api/users/${deleteConfirmation.userId}`
+        `${API_BASE_URL}/users/${deleteConfirmation.userId}`
       );
       fetchUsers();
       showToast("User deleted successfully!", "success");
@@ -453,7 +464,7 @@ const Users: React.FC = () => {
 
           // Try to create user - API will check for duplicates
           try {
-            await axios.post("http://72.60.101.240:5005/api/users", {
+            await axios.post(`${API_BASE_URL}/users`, {
               username: userData.username,
               password: userData.password,
               role: userData.role,
@@ -612,71 +623,77 @@ const Users: React.FC = () => {
               fontSize: "0.9rem",
             }}
           />
-          <button
-            onClick={handleOpenAddForm}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.65rem 1.25rem",
-              backgroundColor: "#6366f1",
-              color: "white",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontSize: "0.9rem",
-              fontWeight: "500",
-              transition: "all 0.2s",
-            }}
-          >
-            <span style={{ fontSize: "1.1rem" }}>+</span>
-            Add User
-          </button>
-          <button
-            onClick={handleExportUsers}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.65rem 1.25rem",
-              backgroundColor: "white",
-              color: "#374151",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontSize: "0.9rem",
-              fontWeight: "500",
-              transition: "all 0.2s",
-            }}
-          >
-            <span style={{ fontSize: "1rem" }}>⬇</span>
-            Export
-          </button>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.65rem 1.25rem",
-              backgroundColor: "white",
-              color: "#374151",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontSize: "0.9rem",
-              fontWeight: "500",
-              transition: "all 0.2s",
-            }}
-          >
-            <span style={{ fontSize: "1rem" }}>⬆</span>
-            Import
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleImportUsers}
-              style={{ display: "none" }}
-            />
-          </label>
+          {user?.role === 'super_admin' && (
+            <button
+              onClick={handleOpenAddForm}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.65rem 1.25rem",
+                backgroundColor: "#6366f1",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                fontWeight: "500",
+                transition: "all 0.2s",
+              }}
+            >
+              <span style={{ fontSize: "1.1rem" }}>+</span>
+              Add User
+            </button>
+          )}
+          {user?.role === 'super_admin' && (
+            <button
+              onClick={handleExportUsers}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.65rem 1.25rem",
+                backgroundColor: "white",
+                color: "#374151",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                fontWeight: "500",
+                transition: "all 0.2s",
+              }}
+            >
+              <span style={{ fontSize: "1rem" }}>⬇</span>
+              Export
+            </button>
+          )}
+          {user?.role === 'super_admin' && (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.65rem 1.25rem",
+                backgroundColor: "white",
+                color: "#374151",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                fontWeight: "500",
+                transition: "all 0.2s",
+              }}
+            >
+              <span style={{ fontSize: "1rem" }}>⬆</span>
+              Import
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleImportUsers}
+                style={{ display: "none" }}
+              />
+            </label>
+          )}
           <button
             onClick={downloadSampleCSV}
             style={{
@@ -1103,46 +1120,53 @@ const Users: React.FC = () => {
                   </td>
                   <td style={{ padding: "1rem 1.5rem" }}>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button
-                        onClick={() => handleEditUser(user)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.375rem",
-                          padding: "0.5rem 0.875rem",
-                          backgroundColor: "white",
-                          color: "#374151",
-                          border: "1px solid #e5e7eb",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          fontSize: "0.875rem",
-                          fontWeight: "500",
-                          transition: "all 0.2s",
-                        }}
-                      >
-                        <span style={{ fontSize: "0.875rem" }}>✏️</span>
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id, user.username)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.375rem",
-                          padding: "0.5rem 0.875rem",
-                          backgroundColor: "#ef4444",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          fontSize: "0.875rem",
-                          fontWeight: "500",
-                          transition: "all 0.2s",
-                        }}
-                      >
-                        <span style={{ fontSize: "0.875rem" }}>🗑️</span>
-                        Delete
-                      </button>
+                      {user?.role === 'super_admin' && (
+                        <>
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.375rem",
+                              padding: "0.5rem 0.875rem",
+                              backgroundColor: "white",
+                              color: "#374151",
+                              border: "1px solid #e5e7eb",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                              fontSize: "0.875rem",
+                              fontWeight: "500",
+                              transition: "all 0.2s",
+                            }}
+                          >
+                            <span style={{ fontSize: "0.875rem" }}>✏️</span>
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user.id, user.username)}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.375rem",
+                              padding: "0.5rem 0.875rem",
+                              backgroundColor: "#ef4444",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                              fontSize: "0.875rem",
+                              fontWeight: "500",
+                              transition: "all 0.2s",
+                            }}
+                          >
+                            <span style={{ fontSize: "0.875rem" }}>🗑️</span>
+                            Delete
+                          </button>
+                        </>
+                      )}
+                      {user?.role !== 'super_admin' && (
+                        <span style={{ color: "#9ca3af", fontSize: "0.875rem" }}>View only</span>
+                      )}
                     </div>
                   </td>
                 </tr>

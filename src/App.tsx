@@ -8,12 +8,13 @@ import Projects from './components/Projects';
 import Tasks from './components/Tasks';
 import TeamManagement from './components/TeamManagement';
 import ProjectDetails from './components/ProjectDetails';
+import ProjectAssignments from './components/ProjectAssignments';
 import './App.css';
 
 interface User {
   id: number;
   username: string;
-  role: 'manager' | 'team_lead' | 'employee';
+  role: 'super_admin' | 'manager' | 'team_lead' | 'employee';
 }
 
 function App() {
@@ -56,16 +57,27 @@ function App() {
     localStorage.removeItem('isAuthenticated');
   };
 
-  const canAccessUsers = (userRole: string) => {
+  // Super admin only access
+  const canAccessSuperAdminPages = (userRole: string) => {
+    return userRole === 'super_admin';
+  };
+
+  // Managers and team leads can access their assigned projects
+  const canAccessManagerPages = (userRole: string) => {
     return userRole === 'manager' || userRole === 'team_lead';
   };
 
+  // Users page: super admin sees all, managers/team leads see only their project users
+  const canAccessUsers = (userRole: string) => {
+    return userRole === 'super_admin' || userRole === 'manager' || userRole === 'team_lead';
+  };
+
   const canAccessProjects = (userRole: string) => {
-    return userRole === 'manager' || userRole === 'team_lead' || userRole === 'employee';
+    return userRole === 'super_admin' || userRole === 'manager' || userRole === 'team_lead' || userRole === 'employee';
   };
 
   const canAccessTasks = (userRole: string) => {
-    return userRole === 'manager' || userRole === 'team_lead' || userRole === 'employee';
+    return userRole === 'super_admin' || userRole === 'manager' || userRole === 'team_lead' || userRole === 'employee';
   };
 
   // Show loading spinner while checking authentication
@@ -115,7 +127,17 @@ function App() {
             path="/users" 
             element={
               isAuthenticated && user && canAccessUsers(user.role) ? (
-                <Users />
+                <Users user={user} />
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
+            } 
+          />
+          <Route 
+            path="/project-assignments" 
+            element={
+              isAuthenticated && user && canAccessSuperAdminPages(user.role) ? (
+                <ProjectAssignments user={user} />
               ) : (
                 <Navigate to="/dashboard" replace />
               )
@@ -145,7 +167,7 @@ function App() {
             path="/team-management/:projectId" 
             element={
               isAuthenticated && user && canAccessProjects(user.role) ? (
-                <TeamManagement />
+                <TeamManagement user={user} />
               ) : (
                 <Navigate to="/dashboard" replace />
               )

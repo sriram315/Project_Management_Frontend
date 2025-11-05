@@ -15,8 +15,11 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       </div>
       <div className="nav-links">
         <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : undefined}>Dashboard</NavLink>
-        {(user?.role === 'manager' || user?.role === 'team_lead') && (
+        {(user?.role === 'super_admin' || user?.role === 'manager' || user?.role === 'team_lead') && (
           <NavLink to="/users" className={({ isActive }) => isActive ? 'active' : undefined}>Users</NavLink>
+        )}
+        {user?.role === 'super_admin' && (
+          <NavLink to="/project-assignments" className={({ isActive }) => isActive ? 'active' : undefined}>Assign Projects</NavLink>
         )}
         <NavLink to="/projects" className={({ isActive }) => isActive ? 'active' : undefined}>Projects</NavLink>
         <NavLink to="/tasks" className={({ isActive }) => isActive ? 'active' : undefined}>Tasks</NavLink>
