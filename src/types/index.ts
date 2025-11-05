@@ -77,8 +77,8 @@ export interface Metrics {
 
 // Dashboard specific types
 export interface DashboardFilters {
-  projectId?: number;
-  employeeId?: number;
+  projectId?: number | number[]; // Support both single and multiple projects
+  employeeId?: number | number[]; // Support both single and multiple employees
   startDate?: string;
   endDate?: string;
 }

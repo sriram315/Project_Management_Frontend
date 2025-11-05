@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { taskAPI, projectAPI, teamAPI, userAPI } from '../services/api';
+import { taskAPI, projectAPI, teamAPI, userAPI, dashboardAPI } from '../services/api';
 import { Task, Project, TeamMember } from '../types';
 import AddTask from './AddTask';
 import EditTask from './EditTask';
@@ -65,7 +65,9 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      let tasksData: Task[], projectsData: Project[], teamData: TeamMember[];
+      let tasksData: Task[];
+      let projectsData: Project[];
+      let teamData: TeamMember[];
       
       if (user?.role === 'employee') {
         // For employees, fetch only their assigned tasks and projects
@@ -74,8 +76,29 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
           userAPI.getUserProjects(user.id)
         ]);
         teamData = []; // Employees don't need team member list
+      } else if (user?.role === 'manager' || user?.role === 'team_lead') {
+        // For managers and team leads, fetch only their assigned projects and employees
+        const [fetchedTasks, fetchedProjects, employeesData] = await Promise.all([
+          taskAPI.getAll(user.id, user.role),
+          projectAPI.getAll(user.id, user.role),
+          dashboardAPI.getEmployees(undefined, user.id, user.role) // Get employees from assigned projects only
+        ]);
+        tasksData = fetchedTasks;
+        projectsData = fetchedProjects;
+        // Convert employees to teamMembers format
+        teamData = employeesData.map((emp: any) => ({
+          id: emp.id,
+          name: emp.username,
+          role: emp.role,
+          available_hours: emp.available_hours_per_week || 40,
+          status: 'online' as const,
+          tasks_count: 0,
+          planned_hours: 0,
+          productivity: 0,
+          utilization: 0
+        }));
       } else {
-        // For managers and team leads, fetch all data
+        // For super admin, fetch all data
         [tasksData, projectsData, teamData] = await Promise.all([
           taskAPI.getAll(),
           projectAPI.getAll(),
@@ -335,6 +358,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
         <AddTask
           onTaskAdded={handleTaskAdded}
           onClose={() => setShowAddTask(false)}
+          user={user}
         />
       )}
 
@@ -343,6 +367,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
           task={editingTask}
           onTaskUpdated={handleTaskUpdated}
           onClose={() => setEditingTask(null)}
+          user={user}
         />
       )}
 

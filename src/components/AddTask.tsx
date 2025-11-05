@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { taskAPI, projectAPI, teamAPI, projectTeamAPI } from '../services/api';
+import { taskAPI, projectAPI, teamAPI, projectTeamAPI, dashboardAPI } from '../services/api';
 import { Task, Project, TeamMember } from '../types';
 import WorkloadWarningModal from './WorkloadWarningModal';
 import Toast from './Toast';
@@ -12,6 +12,7 @@ interface AddTaskProps {
   onClose?: () => void;
   projectId?: number;
   assigneeId?: number;
+  user?: any; // Add user prop to filter employees by role
 }
 
 interface ProjectTeamMember {
@@ -25,7 +26,7 @@ interface ProjectTeamMember {
   email: string;
 }
 
-const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assigneeId }) => {
+const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assigneeId, user }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -51,10 +52,34 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [projectsData, teamData] = await Promise.all([
-          projectAPI.getAll(),
-          teamAPI.getAll()
-        ]);
+        let projectsData: Project[], teamData: TeamMember[];
+        
+        // Fetch projects based on user role
+        if (user?.role === 'manager' || user?.role === 'team_lead') {
+          projectsData = await projectAPI.getAll(user.id, user.role);
+        } else {
+          projectsData = await projectAPI.getAll();
+        }
+        
+        // Fetch employees based on user role
+        if (user?.role === 'manager' || user?.role === 'team_lead') {
+          const employeesData = await dashboardAPI.getEmployees(undefined, user.id, user.role);
+          // Convert employees to teamMembers format
+          teamData = employeesData.map((emp: any) => ({
+            id: emp.id,
+            name: emp.username,
+            role: emp.role,
+            available_hours: emp.available_hours_per_week || 40,
+            status: 'online' as const,
+            tasks_count: 0,
+            planned_hours: 0,
+            productivity: 0,
+            utilization: 0
+          }));
+        } else {
+          teamData = await teamAPI.getAll();
+        }
+        
         setProjects(projectsData);
         setTeamMembers(teamData);
       } catch (err) {
@@ -64,7 +89,7 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
     };
 
     fetchData();
-  }, []);
+  }, [user]);
 
   // Fetch project team members when project is selected
   useEffect(() => {

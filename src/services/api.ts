@@ -1,6 +1,22 @@
 import { Project, TeamMember, Task } from "../types";
 
-const API_BASE_URL = "http://72.60.101.240:5005/api";
+// Centralized backend API URL - automatically detects environment
+// If running locally (localhost or 127.0.0.1), use localhost backend
+// Otherwise, use production server URL
+const getApiBaseUrl = () => {
+  // Check if running in browser (client-side)
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    // If running on localhost or 127.0.0.1, use local backend
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
+      return 'http://localhost:5005/api';
+    }
+  }
+  // For Docker/production/remote server, use production URL
+  return 'http://72.60.101.240:5005/api';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export interface CreateProjectData {
   name: string;
@@ -57,9 +73,14 @@ export interface UpdateTaskData {
 
 // Project API functions
 export const projectAPI = {
-  // Get all projects
-  getAll: async (): Promise<Project[]> => {
-    const response = await fetch(`${API_BASE_URL}/projects`);
+  // Get all projects (optionally filtered by userId/userRole for managers/team leads)
+  getAll: async (userId?: number, userRole?: string): Promise<Project[]> => {
+    const params = new URLSearchParams();
+    if (userId) params.append("userId", String(userId));
+    if (userRole) params.append("userRole", userRole);
+    
+    const url = `${API_BASE_URL}/projects${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error("Failed to fetch projects");
     }
@@ -137,21 +158,31 @@ export const teamAPI = {
 // Project Team API functions
 export const projectTeamAPI = {
   // Get team members for a specific project
-  getProjectTeam: async (projectId: number): Promise<any[]> => {
-    const response = await fetch(`${API_BASE_URL}/projects/${projectId}/team`);
+  getProjectTeam: async (projectId: number, userId?: number, userRole?: string): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (userId) params.append("userId", String(userId));
+    if (userRole) params.append("userRole", userRole);
+    
+    const url = `${API_BASE_URL}/projects/${projectId}/team${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await fetch(url);
     if (!response.ok) {
-      throw new Error("Failed to fetch project team members");
+      const error = await response.json();
+      throw new Error(error.message || "Failed to fetch project team members");
     }
     return response.json();
   },
 
   // Get available team members for a project
-  getAvailableTeam: async (projectId: number): Promise<any[]> => {
-    const response = await fetch(
-      `${API_BASE_URL}/projects/${projectId}/available-team`
-    );
+  getAvailableTeam: async (projectId: number, userId?: number, userRole?: string): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (userId) params.append("userId", String(userId));
+    if (userRole) params.append("userRole", userRole);
+    
+    const url = `${API_BASE_URL}/projects/${projectId}/available-team${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await fetch(url);
     if (!response.ok) {
-      throw new Error("Failed to fetch available team members");
+      const error = await response.json();
+      throw new Error(error.message || "Failed to fetch available team members");
     }
     return response.json();
   },
@@ -237,9 +268,14 @@ export const projectTeamAPI = {
 
 // Task API functions
 export const taskAPI = {
-  // Get all tasks
-  getAll: async (): Promise<Task[]> => {
-    const response = await fetch(`${API_BASE_URL}/tasks`);
+  // Get all tasks (optionally filtered by userId/userRole for managers/team leads)
+  getAll: async (userId?: number, userRole?: string): Promise<Task[]> => {
+    const params = new URLSearchParams();
+    if (userId) params.append("userId", String(userId));
+    if (userRole) params.append("userRole", userRole);
+    
+    const url = `${API_BASE_URL}/tasks${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error("Failed to fetch tasks");
     }
@@ -362,9 +398,9 @@ export const taskAPI = {
 
 // Auth API functions
 export const authAPI = {
-  // Login
+  // Login - accepts either email or username
   login: async (
-    email: string,
+    identifier: string,
     password: string
   ): Promise<{ id: number; username: string; role: string }> => {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -372,7 +408,8 @@ export const authAPI = {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      // Send as both email and username to support either input
+      body: JSON.stringify({ email: identifier, username: identifier, password }),
     });
 
     if (!response.ok) {
@@ -382,16 +419,17 @@ export const authAPI = {
 
     return response.json();
   },
-  // Start forgot password (send OTP)
-  startReset: async (username: string): Promise<{ message: string }> => {
+  // Start forgot password - generates random password and sends via email
+  startReset: async (identifier: string): Promise<{ message: string }> => {
     const response = await fetch(`${API_BASE_URL}/auth/forgot/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username }),
+      // Send as both email and username to support either input
+      body: JSON.stringify({ email: identifier, username: identifier }),
     });
     const body = await response.json();
     if (!response.ok) {
-      throw new Error(body.message || "Failed to send OTP");
+      throw new Error(body.message || "Failed to reset password");
     }
     return body;
   },
@@ -486,27 +524,38 @@ export const dashboardAPI = {
     employeeId?: string;
     startDate?: string;
     endDate?: string;
+    userId?: number;
+    userRole?: string;
   }) => {
     const params = new URLSearchParams();
     if (filters?.projectId) params.append("projectId", filters.projectId);
     if (filters?.employeeId) params.append("employeeId", filters.employeeId);
     if (filters?.startDate) params.append("startDate", filters.startDate);
     if (filters?.endDate) params.append("endDate", filters.endDate);
+    if (filters?.userId) params.append("userId", String(filters.userId));
+    if (filters?.userRole) params.append("userRole", filters.userRole);
 
     const response = await fetch(`${API_BASE_URL}/dashboard/data?${params}`);
     if (!response.ok) throw new Error("Failed to fetch dashboard data");
     return response.json();
   },
 
-  getProjects: async () => {
-    const response = await fetch(`${API_BASE_URL}/dashboard/projects`);
+  getProjects: async (userId?: number, userRole?: string) => {
+    const params = new URLSearchParams();
+    if (userId) params.append("userId", String(userId));
+    if (userRole) params.append("userRole", userRole);
+    
+    const url = `${API_BASE_URL}/dashboard/projects${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await fetch(url);
     if (!response.ok) throw new Error("Failed to fetch projects");
     return response.json();
   },
 
-  getEmployees: async (projectId?: string) => {
+  getEmployees: async (projectId?: string, userId?: number, userRole?: string) => {
     const params = new URLSearchParams();
     if (projectId) params.append("projectId", projectId);
+    if (userId) params.append("userId", userId.toString());
+    if (userRole) params.append("userRole", userRole);
     
     const url = `${API_BASE_URL}/dashboard/employees${params.toString() ? `?${params.toString()}` : ''}`;
     const response = await fetch(url);
@@ -519,6 +568,8 @@ export const dashboardAPI = {
     employeeId?: string;
     startDate?: string;
     endDate?: string;
+    userId?: number;
+    userRole?: string;
   }) => {
     const queryParams = new URLSearchParams();
 
@@ -527,6 +578,8 @@ export const dashboardAPI = {
       queryParams.append("employeeId", filters.employeeId);
     if (filters?.startDate) queryParams.append("startDate", filters.startDate);
     if (filters?.endDate) queryParams.append("endDate", filters.endDate);
+    if (filters?.userId) queryParams.append("userId", String(filters.userId));
+    if (filters?.userRole) queryParams.append("userRole", filters.userRole);
 
     const url = `${API_BASE_URL}/dashboard/task-status?${queryParams.toString()}`;
     const response = await fetch(url);
@@ -553,6 +606,70 @@ export const dashboardAPI = {
   },
 };
 
+// Project Assignments API
+export const projectAssignmentsAPI = {
+  // Get all project assignments
+  getAll: async (): Promise<any[]> => {
+    const response = await fetch(`${API_BASE_URL}/project-assignments`);
+    if (!response.ok) throw new Error("Failed to fetch project assignments");
+    return response.json();
+  },
+
+  // Get projects assigned to a user
+  getByUser: async (userId: number): Promise<any[]> => {
+    const response = await fetch(`${API_BASE_URL}/project-assignments/user/${userId}`);
+    if (!response.ok) throw new Error("Failed to fetch user assignments");
+    return response.json();
+  },
+
+  // Get available managers and team leads
+  getManagersTeamLeads: async (): Promise<any[]> => {
+    const response = await fetch(`${API_BASE_URL}/project-assignments/managers-teamleads`);
+    if (!response.ok) throw new Error("Failed to fetch managers/team leads");
+    return response.json();
+  },
+
+  // Assign a project
+  assign: async (data: {
+    project_id: number;
+    assigned_to_user_id: number;
+    assigned_by_user_id?: number;
+  }): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/project-assignments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to assign project");
+    }
+    return response.json();
+  },
+
+  // Unassign a project
+  unassign: async (assignmentId: number): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/project-assignments/${assignmentId}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to unassign project");
+    }
+  },
+
+  // Unassign by project and user
+  unassignByProjectUser: async (projectId: number, userId: number): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/project-assignments/project/${projectId}/user/${userId}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to unassign project");
+    }
+  },
+};
+
 export default {
   authAPI,
   userAPI,
@@ -561,4 +678,5 @@ export default {
   projectTeamAPI,
   taskAPI,
   dashboardAPI,
+  projectAssignmentsAPI,
 };

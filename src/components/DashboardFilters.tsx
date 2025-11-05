@@ -1,6 +1,6 @@
 import React from 'react';
 import { DashboardFilters as FilterType } from '../types';
-import CustomSelect from './CustomSelect';
+import CustomMultiSelect from './CustomMultiSelect';
 import './DashboardFilters.css';
 
 interface DashboardFiltersProps {
@@ -18,17 +18,33 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   onFilterChange,
   userRole,
 }) => {
-  const handleProjectChange = (projectId: string) => {
+  // Normalize projectId to array format
+  const getProjectIds = (): number[] => {
+    if (!filters.projectId) return [];
+    if (Array.isArray(filters.projectId)) return filters.projectId;
+    return [filters.projectId];
+  };
+
+  // Normalize employeeId to array format
+  const getEmployeeIds = (): number[] => {
+    if (!filters.employeeId) return [];
+    if (Array.isArray(filters.employeeId)) return filters.employeeId;
+    return [filters.employeeId];
+  };
+
+  const handleProjectChange = (projectIds: (string | number)[]) => {
+    const ids = projectIds.map(id => parseInt(String(id))).filter(id => !isNaN(id));
     onFilterChange({
       ...filters,
-      projectId: projectId === 'all' ? undefined : parseInt(projectId),
+      projectId: ids.length === 0 ? undefined : ids.length === 1 ? ids[0] : ids,
     });
   };
 
-  const handleEmployeeChange = (employeeId: string) => {
+  const handleEmployeeChange = (employeeIds: (string | number)[]) => {
+    const ids = employeeIds.map(id => parseInt(String(id))).filter(id => !isNaN(id));
     onFilterChange({
       ...filters,
-      employeeId: employeeId === 'all' ? undefined : parseInt(employeeId),
+      employeeId: ids.length === 0 ? undefined : ids.length === 1 ? ids[0] : ids,
     });
   };
 
@@ -67,45 +83,39 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   const startDateForInput = formatForInput(filters.startDate);
   const endDateForInput = formatForInput(filters.endDate);
 
-  // Prepare project options for CustomSelect
-  const projectOptions = [
-    { value: 'all', label: 'All Projects' },
-    ...projects.map(project => ({
-      value: project.id,
-      label: project.name
-    }))
-  ];
+  // Prepare project options for CustomMultiSelect (no "all" option, empty array = all)
+  const projectOptions = projects.map(project => ({
+    value: project.id,
+    label: project.name
+  }));
 
-  // Prepare employee options for CustomSelect
-  const employeeOptions = [
-    { value: 'all', label: 'All Employees' },
-    ...employees.map(employee => ({
-      value: employee.id,
-      label: `${employee.username} (${employee.role})`
-    }))
-  ];
+  // Prepare employee options for CustomMultiSelect (no "all" option, empty array = all)
+  const employeeOptions = employees.map(employee => ({
+    value: employee.id,
+    label: `${employee.username} (${employee.role})`
+  }));
 
   return (
     <div className="flex flex-wrap gap-4">
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-muted-foreground">Project:</label>
-        <CustomSelect
-          value={filters.projectId || 'all'}
+        <label className="text-sm font-medium text-muted-foreground">Projects:</label>
+        <CustomMultiSelect
+          value={getProjectIds()}
           onChange={handleProjectChange}
           options={projectOptions}
-          placeholder="Select Project"
+          placeholder="All Projects"
         />
       </div>
 
       {/* Hide employee filter for employee role */}
       {userRole !== 'employee' && (
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-muted-foreground">Employee:</label>
-          <CustomSelect
-            value={filters.employeeId || 'all'}
+          <label className="text-sm font-medium text-muted-foreground">Employees:</label>
+          <CustomMultiSelect
+            value={getEmployeeIds()}
             onChange={handleEmployeeChange}
             options={employeeOptions}
-            placeholder="Select Employee"
+            placeholder="All Employees"
           />
         </div>
       )}

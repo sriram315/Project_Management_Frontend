@@ -22,8 +22,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       try {
         const saved = JSON.parse(localStorage.getItem('dashboard-filters')!);
         return {
-          projectId: saved.projectId ?? undefined,
-          employeeId: saved.employeeId ?? undefined,
+          projectId: saved.projectId ?? undefined, // Can be number or number[]
+          employeeId: saved.employeeId ?? undefined, // Can be number or number[]
           startDate: saved.startDate ?? undefined,
           endDate: saved.endDate ?? undefined,
         };
@@ -88,15 +88,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const fetchInitialData = async () => {
     try {
       // For employees, fetch only their assigned projects
-      // For other roles, fetch all projects
-      const projectsPromise = user?.role === 'employee' 
-        ? userAPI.getUserProjects(user.id)
-        : dashboardAPI.getProjects();
+      // For managers/team leads, fetch only their assigned projects via project_assignments
+      // For super admin, fetch all projects
+      let projectsPromise;
+      if (user?.role === 'employee') {
+        projectsPromise = userAPI.getUserProjects(user.id);
+      } else if (user?.role === 'manager' || user?.role === 'team_lead') {
+        projectsPromise = dashboardAPI.getProjects(user.id, user.role);
+      } else {
+        projectsPromise = dashboardAPI.getProjects();
+      }
 
       const [projectsRes, employeesRes, taskStatusRes] = await Promise.all([
         projectsPromise,
-        dashboardAPI.getEmployees(), // Fetch all employees initially
-        dashboardAPI.getTaskStatus(),
+        dashboardAPI.getEmployees(undefined, user?.id, user?.role), // Fetch employees based on user role (no project filter = get employees from assigned projects for managers)
+        dashboardAPI.getTaskStatus({
+          userId: user?.id,
+          userRole: user?.role,
+        }),
       ]);
 
       setProjects(projectsRes);
@@ -158,28 +167,46 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
       const effectiveStartDate = filters.startDate || formatDateLocal(monday);
       const effectiveEndDate = filters.endDate || formatDateLocal(friday);
-      const effectiveEmployeeId = (user?.role === 'employee')
-        ? (filters.employeeId || user?.id)
-        : filters.employeeId;
+      
+      // Handle single or array employeeId
+      let effectiveEmployeeId: number | number[] | undefined;
+      if (user?.role === 'employee') {
+        effectiveEmployeeId = filters.employeeId || user?.id;
+      } else {
+        effectiveEmployeeId = filters.employeeId;
+      }
+      
+      // Convert projectId and employeeId to comma-separated strings for API
+      const projectIdStr = Array.isArray(filters.projectId) 
+        ? filters.projectId.join(',')
+        : filters.projectId?.toString();
+      
+      const employeeIdStr = Array.isArray(effectiveEmployeeId)
+        ? effectiveEmployeeId.join(',')
+        : effectiveEmployeeId?.toString();
 
       const [data, taskStatusData, tasksTimeline] = await Promise.all([
         dashboardAPI.getDashboardData({
-          projectId: filters.projectId?.toString(),
-          employeeId: effectiveEmployeeId?.toString(),
+          projectId: projectIdStr,
+          employeeId: employeeIdStr,
           startDate: effectiveStartDate,
           endDate: effectiveEndDate,
+          userId: user?.id,
+          userRole: user?.role,
         }),
         dashboardAPI.getTaskStatus({
-          projectId: filters.projectId?.toString(),
-          employeeId: effectiveEmployeeId?.toString(),
+          projectId: projectIdStr,
+          employeeId: employeeIdStr,
           startDate: effectiveStartDate,
           endDate: effectiveEndDate,
+          userId: user?.id,
+          userRole: user?.role,
         }),
         dashboardAPI.getTasksTimeline({
           role: user?.role || 'employee',
           userId: user?.id || 0,
-          projectId: filters.projectId?.toString(),
-          employeeId: effectiveEmployeeId?.toString(),
+          projectId: projectIdStr,
+          employeeId: employeeIdStr,
         })
       ]);
       setDashboardData(data);
@@ -198,13 +225,73 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     fetchInitialData();
   }, []);
 
+  // Fetch employees when project filter changes
+  useEffect(() => {
+    const fetchEmployeesForProject = async () => {
+      if (!user) return;
+      
+      const currentProjectId = filters.projectId;
+      const currentEmployeeId = filters.employeeId;
+      
+      try {
+        // Convert projectId to comma-separated string if array
+        const projectIdStr = Array.isArray(currentProjectId)
+          ? currentProjectId.join(',')
+          : currentProjectId?.toString();
+        
+        const employeesRes = await dashboardAPI.getEmployees(projectIdStr, user.id, user.role);
+        setEmployees(employeesRes);
+        
+        // If current employeeId (single or array) contains IDs not in the filtered list, remove them
+        if (currentEmployeeId) {
+          const employeeIds = Array.isArray(currentEmployeeId) ? currentEmployeeId : [currentEmployeeId];
+          const validEmployeeIds = employeeIds.filter(id => employeesRes.some((e: any) => e.id === id));
+          
+          if (validEmployeeIds.length !== employeeIds.length) {
+            setFilters(prev => ({ 
+              ...prev, 
+              employeeId: validEmployeeIds.length === 0 
+                ? undefined 
+                : validEmployeeIds.length === 1 
+                  ? validEmployeeIds[0] 
+                  : validEmployeeIds
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching employees for project:', error);
+      }
+    };
+
+    fetchEmployeesForProject();
+  }, [filters.projectId, user]);
+
   // After projects and employees are loaded, scrub the filters state:
   useEffect(() => {
     if (!projects.length && !employees.length) return;
     setFilters((prev) => {
-      // If projectId or employeeId is present but not in current options, clear them
-      const validProjectId = prev.projectId && projects.some(p => p.id === prev.projectId) ? prev.projectId : undefined;
-      const validEmployeeId = prev.employeeId && employees.some(e => e.id === prev.employeeId) ? prev.employeeId : undefined;
+      // Validate projectId (single or array)
+      let validProjectId: number | number[] | undefined;
+      if (prev.projectId) {
+        if (Array.isArray(prev.projectId)) {
+          const valid = prev.projectId.filter(id => projects.some(p => p.id === id));
+          validProjectId = valid.length === 0 ? undefined : valid.length === 1 ? valid[0] : valid;
+        } else {
+          validProjectId = projects.some(p => p.id === prev.projectId) ? prev.projectId : undefined;
+        }
+      }
+      
+      // Validate employeeId (single or array)
+      let validEmployeeId: number | number[] | undefined;
+      if (prev.employeeId) {
+        if (Array.isArray(prev.employeeId)) {
+          const valid = prev.employeeId.filter(id => employees.some(e => e.id === id));
+          validEmployeeId = valid.length === 0 ? undefined : valid.length === 1 ? valid[0] : valid;
+        } else {
+          validEmployeeId = employees.some(e => e.id === prev.employeeId) ? prev.employeeId : undefined;
+        }
+      }
+      
       // If startDate/endDate present, use; otherwise keep prev/defaults
       const { startDate, endDate } = prev;
       return { ...prev, projectId: validProjectId, employeeId: validEmployeeId, startDate, endDate };
@@ -219,18 +306,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   // When filters change, also update localStorage
   const persistFilters = (newFilters: FilterType) => {
-    localStorage.setItem('dashboard-filters', JSON.stringify({
+    // Normalize projectId and employeeId for storage (keep arrays as arrays)
+    const normalizedFilters = {
       ...newFilters,
-      projectId: newFilters.projectId ? Number(newFilters.projectId) : undefined,
-      employeeId: newFilters.employeeId ? Number(newFilters.employeeId) : undefined,
+      projectId: newFilters.projectId 
+        ? (Array.isArray(newFilters.projectId) ? newFilters.projectId : Number(newFilters.projectId))
+        : undefined,
+      employeeId: newFilters.employeeId 
+        ? (Array.isArray(newFilters.employeeId) ? newFilters.employeeId : Number(newFilters.employeeId))
+        : undefined,
       startDate: newFilters.startDate,
       endDate: newFilters.endDate
-    }));
-    setFilters({
-      ...newFilters,
-      projectId: newFilters.projectId ? Number(newFilters.projectId) : undefined,
-      employeeId: newFilters.employeeId ? Number(newFilters.employeeId) : undefined,
-    });
+    };
+    
+    localStorage.setItem('dashboard-filters', JSON.stringify(normalizedFilters));
+    setFilters(normalizedFilters);
   };
 
   // The filter handler: changes state only
