@@ -466,10 +466,44 @@ export const authAPI = {
     }
     return body;
   },
+
+  // Change password with current password verification
+  changePassword: async (
+    userId: number,
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, currentPassword, newPassword }),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body.message || 'Failed to change password');
+    }
+    return body;
+  },
 };
 
 // User-specific API functions
 export const userAPI = {
+  // Update current user's profile
+  update: async (
+    id: number,
+    data: { username: string; email: string; role: string; available_hours_per_week?: number }
+  ): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body.message || 'Failed to update profile');
+    }
+    return body;
+  },
   // Get projects assigned to a specific user
   getUserProjects: async (userId: number): Promise<Project[]> => {
     const response = await fetch(`${API_BASE_URL}/users/${userId}/projects`);

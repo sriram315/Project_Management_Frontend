@@ -97,18 +97,21 @@ const ProjectList: React.FC<ProjectListProps> = ({
                     : raw === 'cancelled' ? 'inactive'
                     : raw === 'planning' ? 'active'
                     : raw;
-                  const bg = normalized === 'completed' ? '#d1fae5'
-                    : normalized === 'active' ? '#fef3c7'
-                    : normalized === 'inactive' ? '#e5e7eb'
-                    : '#fee2e2';
-                  const fg = normalized === 'completed' ? '#065f46'
-                    : normalized === 'active' ? '#92400e'
-                    : normalized === 'inactive' ? '#374151'
-                    : '#991b1b';
                   const label = normalized === 'completed' ? 'COMPLETED'
                     : normalized === 'active' ? 'ACTIVE'
                     : normalized === 'inactive' ? 'INACTIVE'
-                    : 'INACTIVE';
+                    : normalized === 'dropped' ? 'DROPPED'
+                    : 'DROPPED';
+                  const bg = normalized === 'completed' ? '#d1fae5'
+                    : normalized === 'active' ? '#fef3c7'
+                    : normalized === 'inactive' ? '#e5e7eb'
+                    : normalized === 'dropped' ? '#fee2e2'
+                    : '#f3f4f6';
+                  const fg = normalized === 'completed' ? '#065f46'
+                    : normalized === 'active' ? '#92400e'
+                    : normalized === 'inactive' ? '#374151'
+                    : normalized === 'dropped' ? '#991b1b'
+                    : '#6b7280';
                   return (
                     <span style={{
                   display: 'inline-flex',

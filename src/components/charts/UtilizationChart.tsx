@@ -30,11 +30,14 @@ interface UtilizationChartProps {
 
 const UtilizationChart: React.FC<UtilizationChartProps> = ({ data }) => {
   const chartData = {
-    labels: data.map(item => item.week),
+    labels: data.map(item => item?.week || ''),
     datasets: [
       {
         label: 'Utilization %',
-        data: data.map(item => item.utilization),
+        data: data.map(item => {
+          const value = item?.utilization;
+          return value !== null && value !== undefined && !isNaN(value) ? value : 0;
+        }),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         fill: true,

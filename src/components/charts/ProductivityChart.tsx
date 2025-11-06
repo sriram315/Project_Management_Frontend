@@ -26,11 +26,14 @@ interface ProductivityChartProps {
 
 const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
   const chartData = {
-    labels: data.map(item => item.week),
+    labels: data.map(item => item?.week || ''),
     datasets: [
       {
         label: 'Productivity %',
-        data: data.map(item => item.productivity),
+        data: data.map(item => {
+          const value = item?.productivity;
+          return value !== null && value !== undefined && !isNaN(value) ? value : 0;
+        }),
         backgroundColor: 'rgb(34, 197, 94)',
         borderColor: 'rgb(34, 197, 94)',
         borderWidth: 0,
@@ -63,10 +66,13 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
           label: function(context: any) {
             const dataIndex = context.dataIndex;
             const item = data[dataIndex];
+            const productivity = item?.productivity ?? 0;
+            const hours = item?.hours ?? 0;
+            const plannedHours = item?.plannedHours ?? 0;
             return [
-              `Productivity: ${item.productivity.toFixed(1)}%`,
-              `Actual Hours: ${item.hours.toFixed(1)}h`,
-              `Planned Hours: ${item.plannedHours.toFixed(1)}h`
+              `Productivity: ${productivity.toFixed(1)}%`,
+              `Actual Hours: ${hours.toFixed(1)}h`,
+              `Planned Hours: ${plannedHours.toFixed(1)}h`
             ];
           }
         }

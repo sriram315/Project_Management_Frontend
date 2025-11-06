@@ -58,25 +58,45 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onUpdateTask, onDeleteTask }
   };
 
   return (
-    <div className="users-table-container">
-      <table className="users-table">
-        <thead>
-          <tr>
-            <th>Task</th>
-            <th>Status</th>
-            <th>Priority</th>
-            <th>Type</th>
-            <th>Assignee</th>
-            <th>Project</th>
-            <th>Hours (Planned/Taken)</th>
-            <th>Due Date</th>
-            <th>Actions</th>
+    <div
+      style={{
+        overflowX: 'auto',
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        border: '1px solid #e5e7eb',
+        marginTop: '2rem',
+        maxHeight: '600px',
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+      }}
+    >
+      <table
+        style={{
+          width: '100%',
+          borderCollapse: 'collapse',
+          tableLayout: 'auto',
+          fontSize: '15px',
+          display: 'table',
+        }}
+      >
+        <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+          <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151' }}>Task</th>
+            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151' }}>Status</th>
+            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151' }}>Priority</th>
+            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151' }}>Type</th>
+            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151' }}>Assignee</th>
+            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151' }}>Project</th>
+            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151' }}>Hours (Planned/Taken)</th>
+            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151' }}>Due Date</th>
+            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151' }}>Actions</th>
           </tr>
         </thead>
         <tbody>
           {tasks.map((task) => (
             <tr key={task.id} className="user-row">
-              <td>
+              <td style={{ padding: '1rem 1.5rem' }}>
                 <div className="project-info">
                   <div className="project-name">{task.name}</div>
                   {task.description && (
@@ -84,38 +104,38 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onUpdateTask, onDeleteTask }
                   )}
                 </div>
               </td>
-              <td>
-                <span 
+              <td style={{ padding: '1rem 1.5rem' }}>
+                <span
                   className="role-badge"
                   style={{ backgroundColor: getStatusColor(task.status) }}
                 >
                   {task.status.replace('_', ' ').charAt(0).toUpperCase() + task.status.replace('_', ' ').slice(1)}
                 </span>
               </td>
-              <td>
-                <span 
+              <td style={{ padding: '1rem 1.5rem' }}>
+                <span
                   className="role-badge"
                   style={{ backgroundColor: getPriorityColor(task.priority) }}
                 >
                   {task.priority.toUpperCase()}
                 </span>
               </td>
-              <td>
-                <span 
+              <td style={{ padding: '1rem 1.5rem' }}>
+                <span
                   className="role-badge"
                   style={{ backgroundColor: getTaskTypeColor(task.task_type) }}
                 >
                   {task.task_type.charAt(0).toUpperCase() + task.task_type.slice(1)}
                 </span>
               </td>
-              <td>{task.assignee_name || 'Not assigned'}</td>
-              <td>{task.project_name || 'No project'}</td>
-              <td>
+              <td style={{ padding: '1rem 1.5rem' }}>{task.assignee_name || 'Not assigned'}</td>
+              <td style={{ padding: '1rem 1.5rem' }}>{task.project_name || 'No project'}</td>
+              <td style={{ padding: '1rem 1.5rem' }}>
                 <div className="hours-cell">
                   <div>Planned: {task.planned_hours}h</div>
                   {/* Only show actual hours for completed tasks */}
                   {task.status === 'completed' && task.actual_hours > 0 && (
-                    <div 
+                    <div
                       style={{ color: getActualHoursColor(task.planned_hours, task.actual_hours) }}
                     >
                       Actual: {task.actual_hours}h
@@ -123,11 +143,11 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onUpdateTask, onDeleteTask }
                   )}
                 </div>
               </td>
-              <td className="date-cell">{formatDate(task.due_date)}</td>
-              <td>
+              <td style={{ padding: '1rem 1.5rem' }} className="date-cell">{formatDate(task.due_date)}</td>
+              <td style={{ padding: '1rem 1.5rem' }}>
                 <div className="user-actions">
                   {onUpdateTask && (
-                    <button 
+                    <button
                       className="btn-small btn-edit"
                       onClick={() => onUpdateTask(task)}
                       title="Update task"
@@ -136,7 +156,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onUpdateTask, onDeleteTask }
                     </button>
                   )}
                   {onDeleteTask && (
-                    <button 
+                    <button
                       className="btn-small btn-delete"
                       onClick={() => onDeleteTask(task.id)}
                       title="Delete task"

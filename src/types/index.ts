@@ -91,6 +91,7 @@ export interface WeeklyData {
   productivity: number;
   plannedHours: number;
   availableHours: number;
+  totalAvailableHours?: number; // Total available hours for utilization calculation
 }
 
 export interface DashboardData {

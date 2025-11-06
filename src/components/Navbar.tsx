@@ -26,6 +26,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       </div>
       <div className="nav-user">
         <span>{user?.username}</span>
+        <NavLink to="/settings" className={({ isActive }) => isActive ? 'active' : undefined} style={{ marginLeft: '1rem', marginRight: '0.5rem' }}>Settings</NavLink>
         <button onClick={onLogout} className="logout-btn">
           Logout
         </button>

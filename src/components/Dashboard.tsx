@@ -43,8 +43,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     return {
       projectId: undefined,
       employeeId: user?.role === 'employee' ? user.id : undefined,
-      startDate: formatDate(monday),
-      endDate: formatDate(friday),
+      startDate: undefined,
+      endDate: undefined,
     };
   };
 
@@ -76,6 +76,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [tasksNextWeek, setTasksNextWeek] = useState<Array<{ id: number; title: string; assignee: string; status: string; statusColor: string; estimated: number; logged: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [forceRefreshKey, setForceRefreshKey] = useState(0);
+  const [selectedTask, setSelectedTask] = useState<{
+    id: number;
+    title: string;
+    assignee: string;
+    status: string;
+    estimated: number;
+    source: 'thisWeek' | 'nextWeek';
+  } | null>(null);
 
   // Display helper: show hyphen for null/empty API values
   const displayOrHyphen = (value: any): string | number => {
@@ -141,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         startDate: prev.startDate || formatDateLocal(monday),
         endDate: prev.endDate || formatDateLocal(friday),
       }));
-    } catch (error) {
+    } catch (error) {-
       console.error('Error fetching initial data:', error);
     }
   };
@@ -185,10 +193,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         ? effectiveEmployeeId.join(',')
         : effectiveEmployeeId?.toString();
 
+      // For timeline: employees default to their own tasks; managers/team leads see all tasks from their assigned projects (unless employeeId is explicitly selected)
+      const timelineEmployeeIdStr = (user?.role === 'employee')
+        ? (employeeIdStr || String(user?.id))
+        : employeeIdStr;
+      // For stats/charts: employees default to their own tasks; managers/team leads see all tasks from their assigned projects (unless employeeId is explicitly selected)
+      const statsEmployeeIdStr = (user?.role === 'employee')
+        ? (employeeIdStr || String(user?.id))
+        : employeeIdStr;
+
       const [data, taskStatusData, tasksTimeline] = await Promise.all([
         dashboardAPI.getDashboardData({
           projectId: projectIdStr,
-          employeeId: employeeIdStr,
+          employeeId: statsEmployeeIdStr,
           startDate: effectiveStartDate,
           endDate: effectiveEndDate,
           userId: user?.id,
@@ -196,9 +213,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         }),
         dashboardAPI.getTaskStatus({
           projectId: projectIdStr,
-          employeeId: employeeIdStr,
-          startDate: effectiveStartDate,
-          endDate: effectiveEndDate,
+          employeeId: statsEmployeeIdStr,
+          // Don't filter by date for task status - show all tasks from assigned projects
+          // startDate: effectiveStartDate,
+          // endDate: effectiveEndDate,
           userId: user?.id,
           userRole: user?.role,
         }),
@@ -206,9 +224,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           role: user?.role || 'employee',
           userId: user?.id || 0,
           projectId: projectIdStr,
-          employeeId: employeeIdStr,
+          employeeId: timelineEmployeeIdStr,
         })
       ]);
+      console.log('Dashboard data received:', {
+        utilizationData: data.utilizationData?.length || 0,
+        productivityData: data.productivityData?.length || 0,
+        availabilityData: data.availabilityData?.length || 0,
+      });
+      console.log('Task status data received:', taskStatusData);
+      console.log('Tasks timeline received:', tasksTimeline);
+      console.log('Tasks timeline - thisWeek length:', tasksTimeline.thisWeek?.length || 0);
+      console.log('Tasks timeline - nextWeek length:', tasksTimeline.nextWeek?.length || 0);
+      console.log('Tasks timeline - thisWeek data:', tasksTimeline.thisWeek);
+      console.log('Tasks timeline - nextWeek data:', tasksTimeline.nextWeek);
+      
       setDashboardData(data);
       setTaskStatusData(taskStatusData);
       setTasksThisWeek(tasksTimeline.thisWeek || []);
@@ -269,40 +299,59 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   // After projects and employees are loaded, scrub the filters state:
   useEffect(() => {
     if (!projects.length && !employees.length) return;
+
+    const arraysEqual = (a?: number | number[], b?: number | number[]) => {
+      const arrA = Array.isArray(a) ? [...a].sort((x, y) => Number(x) - Number(y)) : (a === undefined ? [] : [a]);
+      const arrB = Array.isArray(b) ? [...b].sort((x, y) => Number(x) - Number(y)) : (b === undefined ? [] : [b]);
+      if (arrA.length !== arrB.length) return false;
+      for (let i = 0; i < arrA.length; i++) if (arrA[i] !== arrB[i]) return false;
+      return true;
+    };
+
     setFilters((prev) => {
-      // Validate projectId (single or array)
-      let validProjectId: number | number[] | undefined;
-      if (prev.projectId) {
-        if (Array.isArray(prev.projectId)) {
-          const valid = prev.projectId.filter(id => projects.some(p => p.id === id));
-          validProjectId = valid.length === 0 ? undefined : valid.length === 1 ? valid[0] : valid;
-        } else {
-          validProjectId = projects.some(p => p.id === prev.projectId) ? prev.projectId : undefined;
-        }
+      // Validate projectId (preserve array vs single type)
+      let validProjectId: number | number[] | undefined = undefined;
+      if (Array.isArray(prev.projectId)) {
+        const valid = prev.projectId.filter(id => projects.some(p => p.id === id));
+        validProjectId = valid.length > 0 ? valid : undefined; // keep array, do not collapse to single
+      } else if (prev.projectId) {
+        validProjectId = projects.some(p => p.id === prev.projectId) ? prev.projectId : undefined;
       }
-      
-      // Validate employeeId (single or array)
-      let validEmployeeId: number | number[] | undefined;
-      if (prev.employeeId) {
-        if (Array.isArray(prev.employeeId)) {
-          const valid = prev.employeeId.filter(id => employees.some(e => e.id === id));
-          validEmployeeId = valid.length === 0 ? undefined : valid.length === 1 ? valid[0] : valid;
-        } else {
-          validEmployeeId = employees.some(e => e.id === prev.employeeId) ? prev.employeeId : undefined;
-        }
+
+      // Validate employeeId (preserve array vs single type)
+      let validEmployeeId: number | number[] | undefined = undefined;
+      if (Array.isArray(prev.employeeId)) {
+        const valid = prev.employeeId.filter(id => employees.some(e => e.id === id));
+        validEmployeeId = valid.length > 0 ? valid : undefined; // keep array, do not collapse to single
+      } else if (prev.employeeId) {
+        validEmployeeId = employees.some(e => e.id === prev.employeeId) ? prev.employeeId : undefined;
       }
-      
-      // If startDate/endDate present, use; otherwise keep prev/defaults
-      const { startDate, endDate } = prev;
-      return { ...prev, projectId: validProjectId, employeeId: validEmployeeId, startDate, endDate };
+
+      const next: FilterType = {
+        ...prev,
+        projectId: validProjectId,
+        employeeId: validEmployeeId,
+        startDate: prev.startDate,
+        endDate: prev.endDate,
+      };
+
+      // Deep-ish equality for ids (arrays by value, singles by value)
+      const isSame = (
+        arraysEqual(prev.projectId as any, next.projectId as any) &&
+        arraysEqual(prev.employeeId as any, next.employeeId as any) &&
+        prev.startDate === next.startDate &&
+        prev.endDate === next.endDate
+      );
+
+      return isSame ? prev : next;
     });
   }, [projects, employees]);
 
-  // Only fetch dashboard data on initial mount and refreshes
+  // Fetch dashboard data on initial mount and manual refresh only (not on filter change)
   useEffect(() => {
     fetchDashboardData();
-    // eslint-disable-next-line
-  }, [forceRefreshKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forceRefreshKey, user]);
 
   // When filters change, also update localStorage
   const persistFilters = (newFilters: FilterType) => {
@@ -331,20 +380,68 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   // Calculate metrics from data
   const totalTasks = taskStatusData.todo + taskStatusData.in_progress + taskStatusData.completed + taskStatusData.blocked;
   const completedTasks = taskStatusData.completed;
-  const productivity = dashboardData.productivityData.length > 0 
-    ? Math.round(dashboardData.productivityData[dashboardData.productivityData.length - 1].productivity) 
-    : 0;
   
-  // Calculate average utilization across all weeks (weighted average)
-  // Total capacity per week = plannedHours + availableHours (remaining)
-  const utilization = dashboardData.utilizationData.length > 0 
-    ? (() => {
-        const totalPlanned = dashboardData.utilizationData.reduce((sum, week) => sum + (week.plannedHours || 0), 0);
-        const totalCapacity = dashboardData.utilizationData.reduce((sum, week) => 
-          sum + (week.plannedHours || 0) + (week.availableHours || 0), 0);
-        return totalCapacity > 0 ? Math.round((totalPlanned / totalCapacity) * 100) : 0;
-      })()
-    : 0;
+  // Calculate productivity: use average of all weeks in the date range, similar to how task status works
+  // Use the productivity value directly from the backend data (like taskStatusData is used directly)
+  const calculateProductivity = () => {
+    if (!dashboardData.productivityData || dashboardData.productivityData.length === 0) {
+      return null;
+    }
+    // Calculate average productivity across all weeks with valid values
+    const productivityValues: number[] = dashboardData.productivityData
+      .map(week => {
+        const val = week?.productivity;
+        return val !== null && val !== undefined && !isNaN(val) ? val : null;
+      })
+      .filter((val): val is number => val !== null && typeof val === 'number');
+    if (productivityValues.length > 0) {
+      const avg = productivityValues.reduce((sum, val) => sum + val, 0) / productivityValues.length;
+      return Math.round(avg);
+    }
+    // Fallback to last week's value if available
+    const lastWeek = dashboardData.productivityData[dashboardData.productivityData.length - 1];
+    if (lastWeek?.productivity !== null && lastWeek?.productivity !== undefined && !isNaN(lastWeek.productivity)) {
+      return Math.round(lastWeek.productivity);
+    }
+    return null;
+  };
+  const productivity = calculateProductivity();
+  
+  // Calculate utilization: use average of all weeks in the date range, similar to how task status works
+  // Use the utilization value directly from the backend data (like taskStatusData is used directly)
+  const calculateUtilization = () => {
+    if (!dashboardData.utilizationData || dashboardData.utilizationData.length === 0) {
+      return null;
+    }
+    // Calculate average utilization across all weeks with valid values
+    const utilizationValues: number[] = dashboardData.utilizationData
+      .map(week => {
+        const val = week?.utilization;
+        return val !== null && val !== undefined && !isNaN(val) ? val : null;
+      })
+      .filter((val): val is number => val !== null && typeof val === 'number');
+    if (utilizationValues.length > 0) {
+      const avg = utilizationValues.reduce((sum, val) => sum + val, 0) / utilizationValues.length;
+      return Math.round(avg);
+    }
+    // Fallback to last week's value if available
+    const lastWeek = dashboardData.utilizationData[dashboardData.utilizationData.length - 1];
+    if (lastWeek?.utilization !== null && lastWeek?.utilization !== undefined && !isNaN(lastWeek.utilization)) {
+      return Math.round(lastWeek.utilization);
+    }
+    return null;
+  };
+  const utilization = calculateUtilization();
+  
+  // Debug logging
+  console.log('Calculated metrics:', {
+    totalTasks,
+    completedTasks,
+    productivity,
+    utilization,
+    taskStatusData,
+    dashboardDataLength: dashboardData.productivityData.length,
+  });
 
   // Metric cards
   const baseStats: Array<{
@@ -381,7 +478,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     },
     {
       label: "Productivity",
-      value: displayOrHyphen(`${isNaN(productivity) ? '-' : productivity}%`),
+      value: (typeof productivity === 'number' && !isNaN(productivity)) ? `${productivity}%` : '0%',
       icon: "⭐",
       color: "bg-indigo-500",
       trend: "+5% improvement",
@@ -389,7 +486,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     },
     {
       label: "Utilization",
-      value: displayOrHyphen(`${isNaN(utilization) ? '-' : utilization}%`),
+      value: (typeof utilization === 'number' && !isNaN(utilization)) ? `${utilization}%` : '0%',
       icon: "⏰",
       color: "bg-indigo-500",
       trend: "+2% this week",
@@ -575,124 +672,147 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
         </div> */} 
 
-  {/* Tasks This Week and Next Week */}
-<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-  {/* Tasks This Week */}
-  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5" style={{padding:'20px'}}>
-    <h3 className="text-lg font-semibold text-gray-900" style={{paddingBottom:'20px'}}>Tasks This Week</h3>
-    <div className="mt-4 grid grid-cols-2 gap-4">
-      {tasksThisWeek.slice(0, 4).map((task) => {
-        const statusTextClass =
-          task.status === 'Completed'
-            ? 'text-green-600'
-            : task.status === 'In Progress'
-            ? 'text-cyan-600'
-            : task.status === 'Blocked'
-            ? 'text-red-600'
-            : 'text-gray-600';
-        const barColor =
-          task.status === 'Completed'
-            ? '#22c55e'
-            : task.status === 'In Progress'
-            ? '#06b6d4'
-            : task.status === 'Blocked'
-            ? '#ef4444'
-            : '#f59e0b';
-        const statusMap: Record<string, 'todo'|'in_progress'|'blocked'|'completed'> = {
-          'To Do': 'todo',
-          'In Progress': 'in_progress',
-          'Blocked': 'blocked',
-          'Completed': 'completed'
-        };
-        const goToTasks = () => {
-          const s = statusMap[task.status] || 'todo';
-          navigate('/tasks', { state: { scrollToStatus: s } });
-        };
-        return (
-          <div
-            key={task.id}
-            className="flex items-center justify-between bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            style={{
-              borderLeft: `4px solid ${barColor}`,
-              padding: '10px 12px',
-            }}
-            onClick={goToTasks}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="flex-1" style={{ paddingLeft: '10px' }}>
-              <p className="font-medium text-sm text-gray-900">{task.title}</p>
-              <p className="text-xs text-gray-500">{task.assignee}</p>
-              <p className="text-xs text-gray-600 mt-1">Est: {task.estimated}h</p>
-            </div>
-            <span className={`text-xs font-semibold ${statusTextClass}`}>{task.status}</span>
-          </div>
-        );
-      })}
-      {tasksThisWeek.length === 0 && (
-        <div className="col-span-2 flex items-center justify-center text-gray-400 text-2xl">-</div>
-      )}
+  {/* Tasks This Week and Next Week (Tables with hyperlinks) */}
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="p-6">
+        <h3 className="text-lg font-semibold text-gray-900">Tasks This Week</h3>
+        <div className="mt-4 overflow-x-auto">
+          <table className="users-table" style={{ width: '100%' }}>
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Assignee</th>
+                <th>Status</th>
+                <th>Estimated Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasksThisWeek.length === 0 && (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af' }}>No tasks</td>
+                </tr>
+              )}
+              {tasksThisWeek.map((task) => {
+                const statusTextClass =
+                  task.status === 'Completed'
+                    ? 'text-green-600'
+                    : task.status === 'In Progress'
+                    ? 'text-cyan-600'
+                    : task.status === 'Blocked'
+                    ? 'text-red-600'
+                    : 'text-gray-600';
+                const isExpanded = selectedTask && selectedTask.source === 'thisWeek' && selectedTask.id === task.id;
+                return (
+                  <>
+                    <tr key={`row-${task.id}`} className="user-row">
+                      <td>
+                        <a
+                          href="#"
+                          onClick={(e) => { e.preventDefault(); setSelectedTask(isExpanded ? null : { id: task.id, title: task.title, assignee: task.assignee, status: task.status, estimated: task.estimated, source: 'thisWeek' }); }}
+                          style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}
+                        >
+                          {task.title}
+                        </a>
+                      </td>
+                      <td>{task.assignee}</td>
+                      <td><span className={`text-xs font-semibold ${statusTextClass}`}>{task.status}</span></td>
+                      <td>{task.estimated} hrs</td>
+                    </tr>
+                    {isExpanded && (
+                      <tr key={`details-${task.id}`}>
+                        <td colSpan={4}>
+                          <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mt-2">
+                            <div className="text-sm"><span className="text-gray-500">Task:</span> <span className="font-medium">{task.title}</span></div>
+                            <div className="text-sm mt-1"><span className="text-gray-500">Assignee:</span> <span className="font-medium">{task.assignee}</span></div>
+                            <div className="text-sm mt-1"><span className="text-gray-500">Status:</span> <span className="font-medium">{task.status}</span></div>
+                            <div className="text-sm mt-1"><span className="text-gray-500">Estimated:</span> <span className="font-medium">{task.estimated} hrs</span></div>
+                            <div className="mt-3 flex justify-end">
+                              <button onClick={() => setSelectedTask(null)} style={{ padding: '8px 12px', borderRadius: 8, background: '#e5e7eb', border: '1px solid #d1d5db', cursor: 'pointer' }}>Close</button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="p-6">
+        <h3 className="text-lg font-semibold text-gray-900">Tasks Next Week</h3>
+        <div className="mt-4 overflow-x-auto">
+          <table className="users-table" style={{ width: '100%' }}>
+            <thead>
+              <tr>
+                <th>Task</th>
+                <th>Assignee</th>
+                <th>Status</th>
+                <th>Estimated Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasksNextWeek.length === 0 && (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af' }}>No tasks</td>
+                </tr>
+              )}
+              {tasksNextWeek.map((task) => {
+                const statusTextClass =
+                  task.status === 'Completed'
+                    ? 'text-green-600'
+                    : task.status === 'In Progress'
+                    ? 'text-cyan-600'
+                    : task.status === 'Blocked'
+                    ? 'text-red-600'
+                    : 'text-gray-600';
+                const isExpanded = selectedTask && selectedTask.source === 'nextWeek' && selectedTask.id === task.id;
+                return (
+                  <>
+                    <tr key={`row-nw-${task.id}`} className="user-row">
+                      <td>
+                        <a
+                          href="#"
+                          onClick={(e) => { e.preventDefault(); setSelectedTask(isExpanded ? null : { id: task.id, title: task.title, assignee: task.assignee, status: task.status, estimated: task.estimated, source: 'nextWeek' }); }}
+                          style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}
+                        >
+                          {task.title}
+                        </a>
+                      </td>
+                      <td>{task.assignee}</td>
+                      <td><span className={`text-xs font-semibold ${statusTextClass}`}>{task.status}</span></td>
+                      <td>{task.estimated} hrs</td>
+                    </tr>
+                    {isExpanded && (
+                      <tr key={`details-nw-${task.id}`}>
+                        <td colSpan={4}>
+                          <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mt-2">
+                            <div className="text-sm"><span className="text-gray-500">Task:</span> <span className="font-medium">{task.title}</span></div>
+                            <div className="text-sm mt-1"><span className="text-gray-500">Assignee:</span> <span className="font-medium">{task.assignee}</span></div>
+                            <div className="text-sm mt-1"><span className="text-gray-500">Status:</span> <span className="font-medium">{task.status}</span></div>
+                            <div className="text-sm mt-1"><span className="text-gray-500">Estimated:</span> <span className="font-medium">{task.estimated} hrs</span></div>
+                            <div className="mt-3 flex justify-end">
+                              <button onClick={() => setSelectedTask(null)} style={{ padding: '8px 12px', borderRadius: 8, background: '#e5e7eb', border: '1px solid #d1d5db', cursor: 'pointer' }}>Close</button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
-  {/* Tasks Next Week */}
-  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5" style={{padding:'20px'}}>
-    <h3 className="text-lg font-semibold text-gray-900" style={{paddingBottom:'20px'}}>Tasks Next Week</h3>
-    <div className="mt-4 grid grid-cols-2 gap-4">
-      {tasksNextWeek.slice(0, 4).map((task) => {
-        const statusTextClass =
-          task.status === 'Completed'
-            ? 'text-green-600'
-            : task.status === 'In Progress'
-            ? 'text-cyan-600'
-            : task.status === 'Blocked'
-            ? 'text-red-600'
-            : 'text-gray-600';
-        const barColor =
-          task.status === 'Completed'
-            ? '#22c55e'
-            : task.status === 'In Progress'
-            ? '#06b6d4'
-            : task.status === 'Blocked'
-            ? '#ef4444'
-            : '#f59e0b';
-        const statusMap: Record<string, 'todo'|'in_progress'|'blocked'|'completed'> = {
-          'To Do': 'todo',
-          'In Progress': 'in_progress',
-          'Blocked': 'blocked',
-          'Completed': 'completed'
-        };
-        const goToTasks = () => {
-          const s = statusMap[task.status] || 'todo';
-          navigate('/tasks', { state: { scrollToStatus: s } });
-        };
-        return (
-          <div
-            key={task.id}
-            className="flex items-center justify-between bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            style={{
-              borderLeft: `4px solid ${barColor}`,
-              padding: '10px 12px',
-            }}
-            onClick={goToTasks}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="flex-1" style={{ paddingLeft: '10px' }}>
-              <p className="font-medium text-sm text-gray-900">{task.title}</p>
-              <p className="text-xs text-gray-500">{task.assignee}</p>
-              <p className="text-xs text-gray-600 mt-1">Est: {task.estimated}h</p>
-            </div>
-            <span className={`text-xs font-semibold ${statusTextClass}`}>{task.status}</span>
-          </div>
-        );
-      })}
-      {tasksNextWeek.length === 0 && (
-        <div className="col-span-2 flex items-center justify-center text-gray-400 text-2xl">-</div>
-      )}
-    </div>
-  </div>
-</div>
 
 
         {/* Charts Grid */}
@@ -705,10 +825,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 <p className="text-xs text-gray-500">Team utilization percentage over time</p>
               </div>
               <div className="h-[300px]">
-                {dashboardData.utilizationData.length === 0 ? (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">-</div>
-                ) : (
+                {dashboardData.utilizationData && dashboardData.utilizationData.length > 0 ? (
                   <UtilizationChart data={dashboardData.utilizationData} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">-</div>
                 )}
               </div>
             </div>
@@ -722,10 +842,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 <p className="text-xs text-gray-500">Completed vs Allocated hours</p>
               </div>
               <div className="h-[300px]">
-                {dashboardData.productivityData.length === 0 ? (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">-</div>
-                ) : (
+                {dashboardData.productivityData && dashboardData.productivityData.length > 0 ? (
                   <ProductivityChart data={dashboardData.productivityData} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">-</div>
                 )}
               </div>
             </div>
@@ -773,3 +893,4 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 };
 
 export default Dashboard;
+

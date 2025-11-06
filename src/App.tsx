@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import Users from './components/Users';
 import Projects from './components/Projects';
 import Tasks from './components/Tasks';
+import ProfileSettings from './components/ProfileSettings';
 import TeamManagement from './components/TeamManagement';
 import ProjectDetails from './components/ProjectDetails';
 import ProjectAssignments from './components/ProjectAssignments';
@@ -160,6 +161,16 @@ function App() {
                 <Tasks user={user} />
               ) : (
                 <Navigate to="/dashboard" replace />
+              )
+            } 
+          />
+          <Route 
+            path="/settings" 
+            element={
+              isAuthenticated && user ? (
+                <ProfileSettings user={user} onUserUpdated={(u) => setUser(u as any)} />
+              ) : (
+                <Navigate to="/login" replace />
               )
             } 
           />

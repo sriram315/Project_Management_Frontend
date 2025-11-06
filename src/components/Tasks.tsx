@@ -132,11 +132,28 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
 
     // Filter by due date
     if (filters.dueDate) {
+      const sameCalendarDay = (a: string, b: string): boolean => {
+        const da = new Date(a);
+        const db = new Date(b);
+        if (!isNaN(da.getTime()) && !isNaN(db.getTime())) {
+          return (
+            da.getFullYear() === db.getFullYear() &&
+            da.getMonth() === db.getMonth() &&
+            da.getDate() === db.getDate()
+          );
+        }
+        // Fallback to comparing first 10 chars (YYYY-MM-DD)
+        const a10 = (a || '').slice(0, 10).replace(/\//g, '-');
+        const b10 = (b || '').slice(0, 10).replace(/\//g, '-');
+        return a10 === b10;
+      };
+
       filtered = filtered.filter(task => {
         if (!task.due_date) return false;
-        // Extract just the date part (YYYY-MM-DD) from task.due_date
-        const taskDate = task.due_date.split('T')[0];
-        return taskDate === filters.dueDate;
+        const rawTask = task.due_date;
+        const selected = filters.dueDate;
+        // Handle ISO strings like 2025-11-14T00:00:00Z by comparing date parts
+        return sameCalendarDay(rawTask, selected);
       });
     }
 
@@ -171,12 +188,14 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
     fetchData();
     setShowAddTask(false);
     showToast('Task created successfully!', 'success');
+    window.dispatchEvent(new CustomEvent('tasks:changed'));
   };
 
   const handleTaskUpdated = () => {
     fetchData();
     setEditingTask(null);
     showToast('Task updated successfully!', 'success');
+    window.dispatchEvent(new CustomEvent('tasks:changed'));
   };
 
   const handleDeleteTask = async (id: number) => {
@@ -184,6 +203,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
       await taskAPI.delete(id);
       fetchData();
       showToast('Task deleted successfully!', 'success');
+      window.dispatchEvent(new CustomEvent('tasks:changed'));
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Failed to delete task';
       showToast(errorMessage, 'error');
@@ -196,6 +216,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
 
   const handleTaskUpdate = () => {
     fetchData();
+    window.dispatchEvent(new CustomEvent('tasks:changed'));
   };
 
   if (loading) {

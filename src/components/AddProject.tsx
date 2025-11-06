@@ -6,7 +6,7 @@ import { useToast } from '../hooks/useToast';
 import '../App.css';
 
 interface AddProjectProps {
-  onProjectAdded: () => void;
+  onProjectAdded: (projectId: number) => void;
   onClose: () => void;
 }
 
@@ -65,6 +65,17 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
       errors.name = 'Project name must be at least 3 characters';
     } else if (formData.name.length > 100) {
       errors.name = 'Project name must not exceed 100 characters';
+    } else if (!/[a-zA-Z0-9]/.test(formData.name)) {
+      errors.name = 'Project name must contain at least one letter or number';
+    }
+
+    // Description validation (if provided)
+    if (formData.description) {
+      if (formData.description.length < 3) {
+        errors.description = 'Project description must be at least 3 characters';
+      } else if (!/[a-zA-Z0-9]/.test(formData.description)) {
+        errors.description = 'Project description must contain at least one letter or number';
+      }
     }
 
     // Budget validation
@@ -103,8 +114,8 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
     setError('');
 
     try {
-      await projectAPI.create(formData);
-      onProjectAdded();
+      const result = await projectAPI.create(formData);
+      onProjectAdded(result.id);
       onClose();
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Failed to create project';
@@ -210,7 +221,7 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="start_date">Start Date</label>
+            <label htmlFor="start_date">Start Date <span style={{ color: '#ef4444' }}>*</span></label>
             <input
               type="date"
               id="start_date"

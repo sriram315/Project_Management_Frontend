@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { projectAPI, userAPI, API_BASE_URL } from '../services/api';
+import { projectAPI, userAPI, API_BASE_URL, projectAssignmentsAPI } from '../services/api';
 import { Project } from '../types';
 import ProjectList from './ProjectList';
 import AddProject from './AddProject';
@@ -85,9 +85,22 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
     }
   };
 
-  const handleProjectAdded = () => {
-    fetchProjects(); // Refresh the project list
-    showToast('Project created successfully!', 'success');
+  const handleProjectAdded = async (newProjectId: number) => {
+    try {
+      if (user?.role && user.role !== 'employee' && user?.id) {
+        await projectAssignmentsAPI.assign({
+          project_id: newProjectId,
+          assigned_to_user_id: user.id,
+          assigned_by_user_id: user.id,
+        });
+      }
+    } catch (err: any) {
+      const msg = err?.message || 'Project created, but auto-assignment failed';
+      showToast(msg, 'error');
+    } finally {
+      await fetchProjects();
+      showToast('Project created successfully!', 'success');
+    }
   };
 
   const handleProjectUpdated = () => {
@@ -152,45 +165,47 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
             Manage and track all your projects in one place
           </p>
         </div>
-        <div className="header-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="Search projects by name, description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ 
-              padding: '0.65rem 1rem', 
-              border: '1px solid #e5e7eb', 
-              borderRadius: '8px',
-              width: '280px',
-              fontSize: '0.9rem',
-              outline: 'none'
-            }}
-          />
-          {user?.role !== 'employee' && (
-            <button 
-              onClick={() => setShowAddProject(true)} 
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.65rem 1.25rem',
-                backgroundColor: '#6366f1',
-                color: 'white',
-                border: 'none',
+        {projects.length > 0 && (
+          <div className="header-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Search projects by name, description..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ 
+                padding: '0.65rem 1rem', 
+                border: '1px solid #e5e7eb', 
                 borderRadius: '8px',
-                cursor: 'pointer',
+                width: '280px',
                 fontSize: '0.9rem',
-                fontWeight: '500',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap'
+                outline: 'none'
               }}
-            >
-              <span style={{ fontSize: '1.1rem' }}>+</span>
-              Add Project
-            </button>
-          )}
-        </div>
+            />
+            {user?.role !== 'employee' && (
+              <button 
+                onClick={() => setShowAddProject(true)} 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.65rem 1.25rem',
+                  backgroundColor: '#6366f1',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  fontWeight: '500',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <span style={{ fontSize: '1.1rem' }}>+</span>
+                Add Project
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {error && (
