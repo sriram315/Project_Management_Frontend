@@ -149,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         startDate: prev.startDate || formatDateLocal(monday),
         endDate: prev.endDate || formatDateLocal(friday),
       }));
-    } catch (error) {-
+    } catch (error) {
       console.error('Error fetching initial data:', error);
     }
   };
