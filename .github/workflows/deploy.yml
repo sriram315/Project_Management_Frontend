@@ -38,15 +38,24 @@ jobs:
             set -e
             cd ~/app-pm-frontend
 
+            echo "🛑 Stopping any running container..."
             docker stop pm-frontend || true
             docker rm pm-frontend || true
-            export DOCKER_BUILDKIT=0
 
+            echo "⚙️  Disabling Docker BuildKit to avoid buildx errors..."
+            export DOCKER_BUILDKIT=0
+            echo "✅ BuildKit disabled. Proceeding with build..."
+
+            echo "🏗️  Building Docker image..."
             docker build -t pm-frontend:${GITHUB_SHA} .
 
+            echo "🚀 Running new container..."
             docker run -d --name pm-frontend \
               --restart unless-stopped \
               -p 3005:80 \
               pm-frontend:${GITHUB_SHA}
 
+            echo "🧹 Cleaning up unused images..."
             docker image prune -f
+
+            echo "✅ Deployment completed successfully!"
