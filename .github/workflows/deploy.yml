@@ -40,6 +40,7 @@ jobs:
 
             docker stop pm-frontend || true
             docker rm pm-frontend || true
+            export DOCKER_BUILDKIT=0
 
             docker build -t pm-frontend:${GITHUB_SHA} .
 
