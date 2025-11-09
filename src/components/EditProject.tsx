@@ -11,20 +11,68 @@ interface EditProjectProps {
   onClose: () => void;
 }
 
+// Helper function to format date for HTML date input (yyyy-MM-dd)
+const formatDateForInput = (dateValue: string | undefined): string => {
+  if (!dateValue) return '';
+  // If it's already in yyyy-MM-dd format, return as is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    return dateValue;
+  }
+  // If it's an ISO date string, extract just the date part
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch (e) {
+    return '';
+  }
+};
+
 const EditProject: React.FC<EditProjectProps> = ({ project, onProjectUpdated, onClose }) => {
   const [formData, setFormData] = useState<CreateProjectData>({
     name: project.name || '',
     description: project.description || '',
     budget: project.budget || 0,
     estimated_hours: project.estimated_hours || 0,
-    start_date: project.start_date || '',
-    end_date: project.end_date || '',
+    start_date: formatDateForInput(project.start_date),
+    end_date: formatDateForInput(project.end_date),
     status: project.status || 'active'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
   const { toast, showToast, hideToast } = useToast();
+
+  // Update formData when project prop changes
+  useEffect(() => {
+    // Normalize status: ensure it's one of the valid values
+    let normalizedStatus: 'active' | 'inactive' | 'completed' | 'dropped' = project.status || 'active';
+    const validStatuses: ('active' | 'inactive' | 'completed' | 'dropped')[] = ['active', 'inactive', 'completed', 'dropped'];
+    const statusStr = String(project.status || '').toLowerCase();
+    
+    // Check if status is valid, if not normalize it
+    if (!validStatuses.includes(normalizedStatus)) {
+      // If status is 'on_hold' or 'cancelled' (from old data), convert to 'inactive'
+      if (statusStr === 'on_hold' || statusStr === 'cancelled') {
+        normalizedStatus = 'inactive';
+      } else {
+        normalizedStatus = 'active'; // Default fallback
+      }
+    }
+    
+    setFormData({
+      name: project.name || '',
+      description: project.description || '',
+      budget: project.budget || 0,
+      estimated_hours: project.estimated_hours || 0,
+      start_date: formatDateForInput(project.start_date),
+      end_date: formatDateForInput(project.end_date),
+      status: normalizedStatus
+    });
+  }, [project]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -91,10 +139,9 @@ const EditProject: React.FC<EditProjectProps> = ({ project, onProjectUpdated, on
 
     try {
       const payload = { ...formData } as any;
-      // Some DB schemas don't accept 'inactive'; use 'on_hold' as storage value
-      if (payload.status === 'inactive') {
-        payload.status = 'on_hold';
-      }
+      // Database schema supports 'inactive' directly, no conversion needed
+      console.log('EditProject: Sending update with status:', payload.status);
+      console.log('EditProject: Full payload:', payload);
       await projectAPI.update(project.id, payload);
       onProjectUpdated();
       onClose();

@@ -17,7 +17,7 @@ interface UsersProps {
   user?: any;
 }
 
-const Users: React.FC<UsersProps> = ({ user }) => {
+const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -49,9 +49,9 @@ const Users: React.FC<UsersProps> = ({ user }) => {
   const fetchUsers = async () => {
     try {
       const params = new URLSearchParams();
-      if (user?.id && (user?.role === 'manager' || user?.role === 'team_lead')) {
-        params.append('userId', String(user.id));
-        params.append('userRole', user.role);
+      if (currentUser?.id && (currentUser?.role === 'manager' || currentUser?.role === 'team_lead')) {
+        params.append('userId', String(currentUser.id));
+        params.append('userRole', currentUser.role);
       }
       const url = `${API_BASE_URL}/users${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await axios.get(url);
@@ -74,11 +74,15 @@ const Users: React.FC<UsersProps> = ({ user }) => {
         "Username can only contain letters, numbers, dots, hyphens, and underscores";
     }
 
-    // Password validation
+    // Password validation: 8-15 chars, at least 1 upper, 1 lower, 1 special
     if (!newUser.password) {
       errors.password = "Password is required";
-    } else if (newUser.password.length < 6) {
-      errors.password = "Password must be at least 6 characters";
+    } else {
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-={}\[\]|;:'",.<>\/?`~]).{8,15}$/;
+      if (!passwordRegex.test(newUser.password)) {
+        errors.password =
+          "Password must be 8-15 characters, include at least one uppercase, one lowercase, and one special character";
+      }
     }
 
     // Email validation
@@ -623,7 +627,7 @@ const Users: React.FC<UsersProps> = ({ user }) => {
               fontSize: "0.9rem",
             }}
           />
-          {user?.role === 'super_admin' && (
+          {currentUser?.role === 'super_admin' && (
             <button
               onClick={handleOpenAddForm}
               style={{
@@ -645,7 +649,7 @@ const Users: React.FC<UsersProps> = ({ user }) => {
               Add User
             </button>
           )}
-          {user?.role === 'super_admin' && (
+          {currentUser?.role === 'super_admin' && (
             <button
               onClick={handleExportUsers}
               style={{
@@ -667,7 +671,7 @@ const Users: React.FC<UsersProps> = ({ user }) => {
               Export
             </button>
           )}
-          {user?.role === 'super_admin' && (
+          {currentUser?.role === 'super_admin' && (
             <label
               style={{
                 display: "flex",
@@ -784,7 +788,7 @@ const Users: React.FC<UsersProps> = ({ user }) => {
                   style={{
                     borderColor: formErrors.password ? "#ef4444" : "#e1e8ed",
                   }}
-                  placeholder="Enter password (min 6 characters)"
+                  placeholder="8-15 chars, 1 upper, 1 lower, 1 special"
                 />
                 {formErrors.password && (
                   <small
@@ -1120,7 +1124,7 @@ const Users: React.FC<UsersProps> = ({ user }) => {
                   </td>
                   <td style={{ padding: "1rem 1.5rem" }}>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                      {user?.role === 'super_admin' && (
+                      {currentUser?.role === 'super_admin' ? (
                         <>
                           <button
                             onClick={() => handleEditUser(user)}
@@ -1163,8 +1167,7 @@ const Users: React.FC<UsersProps> = ({ user }) => {
                             Delete
                           </button>
                         </>
-                      )}
-                      {user?.role !== 'super_admin' && (
+                      ) : (
                         <span style={{ color: "#9ca3af", fontSize: "0.875rem" }}>View only</span>
                       )}
                     </div>

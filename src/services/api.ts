@@ -1,4 +1,4 @@
-import { Project, TeamMember, Task } from "../types";
+import { Project, TeamMember, Task, DailyUpdate } from "../types";
 
 // Centralized backend API URL - automatically detects environment
 // If running locally (localhost or 127.0.0.1), use localhost backend
@@ -390,6 +390,54 @@ export const taskAPI = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || "Failed to validate workload");
+    }
+
+    return response.json();
+  },
+
+  // Get daily updates for a task
+  getDailyUpdates: async (taskId: number): Promise<DailyUpdate[]> => {
+    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/daily-updates`);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to fetch daily updates");
+    }
+    return response.json();
+  },
+
+  // Create a daily update for a task
+  createDailyUpdate: async (
+    taskId: number,
+    data: { user_id: number; comment: string }
+  ): Promise<DailyUpdate> => {
+    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/daily-updates`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to create daily update");
+    }
+
+    return response.json();
+  },
+
+  // Delete a daily update
+  deleteDailyUpdate: async (
+    taskId: number,
+    updateId: number
+  ): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/daily-updates/${updateId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to delete daily update");
     }
 
     return response.json();

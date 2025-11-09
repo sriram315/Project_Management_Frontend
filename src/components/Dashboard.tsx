@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dashboardAPI, userAPI } from '../services/api';
-import { DashboardFilters as FilterType, WeeklyData } from '../types';
+import { DashboardFilters as FilterType, WeeklyData, DashboardData } from '../types';
 import DashboardFilters from './DashboardFilters';
 import UtilizationChart from './charts/UtilizationChart';
 import ProductivityChart from './charts/ProductivityChart';
@@ -63,11 +63,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     completed: 0,
     blocked: 0,
   });
-  const [dashboardData, setDashboardData] = useState<{
-    utilizationData: WeeklyData[];
-    productivityData: WeeklyData[];
-    availabilityData: WeeklyData[];
-  }>({
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
     utilizationData: [],
     productivityData: [],
     availabilityData: [],
@@ -381,54 +377,52 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const totalTasks = taskStatusData.todo + taskStatusData.in_progress + taskStatusData.completed + taskStatusData.blocked;
   const completedTasks = taskStatusData.completed;
   
-  // Calculate productivity: use average of all weeks in the date range, similar to how task status works
-  // Use the productivity value directly from the backend data (like taskStatusData is used directly)
+  // Calculate productivity: use overall metrics from backend if available, otherwise calculate from weekly data
+  // Productivity = (Actual / Planned) × 100
   const calculateProductivity = () => {
+    // Prefer overallMetrics from backend (more accurate - aggregates all tasks)
+    if (dashboardData.overallMetrics && dashboardData.overallMetrics.productivity !== undefined) {
+      return Math.round(dashboardData.overallMetrics.productivity);
+    }
+    
+    // Fallback: calculate from weekly data using hours-based formula
     if (!dashboardData.productivityData || dashboardData.productivityData.length === 0) {
       return null;
     }
-    // Calculate average productivity across all weeks with valid values
-    const productivityValues: number[] = dashboardData.productivityData
-      .map(week => {
-        const val = week?.productivity;
-        return val !== null && val !== undefined && !isNaN(val) ? val : null;
-      })
-      .filter((val): val is number => val !== null && typeof val === 'number');
-    if (productivityValues.length > 0) {
-      const avg = productivityValues.reduce((sum, val) => sum + val, 0) / productivityValues.length;
-      return Math.round(avg);
+    
+    // Calculate overall productivity: (total actual hours / total planned hours) × 100
+    const totalActualHours = dashboardData.productivityData.reduce((sum, week) => sum + (week.hours || 0), 0);
+    const totalPlannedHours = dashboardData.productivityData.reduce((sum, week) => sum + (week.plannedHours || 0), 0);
+    
+    if (totalPlannedHours > 0) {
+      return Math.round((totalActualHours / totalPlannedHours) * 100);
     }
-    // Fallback to last week's value if available
-    const lastWeek = dashboardData.productivityData[dashboardData.productivityData.length - 1];
-    if (lastWeek?.productivity !== null && lastWeek?.productivity !== undefined && !isNaN(lastWeek.productivity)) {
-      return Math.round(lastWeek.productivity);
-    }
+    
     return null;
   };
   const productivity = calculateProductivity();
   
-  // Calculate utilization: use average of all weeks in the date range, similar to how task status works
-  // Use the utilization value directly from the backend data (like taskStatusData is used directly)
+  // Calculate utilization: use overall metrics from backend if available, otherwise calculate from weekly data
+  // Utilization = (Planned / Available) × 100
   const calculateUtilization = () => {
+    // Prefer overallMetrics from backend (more accurate - aggregates all tasks)
+    if (dashboardData.overallMetrics && dashboardData.overallMetrics.utilization !== undefined) {
+      return Math.round(dashboardData.overallMetrics.utilization);
+    }
+    
+    // Fallback: calculate from weekly data
     if (!dashboardData.utilizationData || dashboardData.utilizationData.length === 0) {
       return null;
     }
-    // Calculate average utilization across all weeks with valid values
-    const utilizationValues: number[] = dashboardData.utilizationData
-      .map(week => {
-        const val = week?.utilization;
-        return val !== null && val !== undefined && !isNaN(val) ? val : null;
-      })
-      .filter((val): val is number => val !== null && typeof val === 'number');
-    if (utilizationValues.length > 0) {
-      const avg = utilizationValues.reduce((sum, val) => sum + val, 0) / utilizationValues.length;
-      return Math.round(avg);
+    
+    // Calculate overall utilization: (total planned hours / total available hours) × 100
+    const totalPlannedHours = dashboardData.productivityData.reduce((sum, week) => sum + (week.plannedHours || 0), 0);
+    const totalAvailableHours = dashboardData.utilizationData.reduce((sum, week) => sum + (week.availableHours || 0), 0);
+    
+    if (totalAvailableHours > 0) {
+      return Math.round((totalPlannedHours / totalAvailableHours) * 100);
     }
-    // Fallback to last week's value if available
-    const lastWeek = dashboardData.utilizationData[dashboardData.utilizationData.length - 1];
-    if (lastWeek?.utilization !== null && lastWeek?.utilization !== undefined && !isNaN(lastWeek.utilization)) {
-      return Math.round(lastWeek.utilization);
-    }
+    
     return null;
   };
   const utilization = calculateUtilization();
@@ -526,7 +520,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               onClick={() => setForceRefreshKey(k => k + 1)}
               style={{
                 padding: '9px 18px',
-                marginBottom: 24,
+                marginBottom: 1,
                 borderRadius: 8,
                 background: '#6366f1',
                 color: 'white',
@@ -838,8 +832,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="p-6">
               <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Productive Hours</h3>
-                <p className="text-xs text-gray-500">Completed vs Allocated hours</p>
+                <h3 className="text-lg font-semibold text-gray-900">Productive hours</h3>
+                <p className="text-xs text-gray-500">Actual vs Planned hours (Productivity = Actual / Planned × 100)</p>
               </div>
               <div className="h-[300px]">
                 {dashboardData.productivityData && dashboardData.productivityData.length > 0 ? (

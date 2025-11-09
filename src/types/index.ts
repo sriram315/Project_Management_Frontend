@@ -98,4 +98,25 @@ export interface DashboardData {
   utilizationData: WeeklyData[];
   productivityData: WeeklyData[];
   availabilityData: WeeklyData[];
+  overallMetrics?: {
+    productivity: number;
+    utilization: number;
+    totalTasks: number;
+    completedTasks: number;
+    totalPlannedHours: number;
+    totalAvailableHours: number;
+  };
+}
+
+// Daily Task Update interface
+export interface DailyUpdate {
+  id: number;
+  task_id: number;
+  user_id: number;
+  comment: string;
+  created_at: string;
+  updated_at: string;
+  username?: string;
+  email?: string;
+  user_name?: string;
 }

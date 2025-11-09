@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { taskAPI, projectAPI, teamAPI, projectTeamAPI, dashboardAPI } from '../services/api';
-import { Task, Project, TeamMember } from '../types';
+import { Task, Project, TeamMember, DailyUpdate } from '../types';
 import WorkloadWarningModal from './WorkloadWarningModal';
+import ConfirmationModal from './ConfirmationModal';
 import Toast from './Toast';
 import { useToast } from '../hooks/useToast';
 import CustomSelect from './CustomSelect';
@@ -48,6 +49,17 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
   const [showWorkloadWarning, setShowWorkloadWarning] = useState<any>(null);
   const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
   const { toast, showToast, hideToast } = useToast();
+  const [dailyUpdates, setDailyUpdates] = useState<DailyUpdate[]>([]);
+  const [updateComment, setUpdateComment] = useState('');
+  const [loadingUpdates, setLoadingUpdates] = useState(false);
+  const [deletingUpdateId, setDeletingUpdateId] = useState<number | null>(null);
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{
+    isOpen: boolean;
+    updateId: number | null;
+  }>({
+    isOpen: false,
+    updateId: null
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -124,6 +136,24 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
       fetchProjectTeam();
     }
   }, [formData.project_id, teamMembers]);
+
+  // Fetch daily updates when component loads
+  useEffect(() => {
+    const fetchDailyUpdates = async () => {
+      setLoadingUpdates(true);
+      try {
+        const updates = await taskAPI.getDailyUpdates(task.id);
+        setDailyUpdates(updates);
+      } catch (err) {
+        console.error('Error fetching daily updates:', err);
+        // Don't show error toast for this, as it's not critical
+      } finally {
+        setLoadingUpdates(false);
+      }
+    };
+
+    fetchDailyUpdates();
+  }, [task.id]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -203,6 +233,11 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
       }
     }
 
+    // Update comment validation
+    if (!updateComment.trim()) {
+      errors.updateComment = 'Update comment is required';
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -271,6 +306,23 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
   const updateTask = async () => {
     try {
       await taskAPI.update(task.id, formData);
+      
+      // Automatically create daily update if comment is provided
+      if (updateComment.trim() && user?.id) {
+        try {
+          await taskAPI.createDailyUpdate(task.id, {
+            user_id: user.id,
+            comment: updateComment.trim()
+          });
+          // Refresh daily updates list
+          const updates = await taskAPI.getDailyUpdates(task.id);
+          setDailyUpdates(updates);
+        } catch (updateErr) {
+          console.error('Failed to create daily update:', updateErr);
+          showToast('Task updated but failed to save daily update', 'error');
+        }
+      }
+      
       onTaskUpdated();
       onClose();
     } catch (err: any) {
@@ -297,6 +349,23 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
         allocated_hours: workloadData.workload.allocatedHours
       };
       await taskAPI.update(task.id, taskData);
+      
+      // Automatically create daily update if comment is provided
+      if (updateComment.trim() && user?.id) {
+        try {
+          await taskAPI.createDailyUpdate(task.id, {
+            user_id: user.id,
+            comment: updateComment.trim()
+          });
+          // Refresh daily updates list
+          const updates = await taskAPI.getDailyUpdates(task.id);
+          setDailyUpdates(updates);
+        } catch (updateErr) {
+          console.error('Failed to create daily update:', updateErr);
+          showToast('Task updated but failed to save daily update', 'error');
+        }
+      }
+      
       onTaskUpdated();
       onClose();
     } catch (err: any) {
@@ -324,6 +393,73 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
   const handleWorkloadWarningCancel = () => {
     setShowWorkloadWarning(null);
     setLoading(false);
+  };
+
+
+  const handleDeleteDailyUpdate = (updateId: number) => {
+    setDeleteConfirmDialog({
+      isOpen: true,
+      updateId: updateId
+    });
+  };
+
+  const confirmDeleteDailyUpdate = async () => {
+    if (!deleteConfirmDialog.updateId) return;
+
+    const updateId = deleteConfirmDialog.updateId;
+    setDeletingUpdateId(updateId);
+    setDeleteConfirmDialog({ isOpen: false, updateId: null });
+
+    try {
+      await taskAPI.deleteDailyUpdate(task.id, updateId);
+      // Remove the deleted update from the list
+      setDailyUpdates(dailyUpdates.filter(update => update.id !== updateId));
+      showToast('Daily update deleted successfully', 'success');
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to delete daily update';
+      showToast(errorMessage, 'error');
+    } finally {
+      setDeletingUpdateId(null);
+    }
+  };
+
+  const cancelDeleteDailyUpdate = () => {
+    setDeleteConfirmDialog({ isOpen: false, updateId: null });
+  };
+
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    
+    // Parse the date string - Backend returns IST time (UTC+5:30)
+    // MySQL returns timestamps in format: 'YYYY-MM-DD HH:mm:ss'
+    let date: Date;
+    if (dateString.includes('T') || dateString.includes('Z') || dateString.includes('+')) {
+      // ISO format with timezone
+      date = new Date(dateString);
+    } else {
+      // MySQL datetime format - backend already converted to IST, so treat as IST
+      // Add IST timezone offset
+      date = new Date(dateString.replace(' ', 'T') + '+05:30');
+    }
+    
+    if (isNaN(date.getTime())) return 'Invalid date';
+    
+    // Format the date - backend already converted to IST
+    const dateStr = date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      timeZone: 'Asia/Kolkata'
+    });
+    const timeStr = date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    });
+    
+    return `${dateStr} at ${timeStr}`;
   };
 
   return (
@@ -528,6 +664,134 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
             />
           </div>
 
+          <div className="form-group">
+            <label htmlFor="update-comment">Daily Update<span style={{ color: '#ef4444' }}>*</span></label>
+            <textarea
+              id="update-comment"
+              value={updateComment}
+              onChange={(e) => {
+                setUpdateComment(e.target.value);
+                // Clear error when user types
+                if (formErrors.updateComment) {
+                  setFormErrors(prev => {
+                    const newErrors = { ...prev };
+                    delete newErrors.updateComment;
+                    return newErrors;
+                  });
+                }
+              }}
+              placeholder="Enter your task update here"
+              rows={3}
+              style={{ borderColor: formErrors.updateComment ? '#ef4444' : '#e1e8ed' }}
+            />
+            {formErrors.updateComment && (
+              <small style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+                {formErrors.updateComment}
+              </small>
+            )}
+            <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+              This comment will be automatically saved as a daily update with date and time when you update the task.
+            </small>
+          </div>
+
+          {/* Daily Updates Section */}
+          <div className="form-group" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #e1e8ed' }}>
+            <h3 style={{ marginBottom: '1rem', color: '#333', fontSize: '1.2rem' }}>Update History</h3>
+            <p style={{ marginBottom: '1rem', color: '#666', fontSize: '0.9rem' }}>
+              Previous daily updates with date and time.
+            </p>
+
+            {/* Display Existing Daily Updates */}
+            <div style={{ marginTop: '1rem' }}>
+              {loadingUpdates ? (
+                <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+                  Loading updates...
+                </div>
+              ) : dailyUpdates.length === 0 ? (
+                <div style={{ 
+                  padding: '1.5rem', 
+                  textAlign: 'center', 
+                  color: '#999', 
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '4px',
+                  border: '1px dashed #e1e8ed'
+                }}>
+                  No daily updates yet. Be the first to add an update!
+                </div>
+              ) : (
+                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  {dailyUpdates.map((update) => (
+                    <div
+                      key={update.id}
+                      style={{
+                        padding: '1rem',
+                        marginBottom: '0.75rem',
+                        backgroundColor: '#f8f9fa',
+                        borderRadius: '6px',
+                        border: '1px solid #e1e8ed'
+                      }}
+                    >
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'flex-start',
+                        marginBottom: '0.5rem'
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <strong style={{ color: '#333', fontSize: '0.95rem' }}>
+                            {update.user_name || update.username || 'Unknown User'}
+                          </strong>
+                          {update.email && (
+                            <span style={{ color: '#666', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                              ({update.email})
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ 
+                            color: '#666', 
+                            fontSize: '0.85rem',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {formatDateTime(update.created_at)}
+                          </span>
+                          <button
+                            onClick={() => handleDeleteDailyUpdate(update.id)}
+                            disabled={deletingUpdateId === update.id}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: deletingUpdateId === update.id ? 'not-allowed' : 'pointer',
+                              padding: '0.25rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              opacity: deletingUpdateId === update.id ? 0.5 : 1,
+                              color: '#ef4444',
+                              fontSize: '1rem'
+                            }}
+                            title="Delete this update"
+                          >
+                            {deletingUpdateId === update.id ? '⏳' : '🗑️'}
+                          </button>
+                        </div>
+                      </div>
+                      <div style={{ 
+                        color: '#444', 
+                        fontSize: '0.9rem',
+                        lineHeight: '1.5',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
+                      }}>
+                        {update.comment}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="form-actions">
             <button type="button" onClick={onClose} className="btn-enterprise btn-secondary">
               <span className="btn-icon">❌</span>
@@ -559,6 +823,18 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
           onCancel={handleWorkloadWarningCancel}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteConfirmDialog.isOpen}
+        title="Delete Daily Update"
+        message="Are you sure you want to delete this daily update? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteDailyUpdate}
+        onCancel={cancelDeleteDailyUpdate}
+        variant="danger"
+      />
     </div>
   );
 };
