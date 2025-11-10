@@ -32,6 +32,19 @@ const formatDateForInput = (dateValue: string | undefined): string => {
 };
 
 const EditProject: React.FC<EditProjectProps> = ({ project, onProjectUpdated, onClose }) => {
+  // Helper function to normalize status
+  const normalizeStatus = (status: string | undefined): 'active' | 'inactive' | 'completed' | 'dropped' => {
+    const validStatuses: ('active' | 'inactive' | 'completed' | 'dropped')[] = ['active', 'inactive', 'completed', 'dropped'];
+    const statusStr = String(status || '').toLowerCase().trim();
+    
+    if (validStatuses.includes(statusStr as any)) {
+      return statusStr as 'active' | 'inactive' | 'completed' | 'dropped';
+    } else if (statusStr === 'on_hold' || statusStr === 'cancelled') {
+      return 'inactive';
+    }
+    return 'active';
+  };
+
   const [formData, setFormData] = useState<CreateProjectData>({
     name: project.name || '',
     description: project.description || '',
@@ -39,7 +52,7 @@ const EditProject: React.FC<EditProjectProps> = ({ project, onProjectUpdated, on
     estimated_hours: project.estimated_hours || 0,
     start_date: formatDateForInput(project.start_date),
     end_date: formatDateForInput(project.end_date),
-    status: project.status || 'active'
+    status: normalizeStatus(project.status)
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -48,21 +61,6 @@ const EditProject: React.FC<EditProjectProps> = ({ project, onProjectUpdated, on
 
   // Update formData when project prop changes
   useEffect(() => {
-    // Normalize status: ensure it's one of the valid values
-    let normalizedStatus: 'active' | 'inactive' | 'completed' | 'dropped' = project.status || 'active';
-    const validStatuses: ('active' | 'inactive' | 'completed' | 'dropped')[] = ['active', 'inactive', 'completed', 'dropped'];
-    const statusStr = String(project.status || '').toLowerCase();
-    
-    // Check if status is valid, if not normalize it
-    if (!validStatuses.includes(normalizedStatus)) {
-      // If status is 'on_hold' or 'cancelled' (from old data), convert to 'inactive'
-      if (statusStr === 'on_hold' || statusStr === 'cancelled') {
-        normalizedStatus = 'inactive';
-      } else {
-        normalizedStatus = 'active'; // Default fallback
-      }
-    }
-    
     setFormData({
       name: project.name || '',
       description: project.description || '',
@@ -70,15 +68,25 @@ const EditProject: React.FC<EditProjectProps> = ({ project, onProjectUpdated, on
       estimated_hours: project.estimated_hours || 0,
       start_date: formatDateForInput(project.start_date),
       end_date: formatDateForInput(project.end_date),
-      status: normalizedStatus
+      status: normalizeStatus(project.status)
     });
   }, [project]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    let processedValue: any = value;
+    
+    // Normalize status value when changed
+    if (name === 'status') {
+      processedValue = normalizeStatus(value);
+      console.log('Status changed:', value, '-> normalized:', processedValue);
+    } else if (name === 'budget' || name === 'estimated_hours') {
+      processedValue = Number(value);
+    }
+    
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'budget' || name === 'estimated_hours' ? Number(value) : value
+      [name]: processedValue
     }));
     // Clear error for this field when user types
     if (formErrors[name]) {
@@ -138,10 +146,17 @@ const EditProject: React.FC<EditProjectProps> = ({ project, onProjectUpdated, on
     setError('');
 
     try {
-      const payload = { ...formData } as any;
-      // Database schema supports 'inactive' directly, no conversion needed
+      // Ensure status is normalized before sending
+      const payload = { 
+        ...formData,
+        status: normalizeStatus(formData.status)
+      } as any;
+      
+      console.log('EditProject: FormData status:', formData.status);
+      console.log('EditProject: Normalized status:', payload.status);
       console.log('EditProject: Sending update with status:', payload.status);
       console.log('EditProject: Full payload:', payload);
+      
       await projectAPI.update(project.id, payload);
       onProjectUpdated();
       onClose();
@@ -238,7 +253,7 @@ const EditProject: React.FC<EditProjectProps> = ({ project, onProjectUpdated, on
             <select
               id="status"
               name="status"
-              value={formData.status}
+              value={formData.status || 'active'}
               onChange={handleInputChange}
             >
               <option value="active">Active</option>
