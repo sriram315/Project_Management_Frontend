@@ -16,33 +16,33 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const navigate = useNavigate();
 
-  // Try to get persisted filters from localStorage
+  // Get persisted filters from localStorage - user-specific storage
+  // Note: This is only used for initial state. Filters are properly reset when user changes via useEffect
   const getInitialFilters = (): FilterType => {
-    if (typeof window !== 'undefined' && localStorage.getItem('dashboard-filters')) {
-      try {
-        const saved = JSON.parse(localStorage.getItem('dashboard-filters')!);
-        return {
-          projectId: saved.projectId ?? undefined, // Can be number or number[]
-          employeeId: saved.employeeId ?? undefined, // Can be number or number[]
-          startDate: saved.startDate ?? undefined,
-          endDate: saved.endDate ?? undefined,
-        };
-      } catch {
-        /* ignore */
+    // Always use user-specific key if user is available
+    // Never use the old global 'dashboard-filters' key to avoid cross-user contamination
+    if (user?.id && typeof window !== 'undefined') {
+      const storageKey = `dashboard-filters-${user.id}`;
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          return {
+            projectId: parsed.projectId ?? undefined,
+            employeeId: parsed.employeeId ?? undefined,
+            startDate: parsed.startDate ?? undefined,
+            endDate: parsed.endDate ?? undefined,
+          };
+        } catch {
+          /* ignore parse errors */
+        }
       }
     }
-    // fallback, use current week as default
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + diffToMonday);
-    const friday = new Date(monday);
-    friday.setDate(monday.getDate() + 4);
-    const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    
+    // Return empty filters - they will be set properly by the user-change effect
     return {
       projectId: undefined,
-      employeeId: user?.role === 'employee' ? user.id : undefined,
+      employeeId: undefined,
       startDate: undefined,
       endDate: undefined,
     };
@@ -139,12 +139,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       };
 
       // Fill ONLY missing fields; preserve any persisted selections from localStorage
-      setFilters(prev => ({
-        ...prev,
-        employeeId: prev.employeeId !== undefined ? prev.employeeId : (user?.role === 'employee' ? user.id : undefined),
-        startDate: prev.startDate || formatDateLocal(monday),
-        endDate: prev.endDate || formatDateLocal(friday),
-      }));
+      // Note: Filters are now managed by the user-change effect, so we only set defaults if not already set
+      setFilters(prev => {
+        // Only update if filters are not already initialized (to avoid overriding user-specific filters)
+        if (!prev.startDate || !prev.endDate) {
+          return {
+            ...prev,
+            employeeId: prev.employeeId !== undefined ? prev.employeeId : (user?.role === 'employee' ? user.id : undefined),
+            startDate: prev.startDate || formatDateLocal(monday),
+            endDate: prev.endDate || formatDateLocal(friday),
+          };
+        }
+        return prev;
+      });
     } catch (error) {
       console.error('Error fetching initial data:', error);
     }
@@ -307,10 +314,62 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }
   }, [filters]);
 
-  // On page load, set filters (same as before)
+  // Reset filters when user changes (user.id or user.role changes)
+  useEffect(() => {
+    if (user?.id) {
+      // Reset filters to defaults when user changes
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+      const monday = new Date(today);
+      monday.setDate(today.getDate() + diffToMonday);
+      const friday = new Date(monday);
+      friday.setDate(monday.getDate() + 4);
+      const formatDateLocal = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      // Load user-specific filters or use defaults
+      const storageKey = `dashboard-filters-${user.id}`;
+      const savedFilters = localStorage.getItem(storageKey);
+      
+      if (savedFilters) {
+        try {
+          const saved = JSON.parse(savedFilters);
+          setFilters({
+            projectId: saved.projectId ?? undefined,
+            employeeId: saved.employeeId ?? undefined,
+            startDate: saved.startDate ?? undefined,
+            endDate: saved.endDate ?? undefined,
+          });
+        } catch {
+          // If parsing fails, use defaults
+          setFilters({
+            projectId: undefined,
+            employeeId: user?.role === 'employee' ? user.id : undefined,
+            startDate: formatDateLocal(monday),
+            endDate: formatDateLocal(friday),
+          });
+        }
+      } else {
+        // No saved filters for this user, use defaults
+        setFilters({
+          projectId: undefined,
+          employeeId: user?.role === 'employee' ? user.id : undefined,
+          startDate: formatDateLocal(monday),
+          endDate: formatDateLocal(friday),
+        });
+      }
+    }
+  }, [user?.id, user?.role]); // Reset when user changes
+
+  // On page load, fetch initial data
   useEffect(() => {
     fetchInitialData();
-  }, []);
+  }, [user?.id, user?.role]); // Re-fetch when user changes
 
   // Fetch employees when project filter changes
   useEffect(() => {
@@ -410,7 +469,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forceRefreshKey, user]);
 
-  // When filters change, also update localStorage
+  // When filters change, also update localStorage (user-specific)
   const persistFilters = (newFilters: FilterType) => {
     // Normalize projectId and employeeId for storage (keep arrays as arrays)
     const normalizedFilters = {
@@ -425,7 +484,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       endDate: newFilters.endDate
     };
     
-    localStorage.setItem('dashboard-filters', JSON.stringify(normalizedFilters));
+    // Store filters with user-specific key
+    const storageKey = user?.id ? `dashboard-filters-${user.id}` : 'dashboard-filters';
+    localStorage.setItem(storageKey, JSON.stringify(normalizedFilters));
     setFilters(normalizedFilters);
   };
 

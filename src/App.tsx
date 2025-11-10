@@ -51,6 +51,13 @@ function App() {
   };
 
   const handleLogout = () => {
+    // Clear user-specific dashboard filters before clearing user data
+    if (user?.id) {
+      localStorage.removeItem(`dashboard-filters-${user.id}`);
+    }
+    // Also clear the old global dashboard-filters key if it exists
+    localStorage.removeItem('dashboard-filters');
+    
     setIsAuthenticated(false);
     setUser(null);
     // Clear localStorage

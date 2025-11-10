@@ -310,30 +310,29 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskUpdate, onDelete
                     <div className="kanban-card-expanded">
                       <div className="expanded-header">
                         <h4 className="task-title">{task.name}</h4>
-                        {/* Only show edit and delete buttons for non-employee roles */}
+                        {/* Edit button - available for all users */}
+                        <button 
+                          className="edit-task-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditTask?.(task);
+                          }}
+                          title="Edit task"
+                        >
+                          ✏️
+                        </button>
+                        {/* Delete button - only for non-employee roles */}
                         {user?.role !== 'employee' && (
-                          <>
-                            <button 
-                              className="edit-task-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onEditTask?.(task);
-                              }}
-                              title="Edit task"
-                            >
-                              ✏️
-                            </button>
-                            <button 
-                              className="delete-task-btn"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteTask(task.id, task.name);
-                              }}
-                              title="Delete task"
-                            >
-                              ×
-                            </button>
-                          </>
+                          <button 
+                            className="delete-task-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteTask(task.id, task.name);
+                            }}
+                            title="Delete task"
+                          >
+                            ×
+                          </button>
                         )}
                       </div>
                       
