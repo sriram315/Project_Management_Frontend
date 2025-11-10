@@ -674,12 +674,16 @@ export const dashboardAPI = {
     userId: number;
     projectId?: string;
     employeeId?: string;
+    startDate?: string;
+    endDate?: string;
   }) => {
     const query = new URLSearchParams();
     query.append("role", params.role);
     query.append("userId", String(params.userId));
     if (params.projectId) query.append("projectId", params.projectId);
     if (params.employeeId) query.append("employeeId", params.employeeId);
+    if (params.startDate) query.append("startDate", params.startDate);
+    if (params.endDate) query.append("endDate", params.endDate);
     const response = await fetch(
       `${API_BASE_URL}/dashboard/tasks-timeline?${query.toString()}`
     );
@@ -691,7 +695,7 @@ export const dashboardAPI = {
 // Project Assignments API
 export const projectAssignmentsAPI = {
   // Get all project assignments
-  getAll: async (): Promise<any[]> => {
+  getAll: async (): Promise<any[]> => { 
     const response = await fetch(`${API_BASE_URL}/project-assignments`);
     if (!response.ok) throw new Error("Failed to fetch project assignments");
     return response.json();

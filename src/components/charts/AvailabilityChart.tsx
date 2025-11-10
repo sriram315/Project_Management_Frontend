@@ -25,12 +25,33 @@ interface AvailabilityChartProps {
 }
  
 const AvailabilityChart: React.FC<AvailabilityChartProps> = ({ data }) => {
+  // Handle empty data
+  if (!data || data.length === 0) {
+    return (
+      <div className="chart-container">
+        <div className="chart-header"></div>
+        <div className="chart-content">
+          <div className="w-full h-full flex items-center justify-center text-gray-400">No data available</div>
+        </div>
+      </div>
+    );
+  }
+
   // split values into positive (available) and negative (overly utilised)
-  const availableData = data.map((item) => Math.max(item.availableHours, 0));
-  const overlyUtilisedData = data.map((item) =>
-    item.availableHours < 0 ? item.availableHours : 0
-  ); // keep negative numbers -> they render below 0
- 
+  const availableData = data.map((item) => {
+    const hours = item.availableHours ?? 0;
+    return Math.max(hours, 0);
+  });
+  const overlyUtilisedData = data.map((item) => {
+    const hours = item.availableHours ?? 0;
+    return hours < 0 ? hours : 0;
+  }); // keep negative numbers -> they render below 0
+
+  // Calculate min/max safely
+  const allHours = data.map((d) => d.availableHours ?? 0);
+  const minHours = allHours.length > 0 ? Math.min(...allHours) : 0;
+  const maxHours = allHours.length > 0 ? Math.max(...allHours) : 200;
+
   const chartData = {
     labels: data.map((item) => item.week),
     datasets: [
@@ -41,6 +62,7 @@ const AvailabilityChart: React.FC<AvailabilityChartProps> = ({ data }) => {
         borderColor: "rgb(34, 197, 94)",
         borderWidth: 0,
         borderRadius: 4,
+        minBarLength: 2, // Ensure zero values are visible
       },
       {
         label: "Overly Utilised",
@@ -49,13 +71,17 @@ const AvailabilityChart: React.FC<AvailabilityChartProps> = ({ data }) => {
         borderColor: "rgb(239, 68, 68)",
         borderWidth: 0,
         borderRadius: 4,
+        minBarLength: 2, // Ensure zero values are visible
       },
     ],
   };
- 
+
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      duration: 0, // Disable animation to ensure immediate updates
+    },
     plugins: {
       legend: {
         display: true,
@@ -94,8 +120,8 @@ const AvailabilityChart: React.FC<AvailabilityChartProps> = ({ data }) => {
       y: {
         beginAtZero: true,
         // set a sensible range including negatives
-        suggestedMin: Math.min(...data.map((d) => d.availableHours), -50),
-        suggestedMax: Math.max(...data.map((d) => d.availableHours), 200),
+        suggestedMin: Math.min(minHours, -50),
+        suggestedMax: Math.max(maxHours, 200),
         ticks: {
           stepSize: 25,
           font: { size: 11 },

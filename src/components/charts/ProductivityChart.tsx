@@ -66,9 +66,18 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
           label: function(context: any) {
             const dataIndex = context.dataIndex;
             const item = data[dataIndex];
-            const productivity = item?.productivity ?? 0;
+            const productivity = item?.productivity;
             const hours = item?.hours ?? 0;
             const plannedHours = item?.plannedHours ?? 0;
+            
+            if (productivity === null || productivity === undefined) {
+              return [
+                `Productivity: N/A (no completed tasks)`,
+                `Actual Hours: ${hours.toFixed(1)}h`,
+                `Planned Hours: ${plannedHours.toFixed(1)}h`
+              ];
+            }
+            
             return [
               `Productivity: ${productivity.toFixed(1)}%`,
               `Actual Hours: ${hours.toFixed(1)}h`,

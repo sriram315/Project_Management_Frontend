@@ -169,8 +169,49 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         return `${year}-${month}-${day}`;
       };
 
-      const effectiveStartDate = filters.startDate || formatDateLocal(monday);
-      const effectiveEndDate = filters.endDate || formatDateLocal(friday);
+      // Validate and normalize dates
+      const validateDate = (dateStr: string | undefined): string | null => {
+        if (!dateStr) return null;
+        // Check if date string is in valid format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(dateStr)) return null;
+        
+        const date = new Date(dateStr);
+        // Check if date is valid
+        if (isNaN(date.getTime())) return null;
+        return dateStr;
+      };
+
+      let effectiveStartDate = filters.startDate ? validateDate(filters.startDate) : null;
+      let effectiveEndDate = filters.endDate ? validateDate(filters.endDate) : null;
+
+      // If both dates are provided, validate that start <= end
+      if (effectiveStartDate && effectiveEndDate) {
+        const start = new Date(effectiveStartDate);
+        const end = new Date(effectiveEndDate);
+        if (start > end) {
+          // Invalid range: swap dates or use defaults
+          console.warn('Invalid date range: start date is after end date. Using defaults.');
+          effectiveStartDate = formatDateLocal(monday);
+          effectiveEndDate = formatDateLocal(friday);
+        }
+      }
+
+      // If only one date is provided, validate it's not invalid
+      if (effectiveStartDate && !effectiveEndDate) {
+        effectiveEndDate = formatDateLocal(friday);
+      }
+      if (!effectiveStartDate && effectiveEndDate) {
+        effectiveStartDate = formatDateLocal(monday);
+      }
+
+      // Use defaults if both are invalid or missing
+      if (!effectiveStartDate) {
+        effectiveStartDate = formatDateLocal(monday);
+      }
+      if (!effectiveEndDate) {
+        effectiveEndDate = formatDateLocal(friday);
+      }
       
       // Handle single or array employeeId
       let effectiveEmployeeId: number | number[] | undefined;
@@ -198,6 +239,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         ? (employeeIdStr || String(user?.id))
         : employeeIdStr;
 
+      console.log('Dashboard API call with filters:', {
+        projectId: projectIdStr,
+        employeeId: statsEmployeeIdStr,
+        startDate: effectiveStartDate,
+        endDate: effectiveEndDate,
+        userId: user?.id,
+        userRole: user?.role,
+      });
+
       const [data, taskStatusData, tasksTimeline] = await Promise.all([
         dashboardAPI.getDashboardData({
           projectId: projectIdStr,
@@ -221,6 +271,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           userId: user?.id || 0,
           projectId: projectIdStr,
           employeeId: timelineEmployeeIdStr,
+          startDate: effectiveStartDate,
+          endDate: effectiveEndDate,
         })
       ]);
       console.log('Dashboard data received:', {
@@ -237,8 +289,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       
       setDashboardData(data);
       setTaskStatusData(taskStatusData);
-      setTasksThisWeek(tasksTimeline.thisWeek || []);
-      setTasksNextWeek(tasksTimeline.nextWeek || []);
+      const thisWeekTasks = tasksTimeline.thisWeek || [];
+      const nextWeekTasks = tasksTimeline.nextWeek || [];
+      setTasksThisWeek(thisWeekTasks);
+      setTasksNextWeek(nextWeekTasks);
+      console.log('Tasks set in state:', {
+        thisWeek: thisWeekTasks.length,
+        nextWeek: nextWeekTasks.length,
+        total: thisWeekTasks.length + nextWeekTasks.length,
+        thisWeekSample: thisWeekTasks.slice(0, 3).map(t => ({ id: t.id, title: t.title })),
+        nextWeekSample: nextWeekTasks.slice(0, 3).map(t => ({ id: t.id, title: t.title }))
+      });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -378,24 +439,35 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const completedTasks = taskStatusData.completed;
   
   // Calculate productivity: use overall metrics from backend if available, otherwise calculate from weekly data
-  // Productivity = (Actual / Planned) × 100
+  // Productivity = (Planned / Actual) × 100 (only for completed tasks)
   const calculateProductivity = () => {
     // Prefer overallMetrics from backend (more accurate - aggregates all tasks)
-    if (dashboardData.overallMetrics && dashboardData.overallMetrics.productivity !== undefined) {
+    if (dashboardData.overallMetrics && dashboardData.overallMetrics.productivity !== undefined && dashboardData.overallMetrics.productivity !== null) {
       return Math.round(dashboardData.overallMetrics.productivity);
     }
     
     // Fallback: calculate from weekly data using hours-based formula
+    // Only use weeks that have productivity values (completed tasks)
     if (!dashboardData.productivityData || dashboardData.productivityData.length === 0) {
       return null;
     }
     
-    // Calculate overall productivity: (total actual hours / total planned hours) × 100
-    const totalActualHours = dashboardData.productivityData.reduce((sum, week) => sum + (week.hours || 0), 0);
-    const totalPlannedHours = dashboardData.productivityData.reduce((sum, week) => sum + (week.plannedHours || 0), 0);
+    // Filter to only weeks with productivity values (completed tasks)
+    const weeksWithProductivity = dashboardData.productivityData.filter(week => 
+      week.productivity !== null && week.productivity !== undefined
+    );
     
-    if (totalPlannedHours > 0) {
-      return Math.round((totalActualHours / totalPlannedHours) * 100);
+    if (weeksWithProductivity.length === 0) {
+      return null; // No completed tasks
+    }
+    
+    // Calculate overall productivity: (total planned hours / total actual hours) × 100
+    // Only for completed tasks
+    const totalActualHours = weeksWithProductivity.reduce((sum, week) => sum + (week.hours || 0), 0);
+    const totalPlannedHours = weeksWithProductivity.reduce((sum, week) => sum + (week.plannedHours || 0), 0);
+    
+    if (totalActualHours > 0) {
+      return Math.round((totalPlannedHours / totalActualHours) * 100);
     }
     
     return null;
@@ -684,7 +756,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <tbody>
               {tasksThisWeek.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af' }}>No tasks</td>
+                  <td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af' }}>
+                    No tasks for this week
+                    {process.env.NODE_ENV === 'development' && (
+                      <div style={{ fontSize: '10px', marginTop: '4px' }}>
+                        (tasksThisWeek.length: {tasksThisWeek.length})
+                      </div>
+                    )}
+                  </td>
                 </tr>
               )}
               {tasksThisWeek.map((task) => {
@@ -753,7 +832,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <tbody>
               {tasksNextWeek.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af' }}>No tasks</td>
+                  <td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af' }}>
+                    No tasks for next week
+                    {process.env.NODE_ENV === 'development' && (
+                      <div style={{ fontSize: '10px', marginTop: '4px' }}>
+                        (tasksNextWeek.length: {tasksNextWeek.length})
+                      </div>
+                    )}
+                  </td>
                 </tr>
               )}
               {tasksNextWeek.map((task) => {
@@ -859,7 +945,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 {dashboardData.availabilityData.length === 0 ? (
                   <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">-</div>
                 ) : (
-                  <AvailabilityChart data={dashboardData.availabilityData} />
+                  <AvailabilityChart 
+                    key={`availability-${filters.employeeId || 'all'}-${filters.projectId || 'all'}`}
+                    data={dashboardData.availabilityData} 
+                  />
                 )}
               </div>
             </div>

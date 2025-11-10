@@ -14,6 +14,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [showForgot, setShowForgot] = useState(false);
   const [forgotIdentifier, setForgotIdentifier] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast, showToast, hideToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -68,12 +69,55 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
           <div className="form-group">
             <label>Password:</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                required
+                style={{ paddingRight: '40px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '5px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#6b7280',
+                  width: '32px',
+                  height: '32px',
+                }}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  // Closed eye icon - curved line with diagonal slash
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+                    {/* Closed eyelid - smooth curved line dipping downwards */}
+                    <path d="M4 12C4 12 6 14 12 14C18 14 20 12 20 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+                    {/* Diagonal slash line from top-left to bottom-right */}
+                    <line x1="5" y1="6" x2="19" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                ) : (
+                  // Open eye icon - simple almond shape with centered circle
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+                    {/* Eye outline - almond shape */}
+                    <ellipse cx="12" cy="12" rx="8" ry="5" stroke="currentColor" strokeWidth="2" fill="none"/>
+                    {/* Iris/Pupil - solid black circle centered */}
+                    <circle cx="12" cy="12" r="4" fill="currentColor"/>
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
           <button type="submit" className="login-button">
             Login

@@ -62,9 +62,35 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
     };
 
     const normalized = normalizeToInputDate(value);
+    
+    // Validate date range
+    let newStartDate = filters.startDate;
+    let newEndDate = filters.endDate;
+    
+    if (field === 'startDate') {
+      newStartDate = normalized || undefined;
+      // If start date is after end date, adjust end date
+      if (newStartDate && newEndDate && new Date(newStartDate) > new Date(newEndDate)) {
+        // Set end date to be same as start date (or 7 days later)
+        const start = new Date(newStartDate);
+        start.setDate(start.getDate() + 7);
+        newEndDate = start.toISOString().split('T')[0];
+      }
+    } else if (field === 'endDate') {
+      newEndDate = normalized || undefined;
+      // If end date is before start date, adjust start date
+      if (newStartDate && newEndDate && new Date(newEndDate) < new Date(newStartDate)) {
+        // Set start date to be same as end date (or 7 days earlier)
+        const end = new Date(newEndDate);
+        end.setDate(end.getDate() - 7);
+        newStartDate = end.toISOString().split('T')[0];
+      }
+    }
+    
     onFilterChange({
       ...filters,
-      [field]: normalized || undefined,
+      startDate: newStartDate,
+      endDate: newEndDate,
     });
   };
 
