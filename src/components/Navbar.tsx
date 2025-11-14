@@ -38,8 +38,8 @@
 // export default Navbar;
 
 
-import React, { useState } from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 
 interface NavbarProps {
   user: any;
@@ -47,8 +47,37 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
+  const navigate = useNavigate();
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
-  const [hoveredLogout, setHoveredLogout] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowProfileDropdown(false);
+      }
+    };
+
+    if (showProfileDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileDropdown]);
+
+  const handleSettingsClick = () => {
+    setShowProfileDropdown(false);
+    navigate('/settings');
+  };
+
+  const handleLogoutClick = () => {
+    setShowProfileDropdown(false);
+    onLogout();
+  };
 
   const styles = {
     navbar: {
@@ -91,33 +120,69 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       padding: '0.5rem 0.8rem',
       borderRadius: '8px',
       boxShadow: 'inset 0 0 4px rgba(0, 0, 0, 0.05)',
+      position: 'relative' as const,
     },
     username: {
       fontWeight: 500,
       color: '#333',
       fontSize: '0.95rem',
     },
-    settingsLink: (isActive: boolean) => ({
-      textDecoration: 'none',
-      color: isActive ? '#fff' : '#0078ff',
-      backgroundColor: isActive ? '#0078ff' : hoveredLink === 'settings' ? '#eaf4ff' : 'transparent',
-      padding: '0.4rem 0.8rem',
-      borderRadius: '6px',
-      fontWeight: 500,
-      transition: 'all 0.2s',
-      marginLeft: '1rem',
-      marginRight: '0.5rem',
-    }),
-    logoutBtn: {
-      backgroundColor: hoveredLogout ? '#e63b3b' : '#ff4b4b',
-      color: 'white',
+    profileIconButton: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '36px',
+      height: '36px',
+      borderRadius: '50%',
+      backgroundColor: '#6366f1',
       border: 'none',
-      padding: '0.45rem 0.9rem',
-      borderRadius: '6px',
       cursor: 'pointer',
-      fontWeight: 500,
-      fontSize: '0.9rem',
+      padding: 0,
       transition: 'all 0.2s',
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+    },
+    profileIcon: {
+      width: '20px',
+      height: '20px',
+      fill: 'white',
+    },
+    dropdown: {
+      position: 'absolute' as const,
+      top: 'calc(100% + 0.5rem)',
+      right: 0,
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+      minWidth: '160px',
+      zIndex: 1000,
+      overflow: 'hidden',
+      border: '1px solid #e5e7eb',
+    },
+    dropdownItem: {
+      display: 'block',
+      width: '100%',
+      padding: '0.75rem 1rem',
+      textDecoration: 'none',
+      color: '#333',
+      fontSize: '0.9rem',
+      fontWeight: 500,
+      border: 'none',
+      background: 'none',
+      cursor: 'pointer',
+      textAlign: 'left' as const,
+      transition: 'background-color 0.2s',
+    },
+    dropdownItemHover: {
+      backgroundColor: '#f3f4f6',
+    },
+    dropdownDivider: {
+      height: '1px',
+      backgroundColor: '#e5e7eb',
+      margin: 0,
+      border: 'none',
+    },
+    logoutItem: {
+      color: '#ef4444',
     },
   };
 
@@ -178,26 +243,66 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
         </NavLink>
       </div>
 
-      <div style={styles.userSection}>
-        <span style={styles.username}>{user?.username}</span>
-
-        <NavLink
-          to="/settings"
-          style={({ isActive }) => styles.settingsLink(isActive)}
-          onMouseEnter={() => setHoveredLink('settings')}
-          onMouseLeave={() => setHoveredLink(null)}
+      <div style={styles.userSection} ref={dropdownRef}>
+        <span 
+          style={{ ...styles.username, cursor: 'pointer', userSelect: 'none' }}
+          onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+          title="Profile menu"
         >
-          Settings
-        </NavLink>
-
+          {user?.username}
+        </span>
+        
         <button
-          onClick={onLogout}
-          style={styles.logoutBtn}
-          onMouseEnter={() => setHoveredLogout(true)}
-          onMouseLeave={() => setHoveredLogout(false)}
+          type="button"
+          onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+          style={styles.profileIconButton}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#4f46e5';
+            e.currentTarget.style.transform = 'scale(1.05)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#6366f1';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+          title="Profile menu"
         >
-          Logout
+          <svg style={styles.profileIcon} viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="9" r="3" fill="white"/>
+            <path d="M6 20c0-2.5 2.5-5 6-5s6 2.5 6 5" fill="white"/>
+          </svg>
         </button>
+
+        {showProfileDropdown && (
+          <div style={styles.dropdown}>
+            <button
+              type="button"
+              onClick={handleSettingsClick}
+              style={styles.dropdownItem}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f3f4f6';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              Settings
+            </button>
+            <hr style={styles.dropdownDivider} />
+            <button
+              type="button"
+              onClick={handleLogoutClick}
+              style={{ ...styles.dropdownItem, ...styles.logoutItem }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#fee2e2';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              Logout
+            </button>
+          </div>
+        )}
       </div>
     </nav>
   );

@@ -18,6 +18,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   // Get persisted filters from localStorage - user-specific storage
   // Note: This is only used for initial state. Filters are properly reset when user changes via useEffect
+  // NOTE: Date range is NOT loaded from localStorage - it will always default to current week
   const getInitialFilters = (): FilterType => {
     // Always use user-specific key if user is available
     // Never use the old global 'dashboard-filters' key to avoid cross-user contamination
@@ -30,8 +31,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           return {
             projectId: parsed.projectId ?? undefined,
             employeeId: parsed.employeeId ?? undefined,
-            startDate: parsed.startDate ?? undefined,
-            endDate: parsed.endDate ?? undefined,
+            // Don't load dates from localStorage - they will be set to current week by useEffect
+            startDate: undefined,
+            endDate: undefined,
           };
         } catch {
           /* ignore parse errors */
@@ -333,6 +335,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       };
       
       // Load user-specific filters or use defaults
+      // NOTE: Date range is ALWAYS reset to current week on login to avoid showing old dates
+      // Only project and employee filters are preserved from localStorage
       const storageKey = `dashboard-filters-${user.id}`;
       const savedFilters = localStorage.getItem(storageKey);
       
@@ -342,8 +346,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           setFilters({
             projectId: saved.projectId ?? undefined,
             employeeId: saved.employeeId ?? undefined,
-            startDate: saved.startDate ?? undefined,
-            endDate: saved.endDate ?? undefined,
+            // Always use current week for dates, don't load from localStorage
+            startDate: formatDateLocal(monday),
+            endDate: formatDateLocal(friday),
           });
         } catch {
           // If parsing fails, use defaults
@@ -980,7 +985,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <div className="p-6">
               <div className="mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Productive hours</h3>
-                <p className="text-xs text-gray-500">Actual vs Planned hours (Productivity = Actual / Planned × 100)</p>
+                <p className="text-xs text-gray-500">Actual vs Planned hours (Productivity = Planned / Actual × 100)</p>
               </div>
               <div className="h-[300px]">
                 {dashboardData.productivityData && dashboardData.productivityData.length > 0 ? (

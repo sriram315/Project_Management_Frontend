@@ -253,29 +253,27 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
               outline: 'none'
             }}
           />
-          {user?.role !== 'employee' && (
-            <button 
-              onClick={() => setShowAddTask(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.65rem 1.25rem',
-                backgroundColor: '#6366f1',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-                fontWeight: '500',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <span style={{ fontSize: '1.1rem' }}>+</span>
-              Add New Task
-            </button>
-          )}
+          <button 
+            onClick={() => setShowAddTask(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.65rem 1.25rem',
+              backgroundColor: '#6366f1',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              fontWeight: '500',
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span style={{ fontSize: '1.1rem' }}>+</span>
+            Add New Task
+          </button>
         </div>
       </div>
 

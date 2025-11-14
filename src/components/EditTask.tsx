@@ -341,6 +341,8 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
           // Refresh daily updates list
           const updates = await taskAPI.getDailyUpdates(task.id);
           setDailyUpdates(updates);
+          // Clear the comment after saving
+          setUpdateComment('');
         } catch (updateErr) {
           console.error('Failed to create daily update:', updateErr);
           showToast('Task updated but failed to save daily update', 'error');
@@ -389,6 +391,8 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
           // Refresh daily updates list
           const updates = await taskAPI.getDailyUpdates(task.id);
           setDailyUpdates(updates);
+          // Clear the comment after saving
+          setUpdateComment('');
         } catch (updateErr) {
           console.error('Failed to create daily update:', updateErr);
           showToast('Task updated but failed to save daily update', 'error');
@@ -424,6 +428,51 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
     setLoading(false);
   };
 
+
+  const handleSaveDailyUpdate = async () => {
+    // Validate that comment is not empty
+    if (!updateComment.trim()) {
+      setFormErrors(prev => ({ ...prev, updateComment: 'Daily update comment is required' }));
+      showToast('Please enter a daily update comment', 'error');
+      return;
+    }
+
+    if (!user?.id) {
+      showToast('User information is missing', 'error');
+      return;
+    }
+
+    try {
+      setLoadingUpdates(true);
+      // Create daily update
+      await taskAPI.createDailyUpdate(task.id, {
+        user_id: user.id,
+        comment: updateComment.trim()
+      });
+
+      // Refresh daily updates list
+      const updates = await taskAPI.getDailyUpdates(task.id);
+      setDailyUpdates(updates);
+      
+      // Clear the input field
+      setUpdateComment('');
+      
+      // Clear any errors
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.updateComment;
+        return newErrors;
+      });
+
+      showToast('Daily update saved successfully!', 'success');
+    } catch (err: any) {
+      console.error('Failed to save daily update:', err);
+      const errorMessage = err.message || 'Failed to save daily update';
+      showToast(errorMessage, 'error');
+    } finally {
+      setLoadingUpdates(false);
+    }
+  };
 
   const handleDeleteDailyUpdate = (updateId: number) => {
     setDeleteConfirmDialog({
@@ -725,8 +774,63 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
               </small>
             )}
             <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
-              This comment will be automatically saved as a daily update with date and time when you update the task.
+              Add a daily update comment that will be saved to the task history.
             </small>
+            <button
+  type="button"
+  onClick={handleSaveDailyUpdate}
+  disabled={loadingUpdates || !updateComment.trim()}
+  style={{
+    marginTop: '0.25rem',
+    padding: '0.25rem 0.6rem', // 🔹 smaller padding for compact size
+    backgroundColor: loadingUpdates || !updateComment.trim() ? '#9ca3af' : '#6366f1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: loadingUpdates || !updateComment.trim() ? 'not-allowed' : 'pointer',
+    fontSize: '0.7rem', // 🔹 slightly smaller font
+    fontWeight: 500,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.25rem',
+    transition: 'all 0.2s',
+    boxShadow:
+      loadingUpdates || !updateComment.trim()
+        ? 'none'
+        : '0 1px 2px rgba(78, 16, 16, 0.1)',
+    width: 'fit-content', // 🔹 fits tightly around content
+    minWidth: 'unset', // 🔹 removes any browser default width
+    whiteSpace: 'nowrap', // 🔹 prevents wrapping
+  }}
+  onMouseEnter={(e) => {
+    if (!loadingUpdates && updateComment.trim()) {
+      e.currentTarget.style.backgroundColor = '#4f46e5';
+      e.currentTarget.style.boxShadow =
+        '0 2px 4px rgba(126, 61, 61, 0.15)';
+    }
+  }}
+  onMouseLeave={(e) => {
+    if (!loadingUpdates && updateComment.trim()) {
+      e.currentTarget.style.backgroundColor = '#6366f1';
+      e.currentTarget.style.boxShadow =
+        '0 1px 2px rgba(172, 39, 39, 0.1)';
+    }
+  }}
+>
+  {loadingUpdates ? (
+    <>
+      <span>⏳</span>
+      Saving...
+    </>
+  ) : (
+    <>
+      <span>💾</span>
+      Save
+    </>
+  )}
+</button>
+
           </div>
 
           {/* Daily Updates Section */}

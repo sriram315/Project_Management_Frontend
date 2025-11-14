@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { taskAPI, projectAPI, teamAPI, projectTeamAPI, dashboardAPI } from '../services/api';
+import { taskAPI, projectAPI, teamAPI, projectTeamAPI, dashboardAPI, userAPI } from '../services/api';
 import { Task, Project, TeamMember } from '../types';
 import WorkloadWarningModal from './WorkloadWarningModal';
 import Toast from './Toast';
@@ -55,14 +55,40 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
         let projectsData: Project[], teamData: TeamMember[];
         
         // Fetch projects based on user role
-        if (user?.role === 'manager' || user?.role === 'team_lead') {
+        if (user?.role === 'employee') {
+          // For employees, fetch only their assigned projects
+          projectsData = await userAPI.getUserProjects(user.id);
+        } else if (user?.role === 'manager' || user?.role === 'team_lead') {
           projectsData = await projectAPI.getAll(user.id, user.role);
         } else {
+          // For super admin, fetch all projects
           projectsData = await projectAPI.getAll();
         }
         
-        // Fetch employees based on user role
-        if (user?.role === 'manager' || user?.role === 'team_lead') {
+        // Fetch employees/team members based on user role
+        if (user?.role === 'employee') {
+          // For employees, fetch team members from their assigned projects
+          // First get all projects the employee is assigned to, then get team members from those projects
+          const employeeProjects = await userAPI.getUserProjects(user.id);
+          if (employeeProjects.length > 0) {
+            const projectIds = employeeProjects.map((p: Project) => p.id).join(',');
+            const employeesData = await dashboardAPI.getEmployees(projectIds, user.id, user.role);
+            // Convert employees to teamMembers format
+            teamData = employeesData.map((emp: any) => ({
+              id: emp.id,
+              name: emp.username,
+              role: emp.role,
+              available_hours: emp.available_hours_per_week || 40,
+              status: 'online' as const,
+              tasks_count: 0,
+              planned_hours: 0,
+              productivity: 0,
+              utilization: 0
+            }));
+          } else {
+            teamData = [];
+          }
+        } else if (user?.role === 'manager' || user?.role === 'team_lead') {
           const employeesData = await dashboardAPI.getEmployees(undefined, user.id, user.role);
           // Convert employees to teamMembers format
           teamData = employeesData.map((emp: any) => ({
@@ -77,6 +103,7 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
             utilization: 0
           }));
         } else {
+          // For super admin, fetch all team members
           teamData = await teamAPI.getAll();
         }
         
