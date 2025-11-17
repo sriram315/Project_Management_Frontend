@@ -3,7 +3,7 @@ import axios from "axios";
 import Toast from "./Toast";
 import { useToast } from "../hooks/useToast";
 import ConfirmationModal from "./ConfirmationModal";
-import { API_BASE_URL } from "../services/api";
+import { API_BASE_URL, userAPI } from "../services/api";
 
 interface User {
   id: number;
@@ -42,6 +42,11 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
     userId: null,
     username: "",
   });
+  const [viewingUser, setViewingUser] = useState<User | null>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [employeeProjects, setEmployeeProjects] = useState<any[]>([]);
+  const [employeeTasks, setEmployeeTasks] = useState<any[]>([]);
+  const [loadingEmployeeDetails, setLoadingEmployeeDetails] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -281,6 +286,28 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
         // Generic error - show in toast
         showToast(errorMessage, "error");
       }
+    }
+  };
+
+  const handleViewEmployeeDetails = async (user: User) => {
+    setViewingUser(user);
+    setShowViewModal(true);
+    setLoadingEmployeeDetails(true);
+    setEmployeeProjects([]);
+    setEmployeeTasks([]);
+    
+    try {
+      const [projects, tasks] = await Promise.all([
+        userAPI.getUserProjects(user.id),
+        userAPI.getUserTasks(user.id)
+      ]);
+      setEmployeeProjects(projects);
+      setEmployeeTasks(tasks);
+    } catch (err: any) {
+      console.error('Error fetching employee details:', err);
+      showToast('Failed to load employee details', 'error');
+    } finally {
+      setLoadingEmployeeDetails(false);
     }
   };
 
@@ -612,18 +639,18 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
       <div className="page-header" style={{ marginBottom: "2rem" }}>
         <div>
           <h1
+            className="text-foreground"
             style={{
               fontSize: "2rem",
               fontWeight: "700",
-              color: "#000",
               marginBottom: "0.5rem",
             }}
           >
             Users Management
           </h1>
           <p
+            className="text-muted-foreground"
             style={{
-              color: "#6b7280",
               fontSize: "0.95rem",
               marginTop: "0.25rem",
             }}
@@ -640,7 +667,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
             placeholder="Search users by name, email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
+            className="search-input bg-background"
             style={{
               padding: "0.65rem 1rem",
               border: "1px solid #e5e7eb",
@@ -674,19 +701,19 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
           {currentUser?.role === 'super_admin' && (
             <button
               onClick={handleExportUsers}
+              className="bg-white"
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: "0.5rem",
                 padding: "0.65rem 1.25rem",
-                backgroundColor: "white",
-                color: "#374151",
                 border: "1px solid #e5e7eb",
                 borderRadius: "8px",
                 cursor: "pointer",
                 fontSize: "0.9rem",
                 fontWeight: "500",
                 transition: "all 0.2s",
+                color: "#374151",
               }}
             >
               <span style={{ fontSize: "1rem" }}>⬇</span>
@@ -695,19 +722,19 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
           )}
           {currentUser?.role === 'super_admin' && (
             <label
+              className="bg-white"
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: "0.5rem",
                 padding: "0.65rem 1.25rem",
-                backgroundColor: "white",
-                color: "#374151",
                 border: "1px solid #e5e7eb",
                 borderRadius: "8px",
                 cursor: "pointer",
                 fontSize: "0.9rem",
                 fontWeight: "500",
                 transition: "all 0.2s",
+                color: "#374151",
               }}
             >
               <span style={{ fontSize: "1rem" }}>⬆</span>
@@ -722,12 +749,12 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
           )}
           <button
             onClick={downloadSampleCSV}
+            className="bg-white"
             style={{
               display: "flex",
               alignItems: "center",
               gap: "0.5rem",
               padding: "0.65rem 1.25rem",
-              backgroundColor: "white",
               color: "#374151",
               border: "1px solid #e5e7eb",
               borderRadius: "8px",
@@ -992,9 +1019,8 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
       )}
 
       <div
-        className="users-table-container"
+        className="users-table-container bg-white"
         style={{
-          backgroundColor: "white",
           borderRadius: "12px",
           overflow: "hidden",
           border: "1px solid #e5e7eb",
@@ -1010,66 +1036,66 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
           >
             <thead style={{ position: "sticky", top: 0, zIndex: 10 }}>
               <tr
+                className="bg-gray-50"
                 style={{
-                  backgroundColor: "#f9fafb",
                   borderBottom: "1px solid #e5e7eb",
                 }}
               >
                 <th
+                  className="text-muted-foreground"
                   style={{
                     padding: "1rem 1.5rem",
                     textAlign: "left",
                     fontWeight: "600",
                     fontSize: "0.875rem",
-                    color: "#374151",
                     textTransform: "none",
                   }}
                 >
                   User
                 </th>
                 <th
+                  className="text-muted-foreground"
                   style={{
                     padding: "1rem 1.5rem",
                     textAlign: "left",
                     fontWeight: "600",
                     fontSize: "0.875rem",
-                    color: "#374151",
                     textTransform: "none",
                   }}
                 >
                   Email
                 </th>
                 <th
+                  className="text-muted-foreground"
                   style={{
                     padding: "1rem 1.5rem",
                     textAlign: "left",
                     fontWeight: "600",
                     fontSize: "0.875rem",
-                    color: "#374151",
                     textTransform: "none",
                   }}
                 >
                   Role
                 </th>
                 <th
+                  className="text-muted-foreground"
                   style={{
                     padding: "1rem 1.5rem",
                     textAlign: "left",
                     fontWeight: "600",
                     fontSize: "0.875rem",
-                    color: "#374151",
                     textTransform: "none",
                   }}
                 >
                   Hours/Week
                 </th>
                 <th
+                  className="text-muted-foreground"
                   style={{
                     padding: "1rem 1.5rem",
                     textAlign: "left",
                     fontWeight: "600",
                     fontSize: "0.875rem",
-                    color: "#374151",
                     textTransform: "none",
                   }}
                 >
@@ -1079,7 +1105,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
             </thead>
             <tbody>
               {filteredUsers.map((user) => (
-                <tr key={user.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                <tr key={user.id} className="border-gray-200" style={{ borderBottom: "1px solid #f3f4f6" }}>
                   <td style={{ padding: "1rem 1.5rem" }}>
                     <div
                       style={{
@@ -1113,17 +1139,17 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                       </div>
                       <div>
                         <div
+                          className="text-foreground"
                           style={{
                             fontWeight: "500",
-                            color: "#111827",
                             fontSize: "0.9rem",
                           }}
                         >
                           {user.username}
                         </div>
                         <div
+                          className="text-muted-foreground"
                           style={{
-                            color: "#6b7280",
                             fontSize: "0.8rem",
                             marginTop: "0.125rem",
                           }}
@@ -1135,11 +1161,11 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                   </td>
                   <td style={{ padding: "1rem 1.5rem" }}>
                     <div
+                      className="text-foreground"
                       style={{
                         display: "flex",
                         alignItems: "center",
                         gap: "0.5rem",
-                        color: "#374151",
                         fontSize: "0.875rem",
                       }}
                     >
@@ -1178,11 +1204,11 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                   </td>
                   <td style={{ padding: "1rem 1.5rem" }}>
                     <div
+                      className="text-foreground"
                       style={{
                         display: "flex",
                         alignItems: "center",
                         gap: "0.5rem",
-                        color: "#374151",
                         fontSize: "0.875rem",
                       }}
                     >
@@ -1196,12 +1222,12 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                         <>
                           <button
                             onClick={() => handleEditUser(user)}
+                            className="bg-white"
                             style={{
                               display: "flex",
                               alignItems: "center",
                               gap: "0.375rem",
                               padding: "0.5rem 0.875rem",
-                              backgroundColor: "white",
                               color: "#374151",
                               border: "1px solid #e5e7eb",
                               borderRadius: "6px",
@@ -1235,6 +1261,33 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                             Delete
                           </button>
                         </>
+                      ) : (currentUser?.role === 'manager' && (user.role === 'employee' || user.role === 'team_lead')) || (currentUser?.role === 'team_lead' && user.role === 'employee') ? (
+                        <button
+                          onClick={() => handleViewEmployeeDetails(user)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.375rem",
+                            padding: "0.5rem 0.875rem",
+                            backgroundColor: "#6366f1",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            fontSize: "0.875rem",
+                            fontWeight: "500",
+                            transition: "all 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#4f46e5";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = "#6366f1";
+                          }}
+                        >
+                          <span style={{ fontSize: "0.875rem" }}></span>
+                          View Details
+                        </button>
                       ) : (
                         <span style={{ color: "#9ca3af", fontSize: "0.875rem" }}>View only</span>
                       )}
@@ -1458,6 +1511,191 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
         onCancel={cancelDelete}
         variant="danger"
       />
+
+      {/* Employee Details Modal */}
+      {showViewModal && viewingUser && (
+        <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', margin: '-2rem -2rem 1.5rem -2rem', padding: '1.5rem 2rem', borderRadius: '12px 12px 0 0', position: 'relative' }}>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>Employee Details</h2>
+              <button
+                onClick={() => setShowViewModal(false)}
+                style={{
+                  position: 'absolute',
+                  top: '1rem',
+                  right: '1rem',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {loadingEmployeeDetails ? (
+              <div className="text-foreground" style={{ padding: '2rem', textAlign: 'center' }}>
+                <p>Loading employee details...</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {/* Basic Information */}
+                <div>
+                  <h3 className="text-foreground" style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: 600 }}>Basic Information</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                    <div>
+                      <label className="text-muted-foreground" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Username</label>
+                      <div className="bg-gray-50 text-foreground" style={{ padding: '0.5rem', borderRadius: '6px' }}>{viewingUser.username}</div>
+                    </div>
+                    <div>
+                      <label className="text-muted-foreground" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Email</label>
+                      <div className="bg-gray-50 text-foreground" style={{ padding: '0.5rem', borderRadius: '6px' }}>{viewingUser.email || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <label className="text-muted-foreground" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Role</label>
+                      <div className="bg-gray-50 text-foreground" style={{ padding: '0.5rem', borderRadius: '6px', textTransform: 'capitalize' }}>{viewingUser.role.replace('_', ' ')}</div>
+                    </div>
+                    <div>
+                      <label className="text-muted-foreground" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Available Hours/Week</label>
+                      <div className="bg-gray-50 text-foreground" style={{ padding: '0.5rem', borderRadius: '6px' }}>{viewingUser.available_hours_per_week || 40} hours</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Assigned Projects */}
+                <div>
+                  <h3 className="text-foreground" style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: 600 }}>Assigned Projects ({employeeProjects.length})</h3>
+                  {employeeProjects.length > 0 ? (
+                    <div className="border-gray-200" style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Project Name</th>
+                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Status</th>
+                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Allocated Hours/Week</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {employeeProjects.map((project: any) => (
+                            <tr key={project.id} className="border-gray-200" style={{ borderBottom: '1px solid #f3f4f6' }}>
+                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{project.name}</td>
+                              <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>
+                                <span style={{
+                                  padding: '0.25rem 0.5rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 500,
+                                  textTransform: 'capitalize',
+                                  backgroundColor: project.status === 'active' ? '#d1fae5' : project.status === 'completed' ? '#dbeafe' : '#f3f4f6',
+                                  color: project.status === 'active' ? '#065f46' : project.status === 'completed' ? '#1e40af' : '#6b7280'
+                                }}>
+                                  {project.status}
+                                </span>
+                              </td>
+                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{project.allocated_hours_per_week || 'N/A'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 text-muted-foreground" style={{ padding: '1.5rem', textAlign: 'center', borderRadius: '8px' }}>
+                      No projects assigned
+                    </div>
+                  )}
+                </div>
+
+                {/* Assigned Tasks */}
+                <div>
+                  <h3 className="text-foreground" style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: 600 }}>Assigned Tasks ({employeeTasks.length})</h3>
+                  {employeeTasks.length > 0 ? (
+                    <div className="border-gray-200" style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Task Name</th>
+                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Project</th>
+                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Status</th>
+                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Planned Hours</th>
+                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Due Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {employeeTasks.map((task: any) => (
+                            <tr key={task.id} className="border-gray-200" style={{ borderBottom: '1px solid #f3f4f6' }}>
+                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{task.name}</td>
+                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{task.project_name || 'N/A'}</td>
+                              <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>
+                                <span style={{
+                                  padding: '0.25rem 0.5rem',
+                                  borderRadius: '4px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 500,
+                                  textTransform: 'capitalize',
+                                  backgroundColor: task.status === 'completed' ? '#d1fae5' : task.status === 'in_progress' ? '#dbeafe' : task.status === 'blocked' ? '#fee2e2' : '#f3f4f6',
+                                  color: task.status === 'completed' ? '#065f46' : task.status === 'in_progress' ? '#1e40af' : task.status === 'blocked' ? '#991b1b' : '#6b7280'
+                                }}>
+                                  {task.status.replace('_', ' ')}
+                                </span>
+                              </td>
+                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{task.planned_hours}h</td>
+                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 text-muted-foreground" style={{ padding: '1.5rem', textAlign: 'center', borderRadius: '8px' }}>
+                      No tasks assigned
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                onClick={() => setShowViewModal(false)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#f3f4f6',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#e5e7eb';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

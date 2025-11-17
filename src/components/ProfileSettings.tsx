@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { authAPI, userAPI } from '../services/api';
 import Toast from './Toast';
 import { useToast } from '../hooks/useToast';
@@ -17,6 +17,45 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUserUpdated }
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [changePwd, setChangePwd] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  
+  // User-specific dark theme state
+  const [darkTheme, setDarkTheme] = useState(() => {
+    if (typeof window !== 'undefined' && user?.id) {
+      const saved = localStorage.getItem(`dark-theme-${user.id}`);
+      return saved === 'true';
+    }
+    return false;
+  });
+
+  // Initialize dark theme on mount or when user changes
+  useEffect(() => {
+    if (user?.id) {
+      const saved = localStorage.getItem(`dark-theme-${user.id}`);
+      const isDark = saved === 'true';
+      setDarkTheme(isDark);
+      applyDarkTheme(isDark);
+    }
+  }, [user?.id]);
+
+  // Apply dark theme to document
+  const applyDarkTheme = (isDark: boolean) => {
+    if (isDark) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.body.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      document.body.removeAttribute('data-theme');
+    }
+  };
+
+  const handleDarkThemeToggle = () => {
+    if (!user?.id) return;
+    const newValue = !darkTheme;
+    setDarkTheme(newValue);
+    localStorage.setItem(`dark-theme-${user.id}`, String(newValue));
+    applyDarkTheme(newValue);
+    window.dispatchEvent(new CustomEvent('dark-theme-changed', { detail: { userId: user.id, enabled: newValue } }));
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -81,12 +120,53 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUserUpdated }
     <div className="users-page">
       <div className="page-header" style={{ marginBottom: '2rem' }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, color: '#000', marginBottom: '0.5rem' }}>Profile Settings</h1>
-          <p style={{ color: '#6b7280', fontSize: '0.95rem', marginTop: '0.25rem' }}>Manage your account details and password</p>
+          <h1 className="text-foreground" style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>Profile Settings</h1>
+          <p className="text-muted-foreground" style={{ fontSize: '0.95rem', marginTop: '0.25rem' }}>Manage your account details and password</p>
         </div>
       </div>
 
       <div className="page-content" style={{ display: 'grid', gap: '1.5rem' }}>
+        {/* Appearance Section */}
+        <div className="card" style={{ maxWidth: 560, padding: '1.25rem', borderRadius: 8 }}>
+          <h3 style={{ margin: 0, marginBottom: '1rem' }}>Appearance</h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0' }}>
+            <div>
+              <div style={{ fontWeight: 500, marginBottom: '0.25rem' }}>Dark Mode</div>
+              <div className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>Apply dark theme to all components</div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDarkThemeToggle}
+              style={{
+                width: '52px',
+                height: '28px',
+                borderRadius: '14px',
+                border: 'none',
+                backgroundColor: darkTheme ? '#6366f1' : '#d1d5db',
+                cursor: 'pointer',
+                position: 'relative',
+                transition: 'background-color 0.2s',
+                padding: 0,
+              }}
+              title={darkTheme ? 'Disable dark mode' : 'Enable dark mode'}
+            >
+              <div
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: 'white',
+                  position: 'absolute',
+                  top: '2px',
+                  left: darkTheme ? '26px' : '2px',
+                  transition: 'left 0.2s',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                }}
+              />
+            </button>
+          </div>
+        </div>
+
         <form onSubmit={handleSave} className="user-form" style={{ maxWidth: 560 }}>
           <div className="form-group">
             <label htmlFor="username">Username</label>
@@ -103,7 +183,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, onUserUpdated }
           </div>
         </form>
 
-        <div className="card" style={{ maxWidth: 560, padding: '1.25rem', border: '1px solid #e5e7eb', borderRadius: 8, background: 'white' }}>
+        <div className="card" style={{ maxWidth: 560, padding: '1.25rem', borderRadius: 8 }}>
           <h3 style={{ margin: 0, marginBottom: 12 }}>Change Password</h3>
           <form onSubmit={handleChangePasswordSubmit} className="user-form">
             <div className="form-group">

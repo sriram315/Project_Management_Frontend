@@ -74,6 +74,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [tasksNextWeek, setTasksNextWeek] = useState<Array<{ id: number; title: string; assignee: string; status: string; statusColor: string; estimated: number; logged: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [forceRefreshKey, setForceRefreshKey] = useState(0);
+  
+  // Pagination state
+  const [currentPageThisWeek, setCurrentPageThisWeek] = useState(1);
+  const [currentPageNextWeek, setCurrentPageNextWeek] = useState(1);
+  const itemsPerPage = 10;
   const [selectedTask, setSelectedTask] = useState<{
     id: number;
     title: string;
@@ -302,6 +307,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       const nextWeekTasks = tasksTimeline.nextWeek || [];
       setTasksThisWeek(thisWeekTasks);
       setTasksNextWeek(nextWeekTasks);
+      
+      // Reset pagination when data changes
+      setCurrentPageThisWeek(1);
+      setCurrentPageNextWeek(1);
       console.log('Tasks set in state:', {
         thisWeek: thisWeekTasks.length,
         nextWeek: nextWeekTasks.length,
@@ -701,13 +710,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     {stats.map((stat) => (
       <div
         key={stat.label}
-        className="flex-1 border-l-4 border-l-indigo-500 bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-sm border border-gray-200 p-6"
+        className="flex-1 border-l-4 border-l-indigo-500 bg-white rounded-lg shadow-sm border border-gray-200 p-6"
         style={{ minWidth: 0 }}
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-            <p className="text-3xl font-bold mt-2 text-gray-900">{stat.value}</p>
+            <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+            <p className="text-3xl font-bold mt-2 text-foreground">{stat.value}</p>
           </div>
           <div className={`${stat.color} p-3 rounded-lg flex items-center justify-center`}>
             <span className="text-2xl">{stat.icon}</span>
@@ -733,7 +742,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     ? 'text-cyan-600'
                     : task.status === 'Blocked'
                     ? 'text-red-600'
-                    : 'text-gray-600';
+                    : 'text-muted-foreground';
                   const barColor = task.status === 'Completed'
                     ? '#22c55e'
                     : task.status === 'In Progress'
@@ -774,7 +783,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     ? 'text-cyan-600'
                     : task.status === 'Blocked'
                     ? 'text-red-600'
-                    : 'text-gray-600';
+                    : 'text-muted-foreground';
                   const barColor = task.status === 'Completed'
                     ? '#22c55e'
                     : task.status === 'In Progress'
@@ -808,7 +817,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900">Tasks This Week</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3 className="text-lg font-semibold text-foreground">Tasks This Week</h3>
+          {tasksThisWeek.length > 0 && (
+            <span className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>
+              Total: {tasksThisWeek.length}
+            </span>
+          )}
+        </div>
         <div className="mt-4 overflow-x-auto">
           <table className="users-table" style={{ width: '100%' }}>
             <thead>
@@ -822,7 +838,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <tbody>
               {tasksThisWeek.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af' }}>
+                  <td colSpan={4} className="text-muted-foreground" style={{ textAlign: 'center' }}>
                     No tasks for this week
                     {process.env.NODE_ENV === 'development' && (
                       <div style={{ fontSize: '10px', marginTop: '4px' }}>
@@ -832,7 +848,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   </td>
                 </tr>
               )}
-              {tasksThisWeek.map((task) => {
+              {tasksThisWeek
+                .slice((currentPageThisWeek - 1) * itemsPerPage, currentPageThisWeek * itemsPerPage)
+                .map((task) => {
                 const statusTextClass =
                   task.status === 'Completed'
                     ? 'text-green-600'
@@ -840,7 +858,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     ? 'text-cyan-600'
                     : task.status === 'Blocked'
                     ? 'text-red-600'
-                    : 'text-gray-600';
+                    : 'text-muted-foreground';
                 const isExpanded = selectedTask && selectedTask.source === 'thisWeek' && selectedTask.id === task.id;
                 return (
                   <>
@@ -879,12 +897,69 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination for This Week */}
+        {tasksThisWeek.length > itemsPerPage && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+            <div className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>
+              Showing {(currentPageThisWeek - 1) * itemsPerPage + 1} to {Math.min(currentPageThisWeek * itemsPerPage, tasksThisWeek.length)} of {tasksThisWeek.length} tasks
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                onClick={() => setCurrentPageThisWeek(prev => Math.max(1, prev - 1))}
+                disabled={currentPageThisWeek === 1}
+                className="pagination-button"
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  backgroundColor: currentPageThisWeek === 1 ? '#f3f4f6' : '#6366f1',
+                  color: currentPageThisWeek === 1 ? '#9ca3af' : 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: currentPageThisWeek === 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s'
+                }}
+              >
+                Previous
+              </button>
+              <span className="text-foreground" style={{ fontSize: '0.875rem', padding: '0 0.5rem' }}>
+                Page {currentPageThisWeek} of {Math.ceil(tasksThisWeek.length / itemsPerPage)}
+              </span>
+              <button
+                onClick={() => setCurrentPageThisWeek(prev => Math.min(Math.ceil(tasksThisWeek.length / itemsPerPage), prev + 1))}
+                disabled={currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage)}
+                className="pagination-button"
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  backgroundColor: currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage) ? '#f3f4f6' : '#6366f1',
+                  color: currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage) ? '#9ca3af' : 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage) ? 'not-allowed' : 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s'
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
 
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900">Tasks Next Week</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3 className="text-lg font-semibold text-gray-900">Tasks Next Week</h3>
+          {tasksNextWeek.length > 0 && (
+            <span className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>
+              Total: {tasksNextWeek.length}
+            </span>
+          )}
+        </div>
         <div className="mt-4 overflow-x-auto">
           <table className="users-table" style={{ width: '100%' }}>
             <thead>
@@ -898,7 +973,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <tbody>
               {tasksNextWeek.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', color: '#9ca3af' }}>
+                  <td colSpan={4} className="text-muted-foreground" style={{ textAlign: 'center' }}>
                     No tasks for next week
                     {process.env.NODE_ENV === 'development' && (
                       <div style={{ fontSize: '10px', marginTop: '4px' }}>
@@ -916,7 +991,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     ? 'text-cyan-600'
                     : task.status === 'Blocked'
                     ? 'text-red-600'
-                    : 'text-gray-600';
+                    : 'text-muted-foreground';
                 const isExpanded = selectedTask && selectedTask.source === 'nextWeek' && selectedTask.id === task.id;
                 return (
                   <>
@@ -955,6 +1030,56 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination for Next Week */}
+        {tasksNextWeek.length > itemsPerPage && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
+            <div className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>
+              Showing {(currentPageNextWeek - 1) * itemsPerPage + 1} to {Math.min(currentPageNextWeek * itemsPerPage, tasksNextWeek.length)} of {tasksNextWeek.length} tasks
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                onClick={() => setCurrentPageNextWeek(prev => Math.max(1, prev - 1))}
+                disabled={currentPageNextWeek === 1}
+                className="pagination-button"
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  backgroundColor: currentPageNextWeek === 1 ? '#f3f4f6' : '#6366f1',
+                  color: currentPageNextWeek === 1 ? '#9ca3af' : 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: currentPageNextWeek === 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s'
+                }}
+              >
+                Previous
+              </button>
+              <span className="text-foreground" style={{ fontSize: '0.875rem', padding: '0 0.5rem' }}>
+                Page {currentPageNextWeek} of {Math.ceil(tasksNextWeek.length / itemsPerPage)}
+              </span>
+              <button
+                onClick={() => setCurrentPageNextWeek(prev => Math.min(Math.ceil(tasksNextWeek.length / itemsPerPage), prev + 1))}
+                disabled={currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage)}
+                className="pagination-button"
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  backgroundColor: currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage) ? '#f3f4f6' : '#6366f1',
+                  color: currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage) ? '#9ca3af' : 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage) ? 'not-allowed' : 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s'
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   </div>

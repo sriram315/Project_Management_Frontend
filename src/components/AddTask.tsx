@@ -107,6 +107,7 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
           teamData = await teamAPI.getAll();
         }
         
+        // Keep all projects (including dropped ones) - dropped projects will be disabled in dropdown
         setProjects(projectsData);
         setTeamMembers(teamData);
       } catch (err) {
@@ -199,6 +200,12 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
     // Project validation
     if (!formData.project_id || formData.project_id === 0) {
       errors.project_id = 'Please select a project';
+    } else {
+      // Check if selected project is dropped
+      const selectedProject = projects.find(p => p.id === formData.project_id);
+      if (selectedProject && selectedProject.status === 'dropped') {
+        errors.project_id = 'This project is dropped. Tasks cannot be created for dropped projects.';
+      }
     }
 
     // Assignee validation - MUST be from selected project
@@ -238,6 +245,16 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if selected project is dropped before validation
+    if (formData.project_id > 0) {
+      const selectedProject = projects.find(p => p.id === formData.project_id);
+      if (selectedProject && selectedProject.status === 'dropped') {
+        setFormErrors({ project_id: 'This project is dropped. Tasks cannot be created for dropped projects.' });
+        showToast('This project is dropped. Tasks cannot be created for dropped projects.', 'error');
+        return;
+      }
+    }
     
     if (!validateForm()) {
       showToast('Please fix the validation errors', 'error');
@@ -442,7 +459,9 @@ const AddTask: React.FC<AddTaskProps> = ({ onTaskAdded, onClose, projectId, assi
                     { value: 0, label: 'Select Project' },
                     ...projects.map(project => ({
                       value: project.id,
-                      label: project.name
+                      label: project.name,
+                      disabled: project.status === 'dropped',
+                      tooltip: project.status === 'dropped' ? 'Dropped' : undefined
                     }))
                   ]}
                   placeholder="Select Project"

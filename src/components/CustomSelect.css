@@ -25,6 +25,7 @@
   cursor: pointer;
   transition: all 0.15s ease-in-out;
   user-select: none;
+  color: #111827;
 }
 
 .custom-select-trigger:hover {
@@ -78,6 +79,7 @@
   max-height: 320px;
   display: flex;
   flex-direction: column;
+  color: #111827;
 }
 
 .custom-select-search {
@@ -143,6 +145,16 @@
 .custom-select-option:hover {
   background-color: #f3f4f6;
   color: #111827;
+}
+
+.custom-select-option.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.custom-select-option.disabled:hover {
+  background-color: #fef2f2;
+  color: #991b1b;
 }
 
 .custom-select-option.selected {

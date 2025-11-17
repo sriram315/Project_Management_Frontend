@@ -773,7 +773,7 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
                 {formErrors.updateComment}
               </small>
             )}
-            <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+            <small className="text-muted-foreground" style={{ fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
               Add a daily update comment that will be saved to the task history.
             </small>
             <button
@@ -835,23 +835,21 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
 
           {/* Daily Updates Section */}
           <div className="form-group" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid #e1e8ed' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#333', fontSize: '1.2rem' }}>Update History</h3>
-            <p style={{ marginBottom: '1rem', color: '#666', fontSize: '0.9rem' }}>
+            <h3 className="text-foreground" style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>Update History</h3>
+            <p className="text-muted-foreground" style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
               Previous daily updates with date and time.
             </p>
 
             {/* Display Existing Daily Updates */}
             <div style={{ marginTop: '1rem' }}>
               {loadingUpdates ? (
-                <div style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+                <div className="text-muted-foreground" style={{ padding: '1rem', textAlign: 'center' }}>
                   Loading updates...
                 </div>
               ) : dailyUpdates.length === 0 ? (
-                <div style={{ 
+                <div className="text-muted-foreground bg-gray-50" style={{ 
                   padding: '1.5rem', 
                   textAlign: 'center', 
-                  color: '#999', 
-                  backgroundColor: '#f8f9fa',
                   borderRadius: '4px',
                   border: '1px dashed #e1e8ed'
                 }}>
@@ -877,18 +875,18 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
                         marginBottom: '0.5rem'
                       }}>
                         <div style={{ flex: 1 }}>
-                          <strong style={{ color: '#333', fontSize: '0.95rem' }}>
+                          <strong className="text-foreground" style={{ fontSize: '0.95rem' }}>
                             {update.user_name || update.username || 'Unknown User'}
                           </strong>
                           {update.email && (
-                            <span style={{ color: '#666', fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                            <span className="text-muted-foreground" style={{ fontSize: '0.85rem', marginLeft: '0.5rem' }}>
                               ({update.email})
                             </span>
                           )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span style={{ 
-                            color: '#666', 
+                            // color handled by text-muted-foreground class 
                             fontSize: '0.85rem',
                             whiteSpace: 'nowrap'
                           }}>

@@ -121,7 +121,7 @@ const ProjectAssignments: React.FC<ProjectAssignmentsProps> = ({ user }) => {
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
+      <div className="text-muted-foreground" style={{ textAlign: 'center', padding: '3rem' }}>
         Loading...
       </div>
     );
@@ -136,18 +136,18 @@ const ProjectAssignments: React.FC<ProjectAssignmentsProps> = ({ user }) => {
       <div className="page-header" style={{ marginBottom: '2rem' }}>
         <div>
           <h1
+            className="text-foreground"
             style={{
               fontSize: '2rem',
               fontWeight: '700',
-              color: '#000',
               marginBottom: '0.5rem',
             }}
           >
             Project Assignments
           </h1>
           <p
+            className="text-muted-foreground"
             style={{
-              color: '#6b7280',
               fontSize: '0.95rem',
               marginTop: '0.25rem',
             }}
@@ -208,15 +208,15 @@ const ProjectAssignments: React.FC<ProjectAssignmentsProps> = ({ user }) => {
             </div>
             <div style={{ padding: '0 2rem 2rem' }}>
               <div
+                className="bg-gray-50"
                 style={{
-                  backgroundColor: '#f0f9ff',
                   border: '1px solid #bae6fd',
                   borderRadius: '8px',
                   padding: '1rem',
                   marginBottom: '1.5rem',
                 }}
               >
-                <p style={{ color: '#0369a1', fontSize: '0.875rem', margin: 0 }}>
+                <p className="text-foreground" style={{ fontSize: '0.875rem', margin: 0 }}>
                   💡 <strong>Tip:</strong> You can assign multiple managers/team leads to the same project. Each person will see and manage the project independently.
                 </p>
               </div>
@@ -285,9 +285,8 @@ const ProjectAssignments: React.FC<ProjectAssignmentsProps> = ({ user }) => {
 
       {/* Projects List with Assignments */}
       <div
-        className="users-table-container"
+        className="users-table-container bg-white"
         style={{
-          backgroundColor: 'white',
           borderRadius: '12px',
           overflow: 'hidden',
           border: '1px solid #e5e7eb',
@@ -303,66 +302,66 @@ const ProjectAssignments: React.FC<ProjectAssignmentsProps> = ({ user }) => {
           >
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr
+                className="bg-gray-50"
                 style={{
-                  backgroundColor: '#f9fafb',
                   borderBottom: '1px solid #e5e7eb',
                 }}
               >
                 <th
+                  className="text-muted-foreground"
                   style={{
                     padding: '1rem 1.5rem',
                     textAlign: 'left',
                     fontWeight: '600',
                     fontSize: '0.875rem',
-                    color: '#374151',
                     textTransform: 'none',
                   }}
                 >
                   Project Name
                 </th>
                 <th
+                  className="text-muted-foreground"
                   style={{
                     padding: '1rem 1.5rem',
                     textAlign: 'left',
                     fontWeight: '600',
                     fontSize: '0.875rem',
-                    color: '#374151',
                     textTransform: 'none',
                   }}
                 >
                   Status
                 </th>
                 <th
+                  className="text-muted-foreground"
                   style={{
                     padding: '1rem 1.5rem',
                     textAlign: 'left',
                     fontWeight: '600',
                     fontSize: '0.875rem',
-                    color: '#374151',
                     textTransform: 'none',
                   }}
                 >
                   Assigned To
                 </th>
                 <th
+                  className="text-muted-foreground"
                   style={{
                     padding: '1rem 1.5rem',
                     textAlign: 'left',
                     fontWeight: '600',
                     fontSize: '0.875rem',
-                    color: '#374151',
                     textTransform: 'none',
                   }}
                 >
                   Assigned At
                 </th>
                 <th
+                  className="text-muted-foreground"
                   style={{
                     padding: '1rem 1.5rem',
                     textAlign: 'left',
                     fontWeight: '600',
                     fontSize: '0.875rem',
-                    color: '#374151',
                     textTransform: 'none',
                   }}
                 >
@@ -375,10 +374,10 @@ const ProjectAssignments: React.FC<ProjectAssignmentsProps> = ({ user }) => {
                 <tr>
                   <td
                     colSpan={5}
+                    className="text-muted-foreground"
                     style={{
                       padding: '3rem',
                       textAlign: 'center',
-                      color: '#6b7280',
                     }}
                   >
                     No projects found
@@ -390,7 +389,7 @@ const ProjectAssignments: React.FC<ProjectAssignmentsProps> = ({ user }) => {
                   if (projectAssignments.length === 0) {
                     return (
                       <tr key={project.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td style={{ padding: '1rem 1.5rem', fontWeight: '500', color: '#111827' }}>
+                        <td className="text-foreground" style={{ padding: '1rem 1.5rem', fontWeight: '500' }}>
                           {project.name}
                         </td>
                         <td style={{ padding: '1rem 1.5rem' }}>
@@ -418,11 +417,11 @@ const ProjectAssignments: React.FC<ProjectAssignmentsProps> = ({ user }) => {
                             {project.status}
                           </span>
                         </td>
-                        <td style={{ color: '#9ca3af', padding: '1rem 1.5rem', fontStyle: 'italic' }}>
+                        <td className="text-muted-foreground" style={{ padding: '1rem 1.5rem', fontStyle: 'italic' }}>
                           Not assigned
                         </td>
-                        <td style={{ padding: '1rem 1.5rem', color: '#9ca3af' }}>-</td>
-                        <td style={{ padding: '1rem 1.5rem', color: '#9ca3af' }}>-</td>
+                        <td className="text-muted-foreground" style={{ padding: '1rem 1.5rem' }}>-</td>
+                        <td className="text-muted-foreground" style={{ padding: '1rem 1.5rem' }}>-</td>
                       </tr>
                     );
                   }
@@ -432,7 +431,8 @@ const ProjectAssignments: React.FC<ProjectAssignmentsProps> = ({ user }) => {
                         <>
                           <td
                             rowSpan={projectAssignments.length}
-                            style={{ padding: '1rem 1.5rem', fontWeight: '500', color: '#111827' }}
+                            className="text-foreground"
+                            style={{ padding: '1rem 1.5rem', fontWeight: '500' }}
                           >
                             {project.name}
                           </td>
@@ -465,15 +465,15 @@ const ProjectAssignments: React.FC<ProjectAssignmentsProps> = ({ user }) => {
                       )}
                       <td style={{ padding: '1rem 1.5rem' }}>
                         <div>
-                          <div style={{ fontWeight: '500', color: '#111827', fontSize: '0.9rem' }}>
+                          <div className="text-foreground" style={{ fontWeight: '500', fontSize: '0.9rem' }}>
                             {assignment.assigned_to_username}
                           </div>
-                          <div style={{ color: '#6b7280', fontSize: '0.8rem', marginTop: '0.125rem' }}>
+                          <div className="text-muted-foreground" style={{ fontSize: '0.8rem', marginTop: '0.125rem' }}>
                             {assignment.assigned_to_role} • {assignment.assigned_to_email}
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '1rem 1.5rem', color: '#374151', fontSize: '0.875rem' }}>
+                      <td className="text-foreground" style={{ padding: '1rem 1.5rem', fontSize: '0.875rem' }}>
                         {new Date(assignment.assigned_at).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
@@ -516,7 +516,7 @@ const ProjectAssignments: React.FC<ProjectAssignmentsProps> = ({ user }) => {
           </table>
         </div>
         {projects.length === 0 && (
-          <div style={{ padding: '3rem', textAlign: 'center', color: '#6b7280' }}>
+          <div className="text-muted-foreground" style={{ padding: '3rem', textAlign: 'center' }}>
             <p>No projects found. Create projects first to assign them.</p>
           </div>
         )}

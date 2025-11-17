@@ -231,10 +231,10 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
     <div className="users-page">
       <div className="page-header" style={{ marginBottom: '2rem' }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#000', marginBottom: '0.5rem' }}>
+          <h1 className="text-foreground" style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>
             {user?.role === 'employee' ? 'My Tasks' : 'Task Management'}
           </h1>
-          <p style={{ color: '#6b7280', fontSize: '0.95rem', marginTop: '0.25rem' }}>
+          <p className="text-muted-foreground" style={{ fontSize: '0.95rem', marginTop: '0.25rem' }}>
             Manage and track all your tasks in one place
           </p>
         </div>
@@ -244,6 +244,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
             placeholder="Search tasks by name, description..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            className="bg-background"
             style={{ 
               padding: '0.65rem 1rem', 
               border: '1px solid #e5e7eb', 
@@ -327,13 +328,13 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
           <div className="filter-group">
             <button 
               onClick={clearFilters}
+              className="bg-white"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.5rem',
                 padding: '0.75rem 1.25rem',
-                backgroundColor: 'white',
                 color: '#374151',
                 border: '1px solid #e5e7eb',
                 borderRadius: '8px',

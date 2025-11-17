@@ -1,10 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './CustomSelect.css';
 
+interface CustomSelectOption {
+  value: string | number;
+  label: string;
+  disabled?: boolean;
+  tooltip?: string;
+}
+
 interface CustomSelectProps {
   value: number | string | undefined | null;
   onChange: (value: string) => void;
-  options: Array<{ value: string | number; label: string }>;
+  options: Array<CustomSelectOption | { value: string | number; label: string }>;
   placeholder?: string;
   className?: string;
 }
@@ -49,7 +56,8 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     };
   }, [isOpen]);
 
-  const handleSelect = (optionValue: string | number) => {
+  const handleSelect = (optionValue: string | number, disabled?: boolean) => {
+    if (disabled) return; // Don't allow selection of disabled options
     onChange(String(optionValue));
     setIsOpen(false);
     setSearchTerm('');
@@ -87,15 +95,33 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
           </div>
           <div className="custom-select-options">
             {filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => (
-                <div
-                  key={option.value}
-                  className={`custom-select-option ${option.value === value ? 'selected' : ''}`}
-                  onClick={() => handleSelect(option.value)}
-                >
-                  {option.label}
-                </div>
-              ))
+              filteredOptions.map((option) => {
+                const isDisabled = 'disabled' in option ? option.disabled : false;
+                const tooltip = 'tooltip' in option ? option.tooltip : undefined;
+                return (
+                  <div
+                    key={option.value}
+                    className={`custom-select-option ${option.value === value ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelect(option.value, isDisabled);
+                    }}
+                    onMouseEnter={(e) => {
+                      if (isDisabled && tooltip) {
+                        e.currentTarget.setAttribute('title', tooltip);
+                      }
+                    }}
+                    title={tooltip || (isDisabled ? 'Dropped' : undefined)}
+                    style={{
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isDisabled ? 0.6 : 1,
+                    }}
+                  >
+                    {option.label}
+                    {isDisabled && <span style={{ marginLeft: '8px', fontSize: '0.85rem', color: '#ef4444' }}>(Dropped)</span>}
+                  </div>
+                );
+              })
             ) : (
               <div className="custom-select-no-options">No options found</div>
             )}

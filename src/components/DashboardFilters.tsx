@@ -163,7 +163,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
             placeholder="Start Date"
             max={endDateForInput || undefined}
           />
-          <span className="text-sm text-gray-500">to</span>
+          <span className="text-sm text-muted-foreground">to</span>
           <input
             type="date"
             value={endDateForInput}

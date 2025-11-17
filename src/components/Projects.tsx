@@ -158,7 +158,7 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
     <div className="users-page">
       <div className="page-header" style={{ marginBottom: '2rem' }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#000', marginBottom: '0.5rem' }}>
+          <h1 className="text-foreground" style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>
             {user?.role === 'employee' ? 'My Projects' : 'Project Management'}
           </h1>
           <p style={{ color: '#6b7280', fontSize: '0.95rem', marginTop: '0.25rem' }}>

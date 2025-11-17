@@ -54,18 +54,18 @@ const ProjectList: React.FC<ProjectListProps> = ({
   };
 
   return (
-    <div style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb', maxHeight: '600px', display: 'flex', flexDirection: 'column' }}>
+    <div className="bg-white" style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb', maxHeight: '600px', display: 'flex', flexDirection: 'column' }}>
       <div style={{ overflow: 'auto', flex: 1 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-          <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>Projects</th>
-            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>Status</th>
-            {userRole !== 'employee' && <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>Budget</th>}
-            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>{userRole === 'employee' ? 'My Hours/Week' : 'Hours'}</th>
-            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>Start Date</th>
-            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>End Date</th>
-            <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', color: '#374151', textTransform: 'none' }}>Actions</th>
+          <tr className="bg-gray-50" style={{ borderBottom: '1px solid #e5e7eb' }}>
+            <th className="text-muted-foreground" style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', textTransform: 'none' }}>Projects</th>
+            <th className="text-muted-foreground" style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', textTransform: 'none' }}>Status</th>
+            {userRole !== 'employee' && <th className="text-muted-foreground" style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', textTransform: 'none' }}>Budget</th>}
+            <th className="text-muted-foreground" style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', textTransform: 'none' }}>{userRole === 'employee' ? 'My Hours/Week' : 'Hours'}</th>
+            <th className="text-muted-foreground" style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', textTransform: 'none' }}>Start Date</th>
+            <th className="text-muted-foreground" style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', textTransform: 'none' }}>End Date</th>
+            <th className="text-muted-foreground" style={{ padding: '1rem 1.5rem', textAlign: 'left', fontWeight: '600', fontSize: '0.875rem', textTransform: 'none' }}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -75,9 +75,9 @@ const ProjectList: React.FC<ProjectListProps> = ({
                 <div>
                   <div 
                     onClick={() => userRole === 'employee' && handleProjectDetails(project.id)}
+                    className="text-foreground"
                     style={{ 
                       fontWeight: '600', 
-                      color: '#111827', 
                       fontSize: '0.9rem',
                       cursor: userRole === 'employee' ? 'pointer' : 'default'
                     }}
@@ -85,7 +85,7 @@ const ProjectList: React.FC<ProjectListProps> = ({
                     {project.name}
                   </div>
                   {project.description && (
-                    <div style={{ color: '#6b7280', fontSize: '0.8rem', marginTop: '0.25rem' }}>{project.description}</div>
+                    <div className="text-muted-foreground" style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>{project.description}</div>
                   )}
                 </div>
               </td>
@@ -132,28 +132,28 @@ const ProjectList: React.FC<ProjectListProps> = ({
                 })()}
               </td>
               {userRole !== 'employee' && (
-                <td style={{ padding: '1rem 1.5rem', color: '#374151', fontSize: '0.875rem' }}>{formatCurrency(project.budget)}</td>
+                <td className="text-foreground" style={{ padding: '1rem 1.5rem', fontSize: '0.875rem' }}>{formatCurrency(project.budget)}</td>
               )}
-              <td style={{ padding: '1rem 1.5rem', color: '#374151', fontSize: '0.875rem' }}>
+              <td className="text-foreground" style={{ padding: '1rem 1.5rem', fontSize: '0.875rem' }}>
                 {userRole === 'employee'  
                   ? `${(project as any).allocated_hours_per_week || 0}h`
                   : `${project.estimated_hours || 0}h`
                 }
               </td>
-              <td style={{ padding: '1rem 1.5rem', color: '#374151', fontSize: '0.875rem' }}>{formatDate(project.start_date)}</td>
-              <td style={{ padding: '1rem 1.5rem', color: '#374151', fontSize: '0.875rem' }}>{formatDate(project.end_date)}</td>
+              <td className="text-foreground" style={{ padding: '1rem 1.5rem', fontSize: '0.875rem' }}>{formatDate(project.start_date)}</td>
+              <td className="text-foreground" style={{ padding: '1rem 1.5rem', fontSize: '0.875rem' }}>{formatDate(project.end_date)}</td>
               <td style={{ padding: '1rem 1.5rem' }}>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {userRole === 'employee' ? (
                     <button 
                       onClick={() => handleProjectDetails(project.id)}
                       title="View project details"
+                      className="bg-white"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.375rem',
                         padding: '0.5rem 0.875rem',
-                        backgroundColor: 'white',
                         color: '#374151',
                         border: '1px solid #e5e7eb',
                         borderRadius: '6px',
@@ -172,12 +172,12 @@ const ProjectList: React.FC<ProjectListProps> = ({
                         <button 
                           onClick={() => onEditProject(project)}
                           title="Edit project"
+                          className="bg-white"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.375rem',
                             padding: '0.5rem 0.875rem',
-                            backgroundColor: 'white',
                             color: '#374151',
                             border: '1px solid #e5e7eb',
                             borderRadius: '6px',
@@ -195,12 +195,12 @@ const ProjectList: React.FC<ProjectListProps> = ({
                         <button 
                           onClick={() => onManageTeam(project.id, project.name)}
                           title="Manage team members"
+                          className="bg-white"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.375rem',
                             padding: '0.5rem 0.875rem',
-                            backgroundColor: 'white',
                             color: '#374151',
                             border: '1px solid #e5e7eb',
                             borderRadius: '6px',

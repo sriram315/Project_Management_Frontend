@@ -59,11 +59,10 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onUpdateTask, onDeleteTask }
 
   return (
     <div
+      className="bg-white"
       style={{
         overflowX: 'auto',
-        backgroundColor: 'white',
         borderRadius: '12px',
-        border: '1px solid #e5e7eb',
         marginTop: '2rem',
         maxHeight: '600px',
         width: '100%',

@@ -100,20 +100,16 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
-                  // Closed eye icon - curved line with diagonal slash
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-                    {/* Closed eyelid - smooth curved line dipping downwards */}
-                    <path d="M4 12C4 12 6 14 12 14C18 14 20 12 20 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
-                    {/* Diagonal slash line from top-left to bottom-right */}
-                    <line x1="5" y1="6" x2="19" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  // Hidden eye icon - eye with diagonal slash
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
                   </svg>
                 ) : (
-                  // Open eye icon - simple almond shape with centered circle
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-                    {/* Eye outline - almond shape */}
-                    <ellipse cx="12" cy="12" rx="8" ry="5" stroke="currentColor" strokeWidth="2" fill="none"/>
-                    {/* Iris/Pupil - solid black circle centered */}
-                    <circle cx="12" cy="12" r="4" fill="currentColor"/>
+                  // Visible eye icon - open eye
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
                   </svg>
                 )}
               </button>

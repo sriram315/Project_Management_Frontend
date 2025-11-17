@@ -33,12 +33,24 @@ function App() {
         const userData = JSON.parse(savedUser);
         setUser(userData);
         setIsAuthenticated(true);
+        
+        // Initialize user-specific dark theme
+        const savedTheme = localStorage.getItem(`dark-theme-${userData.id}`);
+        const isDark = savedTheme === 'true';
+        if (isDark) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.body.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+          document.body.removeAttribute('data-theme');
+        }
       } catch (error) {
         console.error('Error parsing saved user data:', error);
         localStorage.removeItem('user');
         localStorage.removeItem('isAuthenticated');
       }
     }
+    
     setIsLoading(false);
   }, []);
 
@@ -48,6 +60,17 @@ function App() {
     // Save to localStorage
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('isAuthenticated', 'true');
+    
+    // Initialize user-specific dark theme
+    const savedTheme = localStorage.getItem(`dark-theme-${userData.id}`);
+    const isDark = savedTheme === 'true';
+    if (isDark) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.body.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      document.body.removeAttribute('data-theme');
+    }
   };
 
   const handleLogout = () => {
@@ -57,6 +80,10 @@ function App() {
     }
     // Also clear the old global dashboard-filters key if it exists
     localStorage.removeItem('dashboard-filters');
+    
+    // Remove dark theme on logout
+    document.documentElement.removeAttribute('data-theme');
+    document.body.removeAttribute('data-theme');
     
     setIsAuthenticated(false);
     setUser(null);

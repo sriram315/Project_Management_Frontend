@@ -17,4 +17,3 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ title, value, label }) => {
 };
 
 export default MetricsCard;
-

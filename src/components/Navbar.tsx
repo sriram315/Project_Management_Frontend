@@ -51,6 +51,40 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [darkTheme, setDarkTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.getAttribute('data-theme') === 'dark';
+    }
+    return false;
+  });
+
+  // Listen for dark theme changes
+  useEffect(() => {
+    const handleThemeChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      // Only update if the theme change is for the current user
+      if (!user?.id || customEvent.detail?.userId === user.id) {
+        setDarkTheme(customEvent.detail?.enabled || false);
+      }
+    };
+
+    window.addEventListener('dark-theme-changed', handleThemeChange);
+    
+    // Check initial theme
+    const checkTheme = () => {
+      setDarkTheme(document.documentElement.getAttribute('data-theme') === 'dark');
+    };
+    checkTheme();
+    
+    // Also check on DOM mutations (in case theme is set elsewhere)
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+    return () => {
+      window.removeEventListener('dark-theme-changed', handleThemeChange);
+      observer.disconnect();
+    };
+  }, [user?.id]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -84,9 +118,9 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      backgroundColor: '#ffffff',
+      backgroundColor: darkTheme ? '#1e293b' : '#ffffff',
       padding: '0.8rem 1.5rem',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+      boxShadow: darkTheme ? '0 2px 8px rgba(0, 0, 0, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.05)',
       fontFamily: 'Inter, sans-serif',
       position: 'sticky' as const,
       top: 0,
@@ -95,7 +129,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
     brand: {
       fontSize: '1.3rem',
       fontWeight: 700,
-      color: '#0078ff',
+      color: darkTheme ? '#60a5fa' : '#0078ff',
       textDecoration: 'none',
     },
     navLinks: {
@@ -105,8 +139,14 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
     },
     link: (isActive: boolean, name: string) => ({
       textDecoration: 'none',
-      color: isActive ? '#0078ff' : hoveredLink === name ? '#005fcc' : '#333',
-      backgroundColor: isActive ? '#eaf4ff' : 'transparent',
+      color: isActive 
+        ? (darkTheme ? '#60a5fa' : '#0078ff')
+        : hoveredLink === name 
+          ? (darkTheme ? '#93c5fd' : '#005fcc')
+          : (darkTheme ? '#cbd5e1' : '#333'),
+      backgroundColor: isActive 
+        ? (darkTheme ? '#1e40af' : '#eaf4ff')
+        : 'transparent',
       fontWeight: 500,
       padding: '0.4rem 0.8rem',
       borderRadius: '6px',
@@ -116,15 +156,15 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       display: 'flex',
       alignItems: 'center',
       gap: '0.8rem',
-      backgroundColor: '#f9fafb',
+      backgroundColor: darkTheme ? '#1e293b' : '#f9fafb',
       padding: '0.5rem 0.8rem',
       borderRadius: '8px',
-      boxShadow: 'inset 0 0 4px rgba(0, 0, 0, 0.05)',
+      boxShadow: darkTheme ? 'inset 0 0 4px rgba(255, 255, 255, 0.05)' : 'inset 0 0 4px rgba(0, 0, 0, 0.05)',
       position: 'relative' as const,
     },
     username: {
       fontWeight: 500,
-      color: '#333',
+      color: darkTheme ? '#e2e8f0' : '#333',
       fontSize: '0.95rem',
     },
     profileIconButton: {
@@ -150,20 +190,20 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       position: 'absolute' as const,
       top: 'calc(100% + 0.5rem)',
       right: 0,
-      backgroundColor: 'white',
+      backgroundColor: darkTheme ? '#1e293b' : 'white',
       borderRadius: '8px',
-      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+      boxShadow: darkTheme ? '0 4px 12px rgba(0, 0, 0, 0.5)' : '0 4px 12px rgba(0, 0, 0, 0.15)',
       minWidth: '160px',
       zIndex: 1000,
       overflow: 'hidden',
-      border: '1px solid #e5e7eb',
+      border: darkTheme ? '1px solid #334155' : '1px solid #e5e7eb',
     },
     dropdownItem: {
       display: 'block',
       width: '100%',
       padding: '0.75rem 1rem',
       textDecoration: 'none',
-      color: '#333',
+      color: darkTheme ? '#e2e8f0' : '#333',
       fontSize: '0.9rem',
       fontWeight: 500,
       border: 'none',
@@ -173,11 +213,11 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       transition: 'background-color 0.2s',
     },
     dropdownItemHover: {
-      backgroundColor: '#f3f4f6',
+      backgroundColor: darkTheme ? '#334155' : '#f3f4f6',
     },
     dropdownDivider: {
       height: '1px',
-      backgroundColor: '#e5e7eb',
+      backgroundColor: darkTheme ? '#334155' : '#e5e7eb',
       margin: 0,
       border: 'none',
     },
@@ -279,7 +319,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
               onClick={handleSettingsClick}
               style={styles.dropdownItem}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f3f4f6';
+                e.currentTarget.style.backgroundColor = darkTheme ? '#334155' : '#f3f4f6';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -293,7 +333,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
               onClick={handleLogoutClick}
               style={{ ...styles.dropdownItem, ...styles.logoutItem }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#fee2e2';
+                e.currentTarget.style.backgroundColor = darkTheme ? '#7f1d1d' : '#fee2e2';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
