@@ -302,6 +302,16 @@ export const taskAPI = {
     return response.json();
   },
 
+  // Get task by ID
+  getById: async (taskId: number): Promise<Task> => {
+    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`);
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to fetch task details");
+    }
+    return response.json();
+  },
+
   // Create new task
   create: async (
     taskData: CreateTaskData
@@ -446,9 +456,9 @@ export const taskAPI = {
 
 // Auth API functions
 export const authAPI = {
-  // Login - accepts either email or username
+  // Login - email only
   login: async (
-    identifier: string,
+    email: string,
     password: string
   ): Promise<{ id: number; username: string; role: string }> => {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -456,8 +466,7 @@ export const authAPI = {
       headers: {
         "Content-Type": "application/json",
       },
-      // Send as both email and username to support either input
-      body: JSON.stringify({ email: identifier, username: identifier, password }),
+      body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {

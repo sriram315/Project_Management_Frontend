@@ -52,28 +52,35 @@ const AvailabilityChart: React.FC<AvailabilityChartProps> = ({ data }) => {
   const minHours = allHours.length > 0 ? Math.min(...allHours) : 0;
   const maxHours = allHours.length > 0 ? Math.max(...allHours) : 200;
 
+  const hasOverlyUtilised = overlyUtilisedData.some(value => value < 0);
+
+  const datasets: any[] = [
+    {
+      label: "Available Hours",
+      data: availableData,
+      backgroundColor: "rgb(34, 197, 94)", // green
+      borderColor: "rgb(34, 197, 94)",
+      borderWidth: 0,
+      borderRadius: 4,
+      minBarLength: 2, // Ensure zero values are visible
+    },
+  ];
+
+  if (hasOverlyUtilised) {
+    datasets.push({
+      label: "Overly Utilised",
+      data: overlyUtilisedData,
+      backgroundColor: "rgb(239, 68, 68)", // red
+      borderColor: "rgb(239, 68, 68)",
+      borderWidth: 0,
+      borderRadius: 4,
+      minBarLength: 2, // Ensure zero values are visible
+    });
+  }
+
   const chartData = {
     labels: data.map((item) => item.week),
-    datasets: [
-      {
-        label: "Available Hours",
-        data: availableData,
-        backgroundColor: "rgb(34, 197, 94)", // green
-        borderColor: "rgb(34, 197, 94)",
-        borderWidth: 0,
-        borderRadius: 4,
-        minBarLength: 2, // Ensure zero values are visible
-      },
-      {
-        label: "Overly Utilised",
-        data: overlyUtilisedData,
-        backgroundColor: "rgb(239, 68, 68)", // red
-        borderColor: "rgb(239, 68, 68)",
-        borderWidth: 0,
-        borderRadius: 4,
-        minBarLength: 2, // Ensure zero values are visible
-      },
-    ],
+    datasets,
   };
 
   const options = {

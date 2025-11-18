@@ -94,6 +94,12 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskUpdate, onDelete
     }
   };
 
+  const getWorkDescriptionLabel = (status: Task['status']) => {
+    if (status === 'blocked') return 'Block Reason';
+    if (status === 'completed') return 'Completion Notes';
+    return 'Task Notes';
+  };
+
   const getActualHoursColor = (plannedHours: number, actualHours: number) => {
     if (actualHours <= plannedHours) {
       return '#28a745'; // Green - on time or under budget
@@ -339,6 +345,14 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onTaskUpdate, onDelete
                       <div className="expanded-content">
                         {task.description && (
                           <div className="task-description">{task.description}</div>
+                        )}
+                        {task.work_description && (
+                          <div className="task-comments">
+                            <span className="task-comments-label">
+                              {getWorkDescriptionLabel(task.status)}
+                            </span>
+                            <p className="task-comments-text">{task.work_description}</p>
+                          </div>
                         )}
                         
                         <div className="task-details-grid">

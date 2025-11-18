@@ -299,18 +299,18 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
 
           {user?.role !== 'employee' && (
             <div className="filter-group">
-              <label htmlFor="assignee-filter">Employee</label>
+              <label htmlFor="assignee-filter">Team Member</label>
               <CustomSelect
                 value={filters.assigneeId?.toString() || ''}
                 onChange={(value) => handleFilterChange('assigneeId', value ? parseInt(value) : null)}
                 options={[
-                  { value: '', label: 'All Employees' },
+                  { value: '', label: 'All Team Members' },
                   ...teamMembers.map(member => ({
                     value: member.id.toString(),
                     label: member.name
                   }))
                 ]}
-                placeholder="Select Employee"
+                placeholder="Select Team Member"
               />
             </div>
           )}

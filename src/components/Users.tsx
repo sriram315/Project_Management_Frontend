@@ -52,6 +52,21 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
     fetchUsers();
   }, []);
 
+  // Reset form when Add User form is opened
+  useEffect(() => {
+    if (showAddForm) {
+      setNewUser({
+        username: "",
+        password: "",
+        role: "",
+        email: "",
+        available_hours_per_week: 40,
+      });
+      setFormErrors({});
+      setShowPassword(false);
+    }
+  }, [showAddForm]);
+
   const fetchUsers = async () => {
     try {
       const params = new URLSearchParams();
@@ -70,14 +85,16 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
   const validateAddUserForm = () => {
     const errors: { [key: string]: string } = {};
 
-    // Username validation
+    // Username validation (First/Last Name)
     if (!newUser.username.trim()) {
-      errors.username = "Username is required";
-    } else if (newUser.username.length < 3) {
-      errors.username = "Username must be at least 3 characters";
-    } else if (!/^[a-zA-Z0-9_.-]+$/.test(newUser.username)) {
+      errors.username = "Name is required";
+    } else if (newUser.username.trim().length < 3) {
+      errors.username = "Name must be at least 3 characters";
+    } else if (!/^[a-zA-Z\s'-]+$/.test(newUser.username.trim())) {
       errors.username =
-        "Username can only contain letters, numbers, dots, hyphens, and underscores";
+        "Name can only contain letters, spaces, hyphens, and apostrophes";
+    } else if (newUser.username.trim().split(/\s+/).length < 2) {
+      errors.username = "Please enter both first and last name";
     }
 
     // Password validation: 8-15 chars, at least 1 upper, 1 lower, 1 special
@@ -194,26 +211,25 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
     if (!editingUser) return false;
     const errors: { [key: string]: string } = {};
 
-    // Username validation
+    // Username validation (First/Last Name)
     if (!editingUser.username.trim()) {
-      errors.username = "Username is required";
-    } else if (editingUser.username.length < 3) {
-      errors.username = "Username must be at least 3 characters";
-    } else if (!/^[a-zA-Z0-9_.-]+$/.test(editingUser.username)) {
+      errors.username = "Name is required";
+    } else if (editingUser.username.trim().length < 3) {
+      errors.username = "Name must be at least 3 characters";
+    } else if (!/^[a-zA-Z\s'-]+$/.test(editingUser.username.trim())) {
       errors.username =
-        "Username can only contain letters, numbers, dots, hyphens, and underscores";
-    }
-    else{
-
+        "Name can only contain letters, spaces, hyphens, and apostrophes";
+    } else if (editingUser.username.trim().split(/\s+/).length < 2) {
+      errors.username = "Please enter both first and last name";
+    } else {
       const usernameExist = users.some(
         (user) =>
           user.username.toLowerCase() === editingUser.username.toLowerCase() &&
           user.id !== editingUser.id
       );
       if (usernameExist) {
-        errors.username = "This Username is already in use";
+        errors.username = "This name is already in use";
       }
-
     }
 
     // Email validation
@@ -305,7 +321,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
       setEmployeeTasks(tasks);
     } catch (err: any) {
       console.error('Error fetching employee details:', err);
-      showToast('Failed to load employee details', 'error');
+      showToast('Failed to load team member details', 'error');
     } finally {
       setLoadingEmployeeDetails(false);
     }
@@ -786,8 +802,16 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
               <h2 style={{ margin: 0, color: "white" }}>Add New User</h2>
               <button
                 onClick={() => {
-                  setShowAddForm(false);
+                  setNewUser({
+                    username: "",
+                    password: "",
+                    role: "",
+                    email: "",
+                    available_hours_per_week: 40,
+                  });
                   setFormErrors({});
+                  setShowPassword(false);
+                  setShowAddForm(false);
                 }}
                 className="close-btn"
                 style={{ color: "white" }}
@@ -795,7 +819,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                 ×
               </button>
             </div>
-            <form onSubmit={handleAddUser} className="user-form">
+            <form key="add-user-form" onSubmit={handleAddUser} className="user-form">
               <div className="form-group">
                 <label>
                   Username: <span style={{ color: "#ef4444" }}>*</span>
@@ -845,6 +869,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                       width: '100%'
                     }}
                     placeholder="8-15 chars, 1 upper, 1 lower, 1 special"
+                    autoComplete="new-password"
                   />
                   <button
                     type="button"
@@ -912,6 +937,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                     borderColor: formErrors.email ? "#ef4444" : "#e1e8ed",
                   }}
                   placeholder="user@example.com"
+                  autoComplete="off"
                 />
                 {formErrors.email && (
                   <small
@@ -942,7 +968,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                   <option value="">Select Role</option>
                   <option value="manager">Manager</option>
                   <option value="team_lead">Team Lead</option>
-                  <option value="employee">Employee</option>
+                  <option value="employee">Team Member</option>
                 </select>
                 {formErrors.role && (
                   <small
@@ -1004,8 +1030,16 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                 <button
                   type="button"
                   onClick={() => {
-                    setShowAddForm(false);
+                    setNewUser({
+                      username: "",
+                      password: "",
+                      role: "",
+                      email: "",
+                      available_hours_per_week: 40,
+                    });
                     setFormErrors({});
+                    setShowPassword(false);
+                    setShowAddForm(false);
                   }}
                   className="btn-enterprise btn-secondary"
                 >
@@ -1051,7 +1085,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                     textTransform: "none",
                   }}
                 >
-                  User
+                  First Name/Last Name
                 </th>
                 <th
                   className="text-muted-foreground"
@@ -1199,7 +1233,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                         ? "Manager"
                         : user.role === "team_lead"
                         ? "Team Lead"
-                        : "Employee"}
+                        : "Team Member"}
                     </span>
                   </td>
                   <td style={{ padding: "1rem 1.5rem" }}>
@@ -1218,7 +1252,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                   </td>
                   <td style={{ padding: "1rem 1.5rem" }}>
                     <div style={{ display: "flex", gap: "0.5rem" }}>
-                      {currentUser?.role === 'super_admin' ? (
+                      {currentUser?.role === 'super_admin' && user.role !== 'super_admin' ? (
                         <>
                           <button
                             onClick={() => handleEditUser(user)}
@@ -1261,6 +1295,8 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                             Delete
                           </button>
                         </>
+                      ) : currentUser?.role === 'super_admin' && user.role === 'super_admin' ? (
+                        <span style={{ color: "#9ca3af", fontSize: "0.875rem" }}>View only</span>
                       ) : (currentUser?.role === 'manager' && (user.role === 'employee' || user.role === 'team_lead')) || (currentUser?.role === 'team_lead' && user.role === 'employee') ? (
                         <button
                           onClick={() => handleViewEmployeeDetails(user)}
@@ -1420,7 +1456,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                   <option value="">Select Role</option>
                   <option value="manager">Manager</option>
                   <option value="team_lead">Team Lead</option>
-                  <option value="employee">Employee</option>
+                  <option value="employee">Team Member</option>
                 </select>
                 {formErrors.role && (
                   <small
@@ -1512,12 +1548,12 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
         variant="danger"
       />
 
-      {/* Employee Details Modal */}
+      {/* Team Member Details Modal */}
       {showViewModal && viewingUser && (
         <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
           <div className="modal-content" style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', margin: '-2rem -2rem 1.5rem -2rem', padding: '1.5rem 2rem', borderRadius: '12px 12px 0 0', position: 'relative' }}>
-              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>Employee Details</h2>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>Team Member Details</h2>
               <button
                 onClick={() => setShowViewModal(false)}
                 style={{
@@ -1550,7 +1586,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
 
             {loadingEmployeeDetails ? (
               <div className="text-foreground" style={{ padding: '2rem', textAlign: 'center' }}>
-                <p>Loading employee details...</p>
+                <p>Loading team member details...</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>

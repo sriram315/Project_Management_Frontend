@@ -119,9 +119,15 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
     }));
 
   // Prepare employee options for CustomMultiSelect (no "all" option, empty array = all)
-  // Filter out invalid employees and ensure all fields are strings
+  // Filter out invalid employees and superadmin users, ensure all fields are strings
   const employeeOptions = employees
-    .filter(employee => employee && employee.id && employee.username)
+    .filter(employee => 
+      employee && 
+      employee.id && 
+      employee.username &&
+      employee.role !== 'super_admin' && 
+      employee.role !== 'superadmin'
+    )
     .map(employee => ({
       value: Number(employee.id),
       label: `${String(employee.username || `User ${employee.id}`)} (${String(employee.role || 'employee')})`
@@ -142,12 +148,12 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
       {/* Hide employee filter for employee role */}
       {userRole !== 'employee' && (
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-muted-foreground">Employees:</label>
+          <label className="text-sm font-medium text-muted-foreground">Team Members:</label>
           <CustomMultiSelect
             value={getEmployeeIds()}
             onChange={handleEmployeeChange}
             options={employeeOptions}
-            placeholder="All Employees"
+            placeholder="All Team Members"
           />
         </div>
       )}

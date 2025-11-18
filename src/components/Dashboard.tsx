@@ -1,12 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dashboardAPI, userAPI } from '../services/api';
+import { dashboardAPI, userAPI, taskAPI } from '../services/api';
 import { DashboardFilters as FilterType, WeeklyData, DashboardData } from '../types';
 import DashboardFilters from './DashboardFilters';
 import UtilizationChart from './charts/UtilizationChart';
 import ProductivityChart from './charts/ProductivityChart';
 import AvailabilityChart from './charts/AvailabilityChart';
 import TaskStatusChart from './charts/TaskStatusChart';
+import {
+  ClipboardDocumentListIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ClockIcon,
+  RocketLaunchIcon,
+  PresentationChartLineIcon,
+  StopCircleIcon,
+} from '@heroicons/react/24/solid';
 // Using simple Unicode symbols instead of react-icons to avoid TypeScript issues
 
 interface DashboardProps {
@@ -70,23 +79,33 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     productivityData: [],
     availabilityData: [],
   });
-  const [tasksThisWeek, setTasksThisWeek] = useState<Array<{ id: number; title: string; assignee: string; status: string; statusColor: string; estimated: number; logged: number }>>([]);
-  const [tasksNextWeek, setTasksNextWeek] = useState<Array<{ id: number; title: string; assignee: string; status: string; statusColor: string; estimated: number; logged: number }>>([]);
+  const [tasksThisWeek, setTasksThisWeek] = useState<Array<{ id: number; title: string; assignee: string; status: string; statusColor: string; estimated: number; logged: number; due_date?: string | null }>>([]);
+  const [tasksNextWeek, setTasksNextWeek] = useState<Array<{ id: number; title: string; assignee: string; status: string; statusColor: string; estimated: number; logged: number; due_date?: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [forceRefreshKey, setForceRefreshKey] = useState(0);
   
   // Pagination state
   const [currentPageThisWeek, setCurrentPageThisWeek] = useState(1);
   const [currentPageNextWeek, setCurrentPageNextWeek] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
   const [selectedTask, setSelectedTask] = useState<{
     id: number;
     title: string;
     assignee: string;
     status: string;
     estimated: number;
+    due_date?: string | null;
     source: 'thisWeek' | 'nextWeek';
   } | null>(null);
+  const [dailyUpdates, setDailyUpdates] = useState<Array<{
+    id: number;
+    task_id: number;
+    user_id: number;
+    comment: string;
+    created_at: string;
+    username?: string;
+  }>>([]);
+  const [loadingUpdates, setLoadingUpdates] = useState(false);
 
   // Display helper: show hyphen for null/empty API values
   const displayOrHyphen = (value: any): string | number => {
@@ -94,6 +113,66 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     if (typeof value === 'number' && isNaN(value)) return '-';
     if (typeof value === 'string' && value.trim() === '') return '-';
     return value as any;
+  };
+
+  const formatDueDate = (dateStr?: string | null): string => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const loadDailyUpdates = async (taskId: number) => {
+    setLoadingUpdates(true);
+    try {
+      const updates = await taskAPI.getDailyUpdates(taskId);
+      setDailyUpdates(updates);
+    } catch (error) {
+      console.error('Error fetching daily updates:', error);
+      setDailyUpdates([]);
+    } finally {
+      setLoadingUpdates(false);
+    }
+  };
+
+  const loadTaskDetails = async (taskId: number) => {
+    try {
+      const details = await taskAPI.getById(taskId);
+      setSelectedTask(prev => {
+        if (!prev || prev.id !== taskId) return prev;
+        return {
+          ...prev,
+          due_date: details?.due_date || prev.due_date || null,
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching task details:', error);
+    }
+  };
+
+  const handleTaskSelection = async (
+    task: { id: number; title: string; assignee: string; status: string; estimated: number; due_date?: string | null },
+    source: 'thisWeek' | 'nextWeek'
+  ) => {
+    const isExpanded = selectedTask && selectedTask.source === source && selectedTask.id === task.id;
+    if (isExpanded) {
+      setSelectedTask(null);
+      setDailyUpdates([]);
+      return;
+    }
+
+    setSelectedTask({
+      id: task.id,
+      title: task.title,
+      assignee: task.assignee,
+      status: task.status,
+      estimated: task.estimated,
+      due_date: task.due_date || null,
+      source,
+    });
+
+    loadDailyUpdates(task.id);
+    loadTaskDetails(task.id);
   };
 
   const fetchInitialData = async () => {
@@ -512,6 +591,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   // Calculate metrics from data
   const totalTasks = taskStatusData.todo + taskStatusData.in_progress + taskStatusData.completed + taskStatusData.blocked;
   const completedTasks = taskStatusData.completed;
+  const blockedTasks = taskStatusData.blocked;
   
   // Calculate productivity: use overall metrics from backend if available, otherwise calculate from weekly data
   // Productivity = (Planned / Actual) × 100 (only for completed tasks)
@@ -574,12 +654,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   };
   const utilization = calculateUtilization();
   
+  // Calculate available hours: sum of available hours from availability data
+  const calculateAvailableHours = () => {
+    if (!dashboardData.availabilityData || dashboardData.availabilityData.length === 0) {
+      return null;
+    }
+    
+    // Sum all available hours from all weeks
+    const totalAvailableHours = dashboardData.availabilityData.reduce((sum, week) => sum + (week.availableHours || 0), 0);
+    return totalAvailableHours > 0 ? Math.round(totalAvailableHours) : null;
+  };
+  const availableHours = calculateAvailableHours();
+  
   // Debug logging
   console.log('Calculated metrics:', {
     totalTasks,
     completedTasks,
     productivity,
     utilization,
+    availableHours,
     taskStatusData,
     dashboardDataLength: dashboardData.productivityData.length,
   });
@@ -588,7 +681,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const baseStats: Array<{
     label: string;
     value: number | string;
-    icon: string;
+    icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
     color: string;
     trend: string;
     trendColor: string;
@@ -596,7 +689,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     {
       label: "Total Tasks",
       value: displayOrHyphen(totalTasks),
-      icon: "📄",
+      icon: ClipboardDocumentListIcon,
       color: "bg-indigo-500",
       trend: "+12% vs last week",
       trendColor: "text-green-600",
@@ -604,15 +697,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     {
       label: "Completed",
       value: displayOrHyphen(completedTasks),
-      icon: "✅",
+      icon: CheckCircleIcon,
       color: "bg-indigo-500",
       trend: "+3 this week",
       trendColor: "text-green-600",
     },
     {
+      label: "Blocked",
+      value: displayOrHyphen(blockedTasks),
+      icon: ExclamationTriangleIcon,
+      color: "bg-indigo-500",
+      trend: "needs attention",
+      trendColor: "text-red-600",
+    },
+    {
       label: "Pending",
       value: displayOrHyphen(totalTasks - completedTasks),
-      icon: "⌛",
+      icon: ClockIcon,
       color: "bg-indigo-500",
       trend: "+3 this week",
       trendColor: "text-green-600",
@@ -620,7 +721,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     {
       label: "Productivity",
       value: (typeof productivity === 'number' && !isNaN(productivity)) ? `${productivity}%` : '0%',
-      icon: "⭐",
+      icon: RocketLaunchIcon,
       color: "bg-indigo-500",
       trend: "+5% improvement",
       trendColor: "text-green-600",
@@ -628,58 +729,75 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     {
       label: "Utilization",
       value: (typeof utilization === 'number' && !isNaN(utilization)) ? `${utilization}%` : '0%',
-      icon: "⏰",
+      icon: PresentationChartLineIcon,
       color: "bg-indigo-500",
       trend: "+2% this week",
       trendColor: "text-green-600",
+    },
+    {
+      label: "Available Hours",
+      value: (typeof availableHours === 'number' && !isNaN(availableHours)) ? availableHours : displayOrHyphen(availableHours),
+      icon: StopCircleIcon,
+      color: "bg-indigo-500",
+      trend: "per week",
+      trendColor: "text-gray-600",
     },
   ];
 
   // Use base stats only (Budget card removed)
   const stats = baseStats;
 
+  // Color styles for metric cards (borders). Icon background uses utilization color.
+  const metricColorVariants = [
+    { gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: '#667eea' },
+    { gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', border: '#f5576c' },
+    { gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', border: '#4facfe' },
+    { gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', border: '#43e97b' },
+    { gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', border: '#fa709a' },
+    { gradient: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', border: '#30cfd0' }, // Utilization blue
+    { gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', border: '#a8edea' },
+  ];
+  const utilizationIconBackground =
+    metricColorVariants[5]?.gradient || metricColorVariants[0].gradient;
+  const totalTasksBorderColor = metricColorVariants[0].border;
+
   if (loading) {
     return (
-      <div className="page-container">
-        <div className="loading">Loading dashboard...</div>
+      <div className="dashboard-page">
+        <div className="dashboard-loading">
+          <div className="loading-spinner"></div>
+          <p>Loading dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="dashboard-page">
-      <div className="space-y-6">
+      <div className="dashboard-container">
         {/* Header with Filters */}
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Project Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">Welcome back, {user?.username || 'User'}!</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'end', gap: '1rem' }}>
-            <DashboardFilters
-              filters={filters}
-              projects={projects}
-              employees={employees}
-              onFilterChange={handleDashboardFilterChange}
-              userRole={user?.role}
-            />
-            <button
-              onClick={() => setForceRefreshKey(k => k + 1)}
-              style={{
-                padding: '9px 18px',
-                marginBottom: 1,
-                borderRadius: 8,
-                background: '#6366f1',
-                color: 'white',
-                border: 'none',
-                outline: 'none',
-                fontSize: '1rem',
-                fontWeight: 500,
-                cursor: 'pointer',
-                boxShadow: '0 1px 3px rgba(60,60,60,0.03)'}}
-            >
-              🔄 Refresh
-            </button>
+        <div className="dashboard-header-section">
+          <div className="dashboard-header-content">
+            <div className="dashboard-title-section">
+              <h1 className="dashboard-title">Project Dashboard</h1>
+              <p className="dashboard-subtitle">Welcome back, <span className="username-highlight">{user?.username || 'User'}</span>!</p>
+            </div>
+            <div className="dashboard-actions">
+              <DashboardFilters
+                filters={filters}
+                projects={projects}
+                employees={employees}
+                onFilterChange={handleDashboardFilterChange}
+                userRole={user?.role}
+              />
+              <button
+                onClick={() => setForceRefreshKey(k => k + 1)}
+                className="refresh-button"
+              >
+                <span className="refresh-icon">🔄</span>
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
 
@@ -705,27 +823,33 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </div> */}
 
         {/* Metric Cards */}
-<div className="w-full mt-6">
-  <div className="flex gap-4 flex-wrap md:flex-nowrap justify-between">
-    {stats.map((stat) => (
-      <div
-        key={stat.label}
-        className="flex-1 border-l-4 border-l-indigo-500 bg-white rounded-lg shadow-sm border border-gray-200 p-6"
-        style={{ minWidth: 0 }}
-      >
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-            <p className="text-3xl font-bold mt-2 text-foreground">{stat.value}</p>
-          </div>
-          <div className={`${stat.color} p-3 rounded-lg flex items-center justify-center`}>
-            <span className="text-2xl">{stat.icon}</span>
-          </div>
+        <div className="metrics-grid">
+          {stats.map((stat) => {
+            const IconComponent = stat.icon;
+            
+            return (
+              <div
+                key={stat.label}
+                className="metric-card"
+                style={{
+                  borderLeftColor: totalTasksBorderColor,
+                }}
+              >
+                <div className="metric-card-content">
+                  <div className="metric-card-header">
+                    <div className="metric-icon-wrapper" style={{ background: utilizationIconBackground }}>
+                      <IconComponent className="metric-icon" />
+                    </div>
+                    <div className="metric-info">
+                      <p className="metric-label">{stat.label}</p>
+                      <p className="metric-value">{stat.value}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
-    ))}
-  </div>
-</div>
 
 
         {/* Tasks This Week and Next Week */}
@@ -813,328 +937,368 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
         </div> */} 
 
-  {/* Tasks This Week and Next Week (Tables with hyperlinks) */}
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="p-6">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3 className="text-lg font-semibold text-foreground">Tasks This Week</h3>
-          {tasksThisWeek.length > 0 && (
-            <span className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>
-              Total: {tasksThisWeek.length}
-            </span>
-          )}
-        </div>
-        <div className="mt-4 overflow-x-auto">
-          <table className="users-table" style={{ width: '100%' }}>
-            <thead>
-              <tr>
-                <th>Task</th>
-                <th>Assignee</th>
-                <th>Status</th>
-                <th>Estimated Hours</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasksThisWeek.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="text-muted-foreground" style={{ textAlign: 'center' }}>
-                    No tasks for this week
-                    {process.env.NODE_ENV === 'development' && (
-                      <div style={{ fontSize: '10px', marginTop: '4px' }}>
-                        (tasksThisWeek.length: {tasksThisWeek.length})
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              )}
-              {tasksThisWeek
-                .slice((currentPageThisWeek - 1) * itemsPerPage, currentPageThisWeek * itemsPerPage)
-                .map((task) => {
-                const statusTextClass =
-                  task.status === 'Completed'
-                    ? 'text-green-600'
-                    : task.status === 'In Progress'
-                    ? 'text-cyan-600'
-                    : task.status === 'Blocked'
-                    ? 'text-red-600'
-                    : 'text-muted-foreground';
-                const isExpanded = selectedTask && selectedTask.source === 'thisWeek' && selectedTask.id === task.id;
-                return (
-                  <>
-                    <tr key={`row-${task.id}`} className="user-row">
-                      <td>
-                        <a
-                          href="#"
-                          onClick={(e) => { e.preventDefault(); setSelectedTask(isExpanded ? null : { id: task.id, title: task.title, assignee: task.assignee, status: task.status, estimated: task.estimated, source: 'thisWeek' }); }}
-                          style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}
-                        >
-                          {task.title}
-                        </a>
-                      </td>
-                      <td>{task.assignee}</td>
-                      <td><span className={`text-xs font-semibold ${statusTextClass}`}>{task.status}</span></td>
-                      <td>{task.estimated} hrs</td>
+        {/* Tasks This Week and Next Week (Tables with hyperlinks) */}
+        <div className="tasks-section">
+          <div className="tasks-grid">
+            <div className="task-card">
+              <div className="task-card-header">
+                <div className="task-card-title-section">
+                  <h3 className="task-card-title">📅 Tasks This Week</h3>
+                  {tasksThisWeek.length > 0 && (
+                    <span className="task-count-badge">{tasksThisWeek.length}</span>
+                  )}
+                </div>
+              </div>
+              <div className="task-table-container">
+                <table className="task-table">
+                  <thead>
+                    <tr>
+                      <th>Task</th>
+                      <th>Assignee</th>
+                      <th className="status-column">Status</th>
+                      <th>Hours</th>
                     </tr>
-                    {isExpanded && (
-                      <tr key={`details-${task.id}`}>
-                        <td colSpan={4}>
-                          <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mt-2">
-                            <div className="text-sm"><span className="text-gray-500">Task:</span> <span className="font-medium">{task.title}</span></div>
-                            <div className="text-sm mt-1"><span className="text-gray-500">Assignee:</span> <span className="font-medium">{task.assignee}</span></div>
-                            <div className="text-sm mt-1"><span className="text-gray-500">Status:</span> <span className="font-medium">{task.status}</span></div>
-                            <div className="text-sm mt-1"><span className="text-gray-500">Estimated:</span> <span className="font-medium">{task.estimated} hrs</span></div>
-                            <div className="mt-3 flex justify-end">
-                              <button onClick={() => setSelectedTask(null)} style={{ padding: '8px 12px', borderRadius: 8, background: '#e5e7eb', border: '1px solid #d1d5db', cursor: 'pointer' }}>Close</button>
-                            </div>
+                  </thead>
+                  <tbody>
+                    {tasksThisWeek.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="empty-task-message">
+                          <div className="empty-state-content">
+                            <span className="empty-icon">📋</span>
+                            <p>No tasks for this week</p>
                           </div>
                         </td>
                       </tr>
                     )}
-                  </>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* Pagination for This Week */}
-        {tasksThisWeek.length > itemsPerPage && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
-            <div className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>
-              Showing {(currentPageThisWeek - 1) * itemsPerPage + 1} to {Math.min(currentPageThisWeek * itemsPerPage, tasksThisWeek.length)} of {tasksThisWeek.length} tasks
+                    {tasksThisWeek
+                      .slice((currentPageThisWeek - 1) * itemsPerPage, currentPageThisWeek * itemsPerPage)
+                      .map((task) => {
+                      const statusConfig = 
+                        task.status === 'Completed'
+                          ? { class: 'status-completed', color: '#10b981', bg: '#d1fae5' }
+                          : task.status === 'In Progress'
+                          ? { class: 'status-in-progress', color: '#06b6d4', bg: '#cffafe' }
+                          : task.status === 'Blocked'
+                          ? { class: 'status-blocked', color: '#ef4444', bg: '#fee2e2' }
+                          : { class: 'status-todo', color: '#6366f1', bg: '#e0e7ff' };
+                      const isExpanded = selectedTask && selectedTask.source === 'thisWeek' && selectedTask.id === task.id;
+                      return (
+                        <>
+                          <tr key={`row-${task.id}`} className={`task-row ${isExpanded ? 'expanded' : ''}`}>
+                            <td>
+                              <a
+                                href="#"
+                                onClick={(e) => { e.preventDefault(); handleTaskSelection(task, 'thisWeek'); }}
+                                className="task-link"
+                              >
+                                {task.title}
+                              </a>
+                            </td>
+                            <td className="task-assignee">{task.assignee}</td>
+                            <td className="status-column">
+                              <span 
+                                className="task-status-badge"
+                                style={{ 
+                                  color: statusConfig.color, 
+                                  backgroundColor: statusConfig.bg 
+                                }}
+                              >
+                                {task.status}
+                              </span>
+                            </td>
+                            <td className="task-hours">{task.estimated} hrs</td>
+                          </tr>
+                          {isExpanded && (
+                            <tr key={`details-${task.id}`} className="task-details-row">
+                              <td colSpan={4}>
+                                <div className="task-details-panel">
+                                  <div className="task-detail-item">
+                                    <span className="task-detail-label">📆 Due Date:</span>
+                                    <span className="task-detail-value">
+                                      {formatDueDate(selectedTask?.id === task.id ? selectedTask?.due_date : task.due_date)}
+                                    </span>
+                                  </div>
+                                  {dailyUpdates.length > 0 && (
+                                    <div className="daily-updates-section">
+                                      <div className="daily-updates-header">💬 Daily Updates</div>
+                                      <div className="daily-updates-list">
+                                        {dailyUpdates.map((update) => (
+                                          <div key={update.id} className="daily-update-card">
+                                            <div className="daily-update-header">
+                                              <span className="daily-update-author">{update.username || 'Unknown'}</span>
+                                              <span className="daily-update-date">
+                                                {new Date(update.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                              </span>
+                                            </div>
+                                            <div className="daily-update-comment">{update.comment}</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {loadingUpdates && (
+                                    <div className="loading-updates">Loading updates...</div>
+                                  )}
+                                  {!loadingUpdates && dailyUpdates.length === 0 && (
+                                    <div className="no-updates">No daily updates available</div>
+                                  )}
+                                  <div className="task-details-actions">
+                                    <button 
+                                      onClick={() => { setSelectedTask(null); setDailyUpdates([]); }} 
+                                      className="close-details-button"
+                                    >
+                                      Close
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Pagination for This Week */}
+              {tasksThisWeek.length > itemsPerPage && (
+                <div className="pagination-container">
+                  <div className="pagination-info">
+                    Showing {(currentPageThisWeek - 1) * itemsPerPage + 1} to {Math.min(currentPageThisWeek * itemsPerPage, tasksThisWeek.length)} of {tasksThisWeek.length} tasks
+                  </div>
+                  <div className="pagination-controls">
+                    <button
+                      onClick={() => setCurrentPageThisWeek(prev => Math.max(1, prev - 1))}
+                      disabled={currentPageThisWeek === 1}
+                      className={`pagination-button ${currentPageThisWeek === 1 ? 'disabled' : ''}`}
+                    >
+                      Previous
+                    </button>
+                    <span className="pagination-page-info">
+                      Page {currentPageThisWeek} of {Math.ceil(tasksThisWeek.length / itemsPerPage)}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPageThisWeek(prev => Math.min(Math.ceil(tasksThisWeek.length / itemsPerPage), prev + 1))}
+                      disabled={currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage)}
+                      className={`pagination-button ${currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage) ? 'disabled' : ''}`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <button
-                onClick={() => setCurrentPageThisWeek(prev => Math.max(1, prev - 1))}
-                disabled={currentPageThisWeek === 1}
-                className="pagination-button"
-                style={{
-                  padding: '0.375rem 0.75rem',
-                  backgroundColor: currentPageThisWeek === 1 ? '#f3f4f6' : '#6366f1',
-                  color: currentPageThisWeek === 1 ? '#9ca3af' : 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: currentPageThisWeek === 1 ? 'not-allowed' : 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  transition: 'all 0.2s'
-                }}
-              >
-                Previous
-              </button>
-              <span className="text-foreground" style={{ fontSize: '0.875rem', padding: '0 0.5rem' }}>
-                Page {currentPageThisWeek} of {Math.ceil(tasksThisWeek.length / itemsPerPage)}
-              </span>
-              <button
-                onClick={() => setCurrentPageThisWeek(prev => Math.min(Math.ceil(tasksThisWeek.length / itemsPerPage), prev + 1))}
-                disabled={currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage)}
-                className="pagination-button"
-                style={{
-                  padding: '0.375rem 0.75rem',
-                  backgroundColor: currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage) ? '#f3f4f6' : '#6366f1',
-                  color: currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage) ? '#9ca3af' : 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage) ? 'not-allowed' : 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  transition: 'all 0.2s'
-                }}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
 
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="p-6">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3 className="text-lg font-semibold text-gray-900">Tasks Next Week</h3>
-          {tasksNextWeek.length > 0 && (
-            <span className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>
-              Total: {tasksNextWeek.length}
-            </span>
-          )}
-        </div>
-        <div className="mt-4 overflow-x-auto">
-          <table className="users-table" style={{ width: '100%' }}>
-            <thead>
-              <tr>
-                <th>Task</th>
-                <th>Assignee</th>
-                <th>Status</th>
-                <th>Estimated Hours</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tasksNextWeek.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="text-muted-foreground" style={{ textAlign: 'center' }}>
-                    No tasks for next week
-                    {process.env.NODE_ENV === 'development' && (
-                      <div style={{ fontSize: '10px', marginTop: '4px' }}>
-                        (tasksNextWeek.length: {tasksNextWeek.length})
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              )}
-              {tasksNextWeek.map((task) => {
-                const statusTextClass =
-                  task.status === 'Completed'
-                    ? 'text-green-600'
-                    : task.status === 'In Progress'
-                    ? 'text-cyan-600'
-                    : task.status === 'Blocked'
-                    ? 'text-red-600'
-                    : 'text-muted-foreground';
-                const isExpanded = selectedTask && selectedTask.source === 'nextWeek' && selectedTask.id === task.id;
-                return (
-                  <>
-                    <tr key={`row-nw-${task.id}`} className="user-row">
-                      <td>
-                        <a
-                          href="#"
-                          onClick={(e) => { e.preventDefault(); setSelectedTask(isExpanded ? null : { id: task.id, title: task.title, assignee: task.assignee, status: task.status, estimated: task.estimated, source: 'nextWeek' }); }}
-                          style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}
-                        >
-                          {task.title}
-                        </a>
-                      </td>
-                      <td>{task.assignee}</td>
-                      <td><span className={`text-xs font-semibold ${statusTextClass}`}>{task.status}</span></td>
-                      <td>{task.estimated} hrs</td>
+            <div className="task-card">
+              <div className="task-card-header">
+                <div className="task-card-title-section">
+                  <h3 className="task-card-title">📆 Tasks Next Week</h3>
+                  {tasksNextWeek.length > 0 && (
+                    <span className="task-count-badge">{tasksNextWeek.length}</span>
+                  )}
+                </div>
+              </div>
+              <div className="task-table-container">
+                <table className="task-table">
+                  <thead>
+                    <tr>
+                      <th>Task</th>
+                      <th>Assignee</th>
+                      <th className="status-column">Status</th>
+                      <th>Hours</th>
                     </tr>
-                    {isExpanded && (
-                      <tr key={`details-nw-${task.id}`}>
-                        <td colSpan={4}>
-                          <div className="bg-gray-50 border border-gray-200 rounded-md p-4 mt-2">
-                            <div className="text-sm"><span className="text-gray-500">Task:</span> <span className="font-medium">{task.title}</span></div>
-                            <div className="text-sm mt-1"><span className="text-gray-500">Assignee:</span> <span className="font-medium">{task.assignee}</span></div>
-                            <div className="text-sm mt-1"><span className="text-gray-500">Status:</span> <span className="font-medium">{task.status}</span></div>
-                            <div className="text-sm mt-1"><span className="text-gray-500">Estimated:</span> <span className="font-medium">{task.estimated} hrs</span></div>
-                            <div className="mt-3 flex justify-end">
-                              <button onClick={() => setSelectedTask(null)} style={{ padding: '8px 12px', borderRadius: 8, background: '#e5e7eb', border: '1px solid #d1d5db', cursor: 'pointer' }}>Close</button>
-                            </div>
+                  </thead>
+                  <tbody>
+                    {tasksNextWeek.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="empty-task-message">
+                          <div className="empty-state-content">
+                            <span className="empty-icon">📋</span>
+                            <p>No tasks for next week</p>
                           </div>
                         </td>
                       </tr>
                     )}
-                  </>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* Pagination for Next Week */}
-        {tasksNextWeek.length > itemsPerPage && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e5e7eb' }}>
-            <div className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>
-              Showing {(currentPageNextWeek - 1) * itemsPerPage + 1} to {Math.min(currentPageNextWeek * itemsPerPage, tasksNextWeek.length)} of {tasksNextWeek.length} tasks
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <button
-                onClick={() => setCurrentPageNextWeek(prev => Math.max(1, prev - 1))}
-                disabled={currentPageNextWeek === 1}
-                className="pagination-button"
-                style={{
-                  padding: '0.375rem 0.75rem',
-                  backgroundColor: currentPageNextWeek === 1 ? '#f3f4f6' : '#6366f1',
-                  color: currentPageNextWeek === 1 ? '#9ca3af' : 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: currentPageNextWeek === 1 ? 'not-allowed' : 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  transition: 'all 0.2s'
-                }}
-              >
-                Previous
-              </button>
-              <span className="text-foreground" style={{ fontSize: '0.875rem', padding: '0 0.5rem' }}>
-                Page {currentPageNextWeek} of {Math.ceil(tasksNextWeek.length / itemsPerPage)}
-              </span>
-              <button
-                onClick={() => setCurrentPageNextWeek(prev => Math.min(Math.ceil(tasksNextWeek.length / itemsPerPage), prev + 1))}
-                disabled={currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage)}
-                className="pagination-button"
-                style={{
-                  padding: '0.375rem 0.75rem',
-                  backgroundColor: currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage) ? '#f3f4f6' : '#6366f1',
-                  color: currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage) ? '#9ca3af' : 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage) ? 'not-allowed' : 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  transition: 'all 0.2s'
-                }}
-              >
-                Next
-              </button>
+                    {tasksNextWeek.map((task) => {
+                      const statusConfig = 
+                        task.status === 'Completed'
+                          ? { class: 'status-completed', color: '#10b981', bg: '#d1fae5' }
+                          : task.status === 'In Progress'
+                          ? { class: 'status-in-progress', color: '#06b6d4', bg: '#cffafe' }
+                          : task.status === 'Blocked'
+                          ? { class: 'status-blocked', color: '#ef4444', bg: '#fee2e2' }
+                          : { class: 'status-todo', color: '#6366f1', bg: '#e0e7ff' };
+                      const isExpanded = selectedTask && selectedTask.source === 'nextWeek' && selectedTask.id === task.id;
+                      return (
+                        <>
+                          <tr key={`row-nw-${task.id}`} className={`task-row ${isExpanded ? 'expanded' : ''}`}>
+                            <td>
+                              <a
+                                href="#"
+                                onClick={(e) => { e.preventDefault(); handleTaskSelection(task, 'nextWeek'); }}
+                                className="task-link"
+                              >
+                                {task.title}
+                              </a>
+                            </td>
+                            <td className="task-assignee">{task.assignee}</td>
+                            <td className="status-column">
+                              <span 
+                                className="task-status-badge"
+                                style={{ 
+                                  color: statusConfig.color, 
+                                  backgroundColor: statusConfig.bg 
+                                }}
+                              >
+                                {task.status}
+                              </span>
+                            </td>
+                            <td className="task-hours">{task.estimated} hrs</td>
+                          </tr>
+                          {isExpanded && (
+                            <tr key={`details-nw-${task.id}`} className="task-details-row">
+                              <td colSpan={4}>
+                                <div className="task-details-panel">
+                                  <div className="task-detail-item">
+                                    <span className="task-detail-label">📆 Due Date:</span>
+                                    <span className="task-detail-value">
+                                      {formatDueDate(selectedTask?.id === task.id ? selectedTask?.due_date : task.due_date)}
+                                    </span>
+                                  </div>
+                                  {dailyUpdates.length > 0 && (
+                                    <div className="daily-updates-section">
+                                      <div className="daily-updates-header">💬 Daily Updates</div>
+                                      <div className="daily-updates-list">
+                                        {dailyUpdates.map((update) => (
+                                          <div key={update.id} className="daily-update-card">
+                                            <div className="daily-update-header">
+                                              <span className="daily-update-author">{update.username || 'Unknown'}</span>
+                                              <span className="daily-update-date">
+                                                {new Date(update.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                              </span>
+                                            </div>
+                                            <div className="daily-update-comment">{update.comment}</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {loadingUpdates && (
+                                    <div className="loading-updates">Loading updates...</div>
+                                  )}
+                                  {!loadingUpdates && dailyUpdates.length === 0 && (
+                                    <div className="no-updates">No daily updates available</div>
+                                  )}
+                                  <div className="task-details-actions">
+                                    <button 
+                                      onClick={() => { setSelectedTask(null); setDailyUpdates([]); }} 
+                                      className="close-details-button"
+                                    >
+                                      Close
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Pagination for Next Week */}
+              {tasksNextWeek.length > itemsPerPage && (
+                <div className="pagination-container">
+                  <div className="pagination-info">
+                    Showing {(currentPageNextWeek - 1) * itemsPerPage + 1} to {Math.min(currentPageNextWeek * itemsPerPage, tasksNextWeek.length)} of {tasksNextWeek.length} tasks
+                  </div>
+                  <div className="pagination-controls">
+                    <button
+                      onClick={() => setCurrentPageNextWeek(prev => Math.max(1, prev - 1))}
+                      disabled={currentPageNextWeek === 1}
+                      className={`pagination-button ${currentPageNextWeek === 1 ? 'disabled' : ''}`}
+                    >
+                      Previous
+                    </button>
+                    <span className="pagination-page-info">
+                      Page {currentPageNextWeek} of {Math.ceil(tasksNextWeek.length / itemsPerPage)}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPageNextWeek(prev => Math.min(Math.ceil(tasksNextWeek.length / itemsPerPage), prev + 1))}
+                      disabled={currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage)}
+                      className={`pagination-button ${currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage) ? 'disabled' : ''}`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
+        </div>
 
 
 
         {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Utilization Chart */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Utilization</h3>
-                <p className="text-xs text-gray-500">Team utilization percentage over time</p>
+        <div className="charts-section">
+          <div className="charts-grid">
+            {/* Utilization Chart */}
+            <div className="chart-card">
+              <div className="chart-card-header">
+                <div className="chart-title-section">
+                  <h3 className="chart-title">📊 Utilization</h3>
+                  <p className="chart-subtitle">Team utilization percentage over time</p>
+                </div>
               </div>
-              <div className="h-[300px]">
+              <div className="chart-content-wrapper">
                 {dashboardData.utilizationData && dashboardData.utilizationData.length > 0 ? (
                   <UtilizationChart data={dashboardData.utilizationData} />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">-</div>
+                  <div className="chart-empty-state">
+                    <span className="empty-chart-icon">📈</span>
+                    <p>No data available</p>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Productivity Chart */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Productive hours</h3>
-                <p className="text-xs text-gray-500">Actual vs Planned hours (Productivity = Planned / Actual × 100)</p>
+            {/* Productivity Chart */}
+            <div className="chart-card">
+              <div className="chart-card-header">
+                <div className="chart-title-section">
+                  <h3 className="chart-title">⚡ Productivity</h3>
+                  <p className="chart-subtitle">Actual vs Planned hours (Productivity = Planned / Actual × 100)</p>
+                </div>
               </div>
-              <div className="h-[300px]">
+              <div className="chart-content-wrapper">
                 {dashboardData.productivityData && dashboardData.productivityData.length > 0 ? (
                   <ProductivityChart data={dashboardData.productivityData} />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">-</div>
+                  <div className="chart-empty-state">
+                    <span className="empty-chart-icon">📈</span>
+                    <p>No data available</p>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Team Availability + Task Status Distribution (side-by-side) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Team Availability */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Team Availability</h3>
-                <p className="text-xs text-gray-500">Total available hours per week</p>
+            {/* Team Availability */}
+            <div className="chart-card">
+              <div className="chart-card-header">
+                <div className="chart-title-section">
+                  <h3 className="chart-title">👥 Team Availability</h3>
+                  <p className="chart-subtitle">Total available hours per week</p>
+                </div>
               </div>
-              <div className="h-[300px]">
+              <div className="chart-content-wrapper">
                 {dashboardData.availabilityData.length === 0 ? (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">-</div>
+                  <div className="chart-empty-state">
+                    <span className="empty-chart-icon">📈</span>
+                    <p>No data available</p>
+                  </div>
                 ) : (
                   <AvailabilityChart 
                     key={`availability-${filters.employeeId || 'all'}-${filters.projectId || 'all'}`}
@@ -1143,17 +1307,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Task Status Distribution */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Task Status Distribution</h3>
+            {/* Task Status Distribution */}
+            <div className="chart-card">
+              <div className="chart-card-header">
+                <div className="chart-title-section">
+                  <h3 className="chart-title">🎯 Task Status Distribution</h3>
+                  <p className="chart-subtitle">Overview of task statuses</p>
+                </div>
               </div>
-              <div className="h-[300px]">
+              <div className="chart-content-wrapper">
                 {totalTasks === 0 ? (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">-</div>
+                  <div className="chart-empty-state">
+                    <span className="empty-chart-icon">📊</span>
+                    <p>No tasks available</p>
+                  </div>
                 ) : (
                   <TaskStatusChart data={taskStatusData} />
                 )}

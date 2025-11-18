@@ -252,10 +252,8 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
       }
     }
 
-    // Update comment validation
-    if (!updateComment.trim()) {
-      errors.updateComment = 'Update comment is required';
-    }
+    // Update comment validation - optional for managers/team leads/superadmin
+    // (Only required for employees, which is handled above)
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -749,7 +747,10 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
           </div>
 
           <div className="form-group">
-            <label htmlFor="update-comment">Daily Update<span style={{ color: '#ef4444' }}>*</span></label>
+            <label htmlFor="update-comment">
+              Daily Update
+              {isEmployee && <span style={{ color: '#ef4444' }}>*</span>}
+            </label>
             <textarea
               id="update-comment"
               value={updateComment}
@@ -774,63 +775,8 @@ const EditTask: React.FC<EditTaskProps> = ({ task, onTaskUpdated, onClose, user 
               </small>
             )}
             <small className="text-muted-foreground" style={{ fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
-              Add a daily update comment that will be saved to the task history.
+              Add a daily update comment that will be saved to the task history when you update the task.
             </small>
-            <button
-  type="button"
-  onClick={handleSaveDailyUpdate}
-  disabled={loadingUpdates || !updateComment.trim()}
-  style={{
-    marginTop: '0.25rem',
-    padding: '0.25rem 0.6rem', // 🔹 smaller padding for compact size
-    backgroundColor: loadingUpdates || !updateComment.trim() ? '#9ca3af' : '#6366f1',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: loadingUpdates || !updateComment.trim() ? 'not-allowed' : 'pointer',
-    fontSize: '0.7rem', // 🔹 slightly smaller font
-    fontWeight: 500,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.25rem',
-    transition: 'all 0.2s',
-    boxShadow:
-      loadingUpdates || !updateComment.trim()
-        ? 'none'
-        : '0 1px 2px rgba(78, 16, 16, 0.1)',
-    width: 'fit-content', // 🔹 fits tightly around content
-    minWidth: 'unset', // 🔹 removes any browser default width
-    whiteSpace: 'nowrap', // 🔹 prevents wrapping
-  }}
-  onMouseEnter={(e) => {
-    if (!loadingUpdates && updateComment.trim()) {
-      e.currentTarget.style.backgroundColor = '#4f46e5';
-      e.currentTarget.style.boxShadow =
-        '0 2px 4px rgba(126, 61, 61, 0.15)';
-    }
-  }}
-  onMouseLeave={(e) => {
-    if (!loadingUpdates && updateComment.trim()) {
-      e.currentTarget.style.backgroundColor = '#6366f1';
-      e.currentTarget.style.boxShadow =
-        '0 1px 2px rgba(172, 39, 39, 0.1)';
-    }
-  }}
->
-  {loadingUpdates ? (
-    <>
-      <span>⏳</span>
-      Saving...
-    </>
-  ) : (
-    <>
-      <span>💾</span>
-      Save
-    </>
-  )}
-</button>
-
           </div>
 
           {/* Daily Updates Section */}

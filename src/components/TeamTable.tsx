@@ -13,7 +13,7 @@ const TeamTable: React.FC<TeamTableProps> = ({ members }) => {
         <table className="team-table">
           <thead>
             <tr>
-              <th>Employee</th>
+              <th>Team Member</th>
               <th>Role</th>
               <th>Projects</th>
               <th>Tasks This Week</th>

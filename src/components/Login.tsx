@@ -8,7 +8,7 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showForgot, setShowForgot] = useState(false);
@@ -20,7 +20,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await authAPI.login(username, password);
+      const response = await authAPI.login(email, password);
       onLogin(response);
     } catch (err: any) {
       const msg = err?.message || "Login failed";
@@ -58,12 +58,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <h2>Project management tool</h2>
           {/* {error && <div className="error-message">{error}</div>} */}
           <div className="form-group">
-            <label>Email or Username:</label>
+            <label>Email:</label>
             <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter email or username"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter email"
               required
             />
           </div>
