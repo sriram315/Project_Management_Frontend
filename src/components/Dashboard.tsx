@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { dashboardAPI, userAPI, taskAPI } from '../services/api';
-import { DashboardFilters as FilterType, WeeklyData, DashboardData } from '../types';
-import DashboardFilters from './DashboardFilters';
-import UtilizationChart from './charts/UtilizationChart';
-import ProductivityChart from './charts/ProductivityChart';
-import AvailabilityChart from './charts/AvailabilityChart';
-import TaskStatusChart from './charts/TaskStatusChart';
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { dashboardAPI, userAPI, taskAPI, API_BASE_URL } from "../services/api";
+import {
+  DashboardFilters as FilterType,
+  WeeklyData,
+  DashboardData,
+} from "../types";
+import DashboardFilters from "./DashboardFilters";
+import UtilizationChart from "./charts/UtilizationChart";
+import ProductivityChart from "./charts/ProductivityChart";
+import AvailabilityChart from "./charts/AvailabilityChart";
+import TaskStatusChart from "./charts/TaskStatusChart";
 import {
   ClipboardDocumentListIcon,
   CheckCircleIcon,
@@ -15,11 +19,36 @@ import {
   RocketLaunchIcon,
   PresentationChartLineIcon,
   StopCircleIcon,
-} from '@heroicons/react/24/solid';
+} from "@heroicons/react/24/solid";
+import axios from "axios";
 // Using simple Unicode symbols instead of react-icons to avoid TypeScript issues
 
 interface DashboardProps {
   user: any;
+}
+
+interface TaskStats {
+  tasks?: Array<{
+    id: number;
+    name: string;
+    status: string;
+    actual_hours: number;
+    planned_hours: number;
+    assignee_id: number;
+    project_id: number;
+    username: string;
+    due_date?: string | null;
+    created_at?: string | null;
+    available_hours_per_week?: number;
+    week?: string;
+  }>;
+  totalTasks?: number;
+  completed?: number;
+  blocked?: number;
+  pending?: number;
+  productivity?: number;
+  utilization?: number;
+  available_hours?: number;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
@@ -31,7 +60,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const getInitialFilters = (): FilterType => {
     // Always use user-specific key if user is available
     // Never use the old global 'dashboard-filters' key to avoid cross-user contamination
-    if (user?.id && typeof window !== 'undefined') {
+    if (user?.id && typeof window !== "undefined") {
       const storageKey = `dashboard-filters-${user.id}`;
       const saved = localStorage.getItem(storageKey);
       if (saved) {
@@ -49,7 +78,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         }
       }
     }
-    
+
     // Return empty filters - they will be set properly by the user-change effect
     return {
       projectId: undefined,
@@ -60,9 +89,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   };
 
   const [filters, setFilters] = useState<FilterType>(getInitialFilters());
-  const [projects, setProjects] = useState<Array<{ id: number; name: string; status: string }>>([]);
-  const [employees, setEmployees] = useState<Array<{ id: number; username: string; email: string; role: string }>>([]);
-  const [allEmployees, setAllEmployees] = useState<Array<{ id: number; username: string; email: string; role: string }>>([]);
+  const [projects, setProjects] = useState<
+    Array<{ id: number; name: string; status: string }>
+  >([]);
+  const [employees, setEmployees] = useState<
+    Array<{ id: number; username: string; email: string; role: string }>
+  >([]);
+  const [allEmployees, setAllEmployees] = useState<
+    Array<{ id: number; username: string; email: string; role: string }>
+  >([]);
   const [taskStatusData, setTaskStatusData] = useState<{
     todo: number;
     in_progress: number;
@@ -79,11 +114,33 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     productivityData: [],
     availabilityData: [],
   });
-  const [tasksThisWeek, setTasksThisWeek] = useState<Array<{ id: number; title: string; assignee: string; status: string; statusColor: string; estimated: number; logged: number; due_date?: string | null }>>([]);
-  const [tasksNextWeek, setTasksNextWeek] = useState<Array<{ id: number; title: string; assignee: string; status: string; statusColor: string; estimated: number; logged: number; due_date?: string | null }>>([]);
+  const [tasksThisWeek, setTasksThisWeek] = useState<
+    Array<{
+      id: number;
+      title: string;
+      assignee: string;
+      status: string;
+      statusColor: string;
+      estimated: number;
+      logged: number;
+      due_date?: string | null;
+    }>
+  >([]);
+  const [tasksNextWeek, setTasksNextWeek] = useState<
+    Array<{
+      id: number;
+      title: string;
+      assignee: string;
+      status: string;
+      statusColor: string;
+      estimated: number;
+      logged: number;
+      due_date?: string | null;
+    }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [forceRefreshKey, setForceRefreshKey] = useState(0);
-  
+
   // Pagination state
   const [currentPageThisWeek, setCurrentPageThisWeek] = useState(1);
   const [currentPageNextWeek, setCurrentPageNextWeek] = useState(1);
@@ -95,31 +152,38 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     status: string;
     estimated: number;
     due_date?: string | null;
-    source: 'thisWeek' | 'nextWeek';
+    source: "thisWeek" | "nextWeek";
   } | null>(null);
-  const [dailyUpdates, setDailyUpdates] = useState<Array<{
-    id: number;
-    task_id: number;
-    user_id: number;
-    comment: string;
-    created_at: string;
-    username?: string;
-  }>>([]);
+  const [taskStats, setTaskStats] = useState<TaskStats>({});
+  const [dailyUpdates, setDailyUpdates] = useState<
+    Array<{
+      id: number;
+      task_id: number;
+      user_id: number;
+      comment: string;
+      created_at: string;
+      username?: string;
+    }>
+  >([]);
   const [loadingUpdates, setLoadingUpdates] = useState(false);
 
   // Display helper: show hyphen for null/empty API values
   const displayOrHyphen = (value: any): string | number => {
-    if (value === null || value === undefined) return '-';
-    if (typeof value === 'number' && isNaN(value)) return '-';
-    if (typeof value === 'string' && value.trim() === '') return '-';
+    if (value === null || value === undefined) return "-";
+    if (typeof value === "number" && isNaN(value)) return "-";
+    if (typeof value === "string" && value.trim() === "") return "-";
     return value as any;
   };
 
   const formatDueDate = (dateStr?: string | null): string => {
-    if (!dateStr) return '-';
+    if (!dateStr) return "-";
     const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return '-';
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    if (isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
 
   const loadDailyUpdates = async (taskId: number) => {
@@ -128,7 +192,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       const updates = await taskAPI.getDailyUpdates(taskId);
       setDailyUpdates(updates);
     } catch (error) {
-      console.error('Error fetching daily updates:', error);
+      console.error("Error fetching daily updates:", error);
       setDailyUpdates([]);
     } finally {
       setLoadingUpdates(false);
@@ -138,7 +202,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const loadTaskDetails = async (taskId: number) => {
     try {
       const details = await taskAPI.getById(taskId);
-      setSelectedTask(prev => {
+      setSelectedTask((prev) => {
         if (!prev || prev.id !== taskId) return prev;
         return {
           ...prev,
@@ -146,15 +210,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         };
       });
     } catch (error) {
-      console.error('Error fetching task details:', error);
+      console.error("Error fetching task details:", error);
     }
   };
 
   const handleTaskSelection = async (
-    task: { id: number; title: string; assignee: string; status: string; estimated: number; due_date?: string | null },
-    source: 'thisWeek' | 'nextWeek'
+    task: {
+      id: number;
+      title: string;
+      assignee: string;
+      status: string;
+      estimated: number;
+      due_date?: string | null;
+    },
+    source: "thisWeek" | "nextWeek"
   ) => {
-    const isExpanded = selectedTask && selectedTask.source === source && selectedTask.id === task.id;
+    const isExpanded =
+      selectedTask &&
+      selectedTask.source === source &&
+      selectedTask.id === task.id;
     if (isExpanded) {
       setSelectedTask(null);
       setDailyUpdates([]);
@@ -181,9 +255,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       // For managers/team leads, fetch only their assigned projects via project_assignments
       // For super admin, fetch all projects
       let projectsPromise;
-      if (user?.role === 'employee') {
+      if (user?.role === "employee") {
         projectsPromise = userAPI.getUserProjects(user.id);
-      } else if (user?.role === 'manager' || user?.role === 'team_lead') {
+      } else if (user?.role === "manager" || user?.role === "team_lead") {
         projectsPromise = dashboardAPI.getProjects(user.id, user.role);
       } else {
         projectsPromise = dashboardAPI.getProjects();
@@ -206,32 +280,37 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       // Set default date range to Monday-Friday of current week
       const today = new Date();
       const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-      
+
       // Calculate Monday of current week
-      const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
       const monday = new Date(today);
       monday.setDate(today.getDate() + diffToMonday);
-      
+
       // Calculate Friday of current week (4 days after Monday)
       const friday = new Date(monday);
       friday.setDate(monday.getDate() + 4);
-      
+
       // Use local date formatting to avoid UTC shifts from toISOString()
       const formatDateLocal = (date: Date) => {
         const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
       };
 
       // Fill ONLY missing fields; preserve any persisted selections from localStorage
       // Note: Filters are now managed by the user-change effect, so we only set defaults if not already set
-      setFilters(prev => {
+      setFilters((prev) => {
         // Only update if filters are not already initialized (to avoid overriding user-specific filters)
         if (!prev.startDate || !prev.endDate) {
           return {
             ...prev,
-            employeeId: prev.employeeId !== undefined ? prev.employeeId : (user?.role === 'employee' ? user.id : undefined),
+            employeeId:
+              prev.employeeId !== undefined
+                ? prev.employeeId
+                : user?.role === "employee"
+                ? user.id
+                : undefined,
             startDate: prev.startDate || formatDateLocal(monday),
             endDate: prev.endDate || formatDateLocal(friday),
           };
@@ -239,7 +318,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         return prev;
       });
     } catch (error) {
-      console.error('Error fetching initial data:', error);
+      console.error("Error fetching initial data:", error);
     }
   };
 
@@ -249,7 +328,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       // Build effective filters so first load is always scoped and dated
       const now = new Date();
       const dayOfWeek = now.getDay();
-      const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
       const monday = new Date(now);
       monday.setDate(now.getDate() + diffToMonday);
       const friday = new Date(monday);
@@ -257,8 +336,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
       const formatDateLocal = (date: Date) => {
         const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
       };
 
@@ -268,15 +347,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         // Check if date string is in valid format (YYYY-MM-DD)
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
         if (!dateRegex.test(dateStr)) return null;
-        
+
         const date = new Date(dateStr);
         // Check if date is valid
         if (isNaN(date.getTime())) return null;
         return dateStr;
       };
 
-      let effectiveStartDate = filters.startDate ? validateDate(filters.startDate) : null;
-      let effectiveEndDate = filters.endDate ? validateDate(filters.endDate) : null;
+      let effectiveStartDate = filters.startDate
+        ? validateDate(filters.startDate)
+        : null;
+      let effectiveEndDate = filters.endDate
+        ? validateDate(filters.endDate)
+        : null;
 
       // If both dates are provided, validate that start <= end
       if (effectiveStartDate && effectiveEndDate) {
@@ -284,7 +367,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         const end = new Date(effectiveEndDate);
         if (start > end) {
           // Invalid range: swap dates or use defaults
-          console.warn('Invalid date range: start date is after end date. Using defaults.');
+          console.warn(
+            "Invalid date range: start date is after end date. Using defaults."
+          );
           effectiveStartDate = formatDateLocal(monday);
           effectiveEndDate = formatDateLocal(friday);
         }
@@ -305,41 +390,34 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       if (!effectiveEndDate) {
         effectiveEndDate = formatDateLocal(friday);
       }
-      
+
       // Handle single or array employeeId
       let effectiveEmployeeId: number | number[] | undefined;
-      if (user?.role === 'employee') {
+      if (user?.role === "employee") {
         effectiveEmployeeId = filters.employeeId || user?.id;
       } else {
         effectiveEmployeeId = filters.employeeId;
       }
-      
+
       // Convert projectId and employeeId to comma-separated strings for API
-      const projectIdStr = Array.isArray(filters.projectId) 
-        ? filters.projectId.join(',')
+      const projectIdStr = Array.isArray(filters.projectId)
+        ? filters.projectId.join(",")
         : filters.projectId?.toString();
-      
+
       const employeeIdStr = Array.isArray(effectiveEmployeeId)
-        ? effectiveEmployeeId.join(',')
+        ? effectiveEmployeeId.join(",")
         : effectiveEmployeeId?.toString();
 
       // For timeline: employees default to their own tasks; managers/team leads see all tasks from their assigned projects (unless employeeId is explicitly selected)
-      const timelineEmployeeIdStr = (user?.role === 'employee')
-        ? (employeeIdStr || String(user?.id))
-        : employeeIdStr;
+      const timelineEmployeeIdStr =
+        user?.role === "employee"
+          ? employeeIdStr || String(user?.id)
+          : employeeIdStr;
       // For stats/charts: employees default to their own tasks; managers/team leads see all tasks from their assigned projects (unless employeeId is explicitly selected)
-      const statsEmployeeIdStr = (user?.role === 'employee')
-        ? (employeeIdStr || String(user?.id))
-        : employeeIdStr;
-
-      console.log('Dashboard API call with filters:', {
-        projectId: projectIdStr,
-        employeeId: statsEmployeeIdStr,
-        startDate: effectiveStartDate,
-        endDate: effectiveEndDate,
-        userId: user?.id,
-        userRole: user?.role,
-      });
+      const statsEmployeeIdStr =
+        user?.role === "employee"
+          ? employeeIdStr || String(user?.id)
+          : employeeIdStr;
 
       const [data, taskStatusData, tasksTimeline] = await Promise.all([
         dashboardAPI.getDashboardData({
@@ -360,45 +438,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           userRole: user?.role,
         }),
         dashboardAPI.getTasksTimeline({
-          role: user?.role || 'employee',
+          role: user?.role || "employee",
           userId: user?.id || 0,
           projectId: projectIdStr,
           employeeId: timelineEmployeeIdStr,
           startDate: effectiveStartDate,
           endDate: effectiveEndDate,
-        })
+        }),
       ]);
-      console.log('Dashboard data received:', {
-        utilizationData: data.utilizationData?.length || 0,
-        productivityData: data.productivityData?.length || 0,
-        availabilityData: data.availabilityData?.length || 0,
-      });
-      console.log('Task status data received:', taskStatusData);
-      console.log('Tasks timeline received:', tasksTimeline);
-      console.log('Tasks timeline - thisWeek length:', tasksTimeline.thisWeek?.length || 0);
-      console.log('Tasks timeline - nextWeek length:', tasksTimeline.nextWeek?.length || 0);
-      console.log('Tasks timeline - thisWeek data:', tasksTimeline.thisWeek);
-      console.log('Tasks timeline - nextWeek data:', tasksTimeline.nextWeek);
-      
+
       setDashboardData(data);
       setTaskStatusData(taskStatusData);
       const thisWeekTasks = tasksTimeline.thisWeek || [];
       const nextWeekTasks = tasksTimeline.nextWeek || [];
       setTasksThisWeek(thisWeekTasks);
       setTasksNextWeek(nextWeekTasks);
-      
+
       // Reset pagination when data changes
       setCurrentPageThisWeek(1);
       setCurrentPageNextWeek(1);
-      console.log('Tasks set in state:', {
-        thisWeek: thisWeekTasks.length,
-        nextWeek: nextWeekTasks.length,
-        total: thisWeekTasks.length + nextWeekTasks.length,
-        thisWeekSample: thisWeekTasks.slice(0, 3).map(t => ({ id: t.id, title: t.title })),
-        nextWeekSample: nextWeekTasks.slice(0, 3).map(t => ({ id: t.id, title: t.title }))
-      });
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error("Error fetching dashboard data:", error);
     } finally {
       setLoading(false);
     }
@@ -410,24 +470,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       // Reset filters to defaults when user changes
       const today = new Date();
       const dayOfWeek = today.getDay();
-      const diffToMonday = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
       const monday = new Date(today);
       monday.setDate(today.getDate() + diffToMonday);
       const friday = new Date(monday);
       friday.setDate(monday.getDate() + 4);
       const formatDateLocal = (date: Date) => {
         const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
       };
-      
+
       // Load user-specific filters or use defaults
       // NOTE: Date range is ALWAYS reset to current week on login to avoid showing old dates
       // Only project and employee filters are preserved from localStorage
       const storageKey = `dashboard-filters-${user.id}`;
       const savedFilters = localStorage.getItem(storageKey);
-      
+
       if (savedFilters) {
         try {
           const saved = JSON.parse(savedFilters);
@@ -442,7 +502,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           // If parsing fails, use defaults
           setFilters({
             projectId: undefined,
-            employeeId: user?.role === 'employee' ? user.id : undefined,
+            employeeId: user?.role === "employee" ? user.id : undefined,
             startDate: formatDateLocal(monday),
             endDate: formatDateLocal(friday),
           });
@@ -451,7 +511,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         // No saved filters for this user, use defaults
         setFilters({
           projectId: undefined,
-          employeeId: user?.role === 'employee' ? user.id : undefined,
+          employeeId: user?.role === "employee" ? user.id : undefined,
           startDate: formatDateLocal(monday),
           endDate: formatDateLocal(friday),
         });
@@ -464,41 +524,149 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     fetchInitialData();
   }, [user?.id, user?.role]); // Re-fetch when user changes
 
+  function getThisWeekRange() {
+    const today = new Date();
+    const day = today.getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+
+    // Calculate Monday
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((day + 6) % 7)); // ensures Monday even if today is Sunday
+
+    // Calculate Friday
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+
+    // Format to YYYY-MM-DD
+    const format = (d: any) => d.toISOString().split("T")[0];
+
+    return {
+      monday: format(monday),
+      friday: format(friday),
+    };
+  }
+
+  const fetchData = async () => {
+    const { monday, friday } = getThisWeekRange();
+
+    // Use filters if dates are available, otherwise use defaults
+    const effectiveStartDate = filters.startDate || monday;
+    const effectiveEndDate = filters.endDate || friday;
+
+    // Handle projectId - if undefined, default to all assigned projects for employees/managers/team leads
+    let effectiveProjectId: number | number[] | undefined;
+    if (filters.projectId !== undefined) {
+      // Use filter value if set
+      effectiveProjectId = filters.projectId;
+    } else if (
+      user?.role === "employee" ||
+      user?.role === "manager" ||
+      user?.role === "team_lead"
+    ) {
+      // For employees/managers/team leads, default to all their assigned projects
+      if (projects.length > 0) {
+        effectiveProjectId = projects.map((p) => p.id);
+      }
+    }
+    // For super_admin, leave as undefined to show all projects
+
+    // Handle employeeId - employees default to their own ID
+    let effectiveEmployeeId: number | number[] | undefined;
+    if (user?.role === "employee") {
+      effectiveEmployeeId = filters.employeeId || user?.id;
+    } else {
+      effectiveEmployeeId = filters.employeeId;
+    }
+
+    // Convert projectId and employeeId to comma-separated strings for API
+    const projectIdStr = Array.isArray(effectiveProjectId)
+      ? effectiveProjectId.join(",")
+      : effectiveProjectId?.toString();
+
+    const employeeIdStr = Array.isArray(effectiveEmployeeId)
+      ? effectiveEmployeeId.join(",")
+      : effectiveEmployeeId?.toString();
+
+    // Build payload - only include projectId and employeeId if they have values
+    const payload: {
+      projectId?: string;
+      employeeId?: string;
+      startDate: string;
+      endDate: string;
+    } = {
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate,
+    };
+
+    // Only include projectId if it has a value
+    if (projectIdStr) {
+      payload.projectId = projectIdStr;
+    }
+
+    // Only include employeeId if it has a value
+    if (employeeIdStr) {
+      payload.employeeId = employeeIdStr;
+    }
+
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/dashboard/raw-tasks`,
+        payload
+      );
+      setTaskStats(res.data);
+    } catch (error) {
+      console.error("Error fetching task stats:", error);
+    }
+  };
+  useEffect(() => {
+    if (user && projects.length > 0) {
+      fetchData();
+    }
+  }, [forceRefreshKey, user, projects]);
+
   // Fetch employees when project filter changes
   useEffect(() => {
     const fetchEmployeesForProject = async () => {
       if (!user) return;
-      
+
       const currentProjectId = filters.projectId;
       const currentEmployeeId = filters.employeeId;
-      
+
       try {
         // Convert projectId to comma-separated string if array
         const projectIdStr = Array.isArray(currentProjectId)
-          ? currentProjectId.join(',')
+          ? currentProjectId.join(",")
           : currentProjectId?.toString();
-        
-        const employeesRes = await dashboardAPI.getEmployees(projectIdStr, user.id, user.role);
+
+        const employeesRes = await dashboardAPI.getEmployees(
+          projectIdStr,
+          user.id,
+          user.role
+        );
         setEmployees(employeesRes);
-        
+
         // If current employeeId (single or array) contains IDs not in the filtered list, remove them
         if (currentEmployeeId) {
-          const employeeIds = Array.isArray(currentEmployeeId) ? currentEmployeeId : [currentEmployeeId];
-          const validEmployeeIds = employeeIds.filter(id => employeesRes.some((e: any) => e.id === id));
-          
+          const employeeIds = Array.isArray(currentEmployeeId)
+            ? currentEmployeeId
+            : [currentEmployeeId];
+          const validEmployeeIds = employeeIds.filter((id) =>
+            employeesRes.some((e: any) => e.id === id)
+          );
+
           if (validEmployeeIds.length !== employeeIds.length) {
-            setFilters(prev => ({ 
-              ...prev, 
-              employeeId: validEmployeeIds.length === 0 
-                ? undefined 
-                : validEmployeeIds.length === 1 
-                  ? validEmployeeIds[0] 
-                  : validEmployeeIds
+            setFilters((prev) => ({
+              ...prev,
+              employeeId:
+                validEmployeeIds.length === 0
+                  ? undefined
+                  : validEmployeeIds.length === 1
+                  ? validEmployeeIds[0]
+                  : validEmployeeIds,
             }));
           }
         }
       } catch (error) {
-        console.error('Error fetching employees for project:', error);
+        console.error("Error fetching employees for project:", error);
       }
     };
 
@@ -510,10 +678,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     if (!projects.length && !employees.length) return;
 
     const arraysEqual = (a?: number | number[], b?: number | number[]) => {
-      const arrA = Array.isArray(a) ? [...a].sort((x, y) => Number(x) - Number(y)) : (a === undefined ? [] : [a]);
-      const arrB = Array.isArray(b) ? [...b].sort((x, y) => Number(x) - Number(y)) : (b === undefined ? [] : [b]);
+      const arrA = Array.isArray(a)
+        ? [...a].sort((x, y) => Number(x) - Number(y))
+        : a === undefined
+        ? []
+        : [a];
+      const arrB = Array.isArray(b)
+        ? [...b].sort((x, y) => Number(x) - Number(y))
+        : b === undefined
+        ? []
+        : [b];
       if (arrA.length !== arrB.length) return false;
-      for (let i = 0; i < arrA.length; i++) if (arrA[i] !== arrB[i]) return false;
+      for (let i = 0; i < arrA.length; i++)
+        if (arrA[i] !== arrB[i]) return false;
       return true;
     };
 
@@ -521,19 +698,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       // Validate projectId (preserve array vs single type)
       let validProjectId: number | number[] | undefined = undefined;
       if (Array.isArray(prev.projectId)) {
-        const valid = prev.projectId.filter(id => projects.some(p => p.id === id));
+        const valid = prev.projectId.filter((id) =>
+          projects.some((p) => p.id === id)
+        );
         validProjectId = valid.length > 0 ? valid : undefined; // keep array, do not collapse to single
       } else if (prev.projectId) {
-        validProjectId = projects.some(p => p.id === prev.projectId) ? prev.projectId : undefined;
+        validProjectId = projects.some((p) => p.id === prev.projectId)
+          ? prev.projectId
+          : undefined;
       }
 
       // Validate employeeId (preserve array vs single type)
       let validEmployeeId: number | number[] | undefined = undefined;
       if (Array.isArray(prev.employeeId)) {
-        const valid = prev.employeeId.filter(id => employees.some(e => e.id === id));
+        const valid = prev.employeeId.filter((id) =>
+          employees.some((e) => e.id === id)
+        );
         validEmployeeId = valid.length > 0 ? valid : undefined; // keep array, do not collapse to single
       } else if (prev.employeeId) {
-        validEmployeeId = employees.some(e => e.id === prev.employeeId) ? prev.employeeId : undefined;
+        validEmployeeId = employees.some((e) => e.id === prev.employeeId)
+          ? prev.employeeId
+          : undefined;
       }
 
       const next: FilterType = {
@@ -545,12 +730,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       };
 
       // Deep-ish equality for ids (arrays by value, singles by value)
-      const isSame = (
+      const isSame =
         arraysEqual(prev.projectId as any, next.projectId as any) &&
         arraysEqual(prev.employeeId as any, next.employeeId as any) &&
         prev.startDate === next.startDate &&
-        prev.endDate === next.endDate
-      );
+        prev.endDate === next.endDate;
 
       return isSame ? prev : next;
     });
@@ -567,18 +751,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     // Normalize projectId and employeeId for storage (keep arrays as arrays)
     const normalizedFilters = {
       ...newFilters,
-      projectId: newFilters.projectId 
-        ? (Array.isArray(newFilters.projectId) ? newFilters.projectId : Number(newFilters.projectId))
+      projectId: newFilters.projectId
+        ? Array.isArray(newFilters.projectId)
+          ? newFilters.projectId
+          : Number(newFilters.projectId)
         : undefined,
-      employeeId: newFilters.employeeId 
-        ? (Array.isArray(newFilters.employeeId) ? newFilters.employeeId : Number(newFilters.employeeId))
+      employeeId: newFilters.employeeId
+        ? Array.isArray(newFilters.employeeId)
+          ? newFilters.employeeId
+          : Number(newFilters.employeeId)
         : undefined,
       startDate: newFilters.startDate,
-      endDate: newFilters.endDate
+      endDate: newFilters.endDate,
     };
-    
+
     // Store filters with user-specific key
-    const storageKey = user?.id ? `dashboard-filters-${user.id}` : 'dashboard-filters';
+    const storageKey = user?.id
+      ? `dashboard-filters-${user.id}`
+      : "dashboard-filters";
     localStorage.setItem(storageKey, JSON.stringify(normalizedFilters));
     setFilters(normalizedFilters);
   };
@@ -589,93 +779,117 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   };
 
   // Calculate metrics from data
-  const totalTasks = taskStatusData.todo + taskStatusData.in_progress + taskStatusData.completed + taskStatusData.blocked;
+  const totalTasks =
+    taskStatusData.todo +
+    taskStatusData.in_progress +
+    taskStatusData.completed +
+    taskStatusData.blocked;
   const completedTasks = taskStatusData.completed;
   const blockedTasks = taskStatusData.blocked;
-  
+
   // Calculate productivity: use overall metrics from backend if available, otherwise calculate from weekly data
   // Productivity = (Planned / Actual) × 100 (only for completed tasks)
   const calculateProductivity = () => {
     // Prefer overallMetrics from backend (more accurate - aggregates all tasks)
-    if (dashboardData.overallMetrics && dashboardData.overallMetrics.productivity !== undefined && dashboardData.overallMetrics.productivity !== null) {
+    if (
+      dashboardData.overallMetrics &&
+      dashboardData.overallMetrics.productivity !== undefined &&
+      dashboardData.overallMetrics.productivity !== null
+    ) {
       return Math.round(dashboardData.overallMetrics.productivity);
     }
-    
+
     // Fallback: calculate from weekly data using hours-based formula
     // Only use weeks that have productivity values (completed tasks)
-    if (!dashboardData.productivityData || dashboardData.productivityData.length === 0) {
+    if (
+      !dashboardData.productivityData ||
+      dashboardData.productivityData.length === 0
+    ) {
       return null;
     }
-    
+
     // Filter to only weeks with productivity values (completed tasks)
-    const weeksWithProductivity = dashboardData.productivityData.filter(week => 
-      week.productivity !== null && week.productivity !== undefined
+    const weeksWithProductivity = dashboardData.productivityData.filter(
+      (week) => week.productivity !== null && week.productivity !== undefined
     );
-    
+
     if (weeksWithProductivity.length === 0) {
       return null; // No completed tasks
     }
-    
+
     // Calculate overall productivity: (total planned hours / total actual hours) × 100
     // Only for completed tasks
-    const totalActualHours = weeksWithProductivity.reduce((sum, week) => sum + (week.hours || 0), 0);
-    const totalPlannedHours = weeksWithProductivity.reduce((sum, week) => sum + (week.plannedHours || 0), 0);
-    
+    const totalActualHours = weeksWithProductivity.reduce(
+      (sum, week) => sum + (week.hours || 0),
+      0
+    );
+    const totalPlannedHours = weeksWithProductivity.reduce(
+      (sum, week) => sum + (week.plannedHours || 0),
+      0
+    );
+
     if (totalActualHours > 0) {
       return Math.round((totalPlannedHours / totalActualHours) * 100);
     }
-    
+
     return null;
   };
   const productivity = calculateProductivity();
-  
+
   // Calculate utilization: use overall metrics from backend if available, otherwise calculate from weekly data
   // Utilization = (Planned / Available) × 100
   const calculateUtilization = () => {
     // Prefer overallMetrics from backend (more accurate - aggregates all tasks)
-    if (dashboardData.overallMetrics && dashboardData.overallMetrics.utilization !== undefined) {
+    if (
+      dashboardData.overallMetrics &&
+      dashboardData.overallMetrics.utilization !== undefined
+    ) {
       return Math.round(dashboardData.overallMetrics.utilization);
     }
-    
+
     // Fallback: calculate from weekly data
-    if (!dashboardData.utilizationData || dashboardData.utilizationData.length === 0) {
+    if (
+      !dashboardData.utilizationData ||
+      dashboardData.utilizationData.length === 0
+    ) {
       return null;
     }
-    
+
     // Calculate overall utilization: (total planned hours / total available hours) × 100
-    const totalPlannedHours = dashboardData.productivityData.reduce((sum, week) => sum + (week.plannedHours || 0), 0);
-    const totalAvailableHours = dashboardData.utilizationData.reduce((sum, week) => sum + (week.availableHours || 0), 0);
-    
+    const totalPlannedHours = dashboardData.productivityData.reduce(
+      (sum, week) => sum + (week.plannedHours || 0),
+      0
+    );
+    const totalAvailableHours = dashboardData.utilizationData.reduce(
+      (sum, week) => sum + (week.availableHours || 0),
+      0
+    );
+
     if (totalAvailableHours > 0) {
       return Math.round((totalPlannedHours / totalAvailableHours) * 100);
     }
-    
+
     return null;
   };
   const utilization = calculateUtilization();
-  
+
   // Calculate available hours: sum of available hours from availability data
   const calculateAvailableHours = () => {
-    if (!dashboardData.availabilityData || dashboardData.availabilityData.length === 0) {
+    if (
+      !dashboardData.availabilityData ||
+      dashboardData.availabilityData.length === 0
+    ) {
       return null;
     }
-    
+
     // Sum all available hours from all weeks
-    const totalAvailableHours = dashboardData.availabilityData.reduce((sum, week) => sum + (week.availableHours || 0), 0);
+    const totalAvailableHours = dashboardData.availabilityData.reduce(
+      (sum, week) => sum + (week.availableHours || 0),
+      0
+    );
     return totalAvailableHours > 0 ? Math.round(totalAvailableHours) : null;
   };
   const availableHours = calculateAvailableHours();
-  
-  // Debug logging
-  console.log('Calculated metrics:', {
-    totalTasks,
-    completedTasks,
-    productivity,
-    utilization,
-    availableHours,
-    taskStatusData,
-    dashboardDataLength: dashboardData.productivityData.length,
-  });
 
   // Metric cards
   const baseStats: Array<{
@@ -688,7 +902,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }> = [
     {
       label: "Total Tasks",
-      value: displayOrHyphen(totalTasks),
+      // value: displayOrHyphen(totalTasks),
+      value: taskStats?.totalTasks || 0,
       icon: ClipboardDocumentListIcon,
       color: "bg-indigo-500",
       trend: "+12% vs last week",
@@ -696,7 +911,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     },
     {
       label: "Completed",
-      value: displayOrHyphen(completedTasks),
+      // value: displayOrHyphen(completedTasks),
+      value: taskStats?.completed || 0,
       icon: CheckCircleIcon,
       color: "bg-indigo-500",
       trend: "+3 this week",
@@ -704,7 +920,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     },
     {
       label: "Blocked",
-      value: displayOrHyphen(blockedTasks),
+      // value: displayOrHyphen(blockedTasks),
+      value: taskStats?.blocked || 0,
       icon: ExclamationTriangleIcon,
       color: "bg-indigo-500",
       trend: "needs attention",
@@ -712,7 +929,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     },
     {
       label: "Pending",
-      value: displayOrHyphen(totalTasks - completedTasks),
+      // value: displayOrHyphen(totalTasks - completedTasks),
+      value: taskStats?.pending || 0,
       icon: ClockIcon,
       color: "bg-indigo-500",
       trend: "+3 this week",
@@ -720,7 +938,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     },
     {
       label: "Productivity",
-      value: (typeof productivity === 'number' && !isNaN(productivity)) ? `${productivity}%` : '0%',
+      // value:
+      //   typeof productivity === "number" && !isNaN(productivity)
+      //     ? `${productivity}%`
+      //     : "0%",
+      value: `${taskStats?.productivity || 0}%`,
       icon: RocketLaunchIcon,
       color: "bg-indigo-500",
       trend: "+5% improvement",
@@ -728,7 +950,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     },
     {
       label: "Utilization",
-      value: (typeof utilization === 'number' && !isNaN(utilization)) ? `${utilization}%` : '0%',
+      // value:
+      //   typeof utilization === "number" && !isNaN(utilization)
+      //     ? `${utilization}%`
+      //     : "0%",
+      value: `${taskStats?.utilization || 0}%`,
       icon: PresentationChartLineIcon,
       color: "bg-indigo-500",
       trend: "+2% this week",
@@ -736,7 +962,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     },
     {
       label: "Available Hours",
-      value: (typeof availableHours === 'number' && !isNaN(availableHours)) ? availableHours : displayOrHyphen(availableHours),
+      // value:
+      //   typeof availableHours === "number" && !isNaN(availableHours)
+      //     ? availableHours
+      //     : displayOrHyphen(availableHours),
+      value: taskStats?.available_hours || 0,
       icon: StopCircleIcon,
       color: "bg-indigo-500",
       trend: "per week",
@@ -749,13 +979,34 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   // Color styles for metric cards (borders). Icon background uses utilization color.
   const metricColorVariants = [
-    { gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: '#667eea' },
-    { gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', border: '#f5576c' },
-    { gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', border: '#4facfe' },
-    { gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', border: '#43e97b' },
-    { gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', border: '#fa709a' },
-    { gradient: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)', border: '#30cfd0' }, // Utilization blue
-    { gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', border: '#a8edea' },
+    {
+      gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      border: "#667eea",
+    },
+    {
+      gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+      border: "#f5576c",
+    },
+    {
+      gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+      border: "#4facfe",
+    },
+    {
+      gradient: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+      border: "#43e97b",
+    },
+    {
+      gradient: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+      border: "#fa709a",
+    },
+    {
+      gradient: "linear-gradient(135deg, #30cfd0 0%, #330867 100%)",
+      border: "#30cfd0",
+    }, // Utilization blue
+    {
+      gradient: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
+      border: "#a8edea",
+    },
   ];
   const utilizationIconBackground =
     metricColorVariants[5]?.gradient || metricColorVariants[0].gradient;
@@ -780,7 +1031,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           <div className="dashboard-header-content">
             <div className="dashboard-title-section">
               <h1 className="dashboard-title">Project Dashboard</h1>
-              <p className="dashboard-subtitle">Welcome back, <span className="username-highlight">{user?.username || 'User'}</span>!</p>
+              <p className="dashboard-subtitle">
+                Welcome back,{" "}
+                <span className="username-highlight">
+                  {user?.username || "User"}
+                </span>
+                !
+              </p>
             </div>
             <div className="dashboard-actions">
               <DashboardFilters
@@ -791,7 +1048,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 userRole={user?.role}
               />
               <button
-                onClick={() => setForceRefreshKey(k => k + 1)}
+                onClick={() => setForceRefreshKey((k) => k + 1)}
                 className="refresh-button"
               >
                 <span className="refresh-icon">🔄</span>
@@ -822,11 +1079,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           })}
         </div> */}
 
-        {/* Metric Cards */}
-        <div className="metrics-grid">
-          {stats.map((stat) => {
+        {/* Metric Cards - First Row (4 columns) */}
+        <div className="metrics-grid metrics-grid-row-1">
+          {stats.slice(0, 4).map((stat) => {
             const IconComponent = stat.icon;
-            
+
             return (
               <div
                 key={stat.label}
@@ -837,7 +1094,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               >
                 <div className="metric-card-content">
                   <div className="metric-card-header">
-                    <div className="metric-icon-wrapper" style={{ background: utilizationIconBackground }}>
+                    <div
+                      className="metric-icon-wrapper"
+                      style={{ background: utilizationIconBackground }}
+                    >
                       <IconComponent className="metric-icon" />
                     </div>
                     <div className="metric-info">
@@ -851,11 +1111,42 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           })}
         </div>
 
+        {/* Metric Cards - Second Row (3 columns) */}
+        <div className="metrics-grid metrics-grid-row-2">
+          {stats.slice(4).map((stat) => {
+            const IconComponent = stat.icon;
+
+            return (
+              <div
+                key={stat.label}
+                className="metric-card"
+                style={{
+                  borderLeftColor: totalTasksBorderColor,
+                }}
+              >
+                <div className="metric-card-content">
+                  <div className="metric-card-header">
+                    <div
+                      className="metric-icon-wrapper"
+                      style={{ background: utilizationIconBackground }}
+                    >
+                      <IconComponent className="metric-icon" />
+                    </div>
+                    <div className="metric-info">
+                      <p className="metric-label">{stat.label}</p>
+                      <p className="metric-value">{stat.value}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         {/* Tasks This Week and Next Week */}
         {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Tasks This Week */}
-          {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900">Tasks This Week</h3>
               <div className="mt-4 space-y-3">
@@ -896,7 +1187,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
 
           {/* Tasks Next Week */}
-          {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900">Tasks Next Week</h3>
               <div className="mt-4 space-y-3">
@@ -935,7 +1226,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               </div>
             </div>
           </div>
-        </div> */} 
+        </div> */}
 
         {/* Tasks This Week and Next Week (Tables with hyperlinks) */}
         <div className="tasks-section">
@@ -945,7 +1236,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 <div className="task-card-title-section">
                   <h3 className="task-card-title">📅 Tasks This Week</h3>
                   {tasksThisWeek.length > 0 && (
-                    <span className="task-count-badge">{tasksThisWeek.length}</span>
+                    <span className="task-count-badge">
+                      {tasksThisWeek.length}
+                    </span>
                   )}
                 </div>
               </div>
@@ -971,117 +1264,210 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                       </tr>
                     )}
                     {tasksThisWeek
-                      .slice((currentPageThisWeek - 1) * itemsPerPage, currentPageThisWeek * itemsPerPage)
-                      .map((task) => {
-                      const statusConfig = 
-                        task.status === 'Completed'
-                          ? { class: 'status-completed', color: '#10b981', bg: '#d1fae5' }
-                          : task.status === 'In Progress'
-                          ? { class: 'status-in-progress', color: '#06b6d4', bg: '#cffafe' }
-                          : task.status === 'Blocked'
-                          ? { class: 'status-blocked', color: '#ef4444', bg: '#fee2e2' }
-                          : { class: 'status-todo', color: '#6366f1', bg: '#e0e7ff' };
-                      const isExpanded = selectedTask && selectedTask.source === 'thisWeek' && selectedTask.id === task.id;
-                      return (
-                        <>
-                          <tr key={`row-${task.id}`} className={`task-row ${isExpanded ? 'expanded' : ''}`}>
-                            <td>
-                              <a
-                                href="#"
-                                onClick={(e) => { e.preventDefault(); handleTaskSelection(task, 'thisWeek'); }}
-                                className="task-link"
-                              >
-                                {task.title}
-                              </a>
-                            </td>
-                            <td className="task-assignee">{task.assignee}</td>
-                            <td className="status-column">
-                              <span 
-                                className="task-status-badge"
-                                style={{ 
-                                  color: statusConfig.color, 
-                                  backgroundColor: statusConfig.bg 
-                                }}
-                              >
-                                {task.status}
-                              </span>
-                            </td>
-                            <td className="task-hours">{task.estimated} hrs</td>
-                          </tr>
-                          {isExpanded && (
-                            <tr key={`details-${task.id}`} className="task-details-row">
-                              <td colSpan={4}>
-                                <div className="task-details-panel">
-                                  <div className="task-detail-item">
-                                    <span className="task-detail-label">📆 Due Date:</span>
-                                    <span className="task-detail-value">
-                                      {formatDueDate(selectedTask?.id === task.id ? selectedTask?.due_date : task.due_date)}
-                                    </span>
-                                  </div>
-                                  {dailyUpdates.length > 0 && (
-                                    <div className="daily-updates-section">
-                                      <div className="daily-updates-header">💬 Daily Updates</div>
-                                      <div className="daily-updates-list">
-                                        {dailyUpdates.map((update) => (
-                                          <div key={update.id} className="daily-update-card">
-                                            <div className="daily-update-header">
-                                              <span className="daily-update-author">{update.username || 'Unknown'}</span>
-                                              <span className="daily-update-date">
-                                                {new Date(update.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                              </span>
-                                            </div>
-                                            <div className="daily-update-comment">{update.comment}</div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                  {loadingUpdates && (
-                                    <div className="loading-updates">Loading updates...</div>
-                                  )}
-                                  {!loadingUpdates && dailyUpdates.length === 0 && (
-                                    <div className="no-updates">No daily updates available</div>
-                                  )}
-                                  <div className="task-details-actions">
-                                    <button 
-                                      onClick={() => { setSelectedTask(null); setDailyUpdates([]); }} 
-                                      className="close-details-button"
-                                    >
-                                      Close
-                                    </button>
-                                  </div>
-                                </div>
+                      .slice(
+                        (currentPageThisWeek - 1) * itemsPerPage,
+                        currentPageThisWeek * itemsPerPage
+                      )
+                      .map((task, index) => {
+                        const statusConfig =
+                          task.status === "Completed"
+                            ? {
+                                class: "status-completed",
+                                color: "#10b981",
+                                bg: "#d1fae5",
+                              }
+                            : task.status === "In Progress"
+                            ? {
+                                class: "status-in-progress",
+                                color: "#06b6d4",
+                                bg: "#cffafe",
+                              }
+                            : task.status === "Blocked"
+                            ? {
+                                class: "status-blocked",
+                                color: "#ef4444",
+                                bg: "#fee2e2",
+                              }
+                            : {
+                                class: "status-todo",
+                                color: "#6366f1",
+                                bg: "#e0e7ff",
+                              };
+                        const isExpanded =
+                          selectedTask &&
+                          selectedTask.source === "thisWeek" &&
+                          selectedTask.id === task.id;
+                        return (
+                          <React.Fragment key={`fragment-${task.id}`}>
+                            <tr
+                              className={`task-row ${
+                                isExpanded ? "expanded" : ""
+                              }`}
+                            >
+                              <td>
+                                <a
+                                  href="#"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    handleTaskSelection(task, "thisWeek");
+                                  }}
+                                  className="task-link"
+                                >
+                                  {task.title}
+                                </a>
+                              </td>
+                              <td className="task-assignee">{task.assignee}</td>
+                              <td className="status-column">
+                                <span
+                                  className="task-status-badge"
+                                  style={{
+                                    color: statusConfig.color,
+                                    backgroundColor: statusConfig.bg,
+                                  }}
+                                >
+                                  {task.status}
+                                </span>
+                              </td>
+                              <td className="task-hours">
+                                {task.estimated} hrs
                               </td>
                             </tr>
-                          )}
-                        </>
-                      );
-                    })}
+                            {isExpanded && (
+                              <tr
+                                key={`details-${task.id}`}
+                                className="task-details-row"
+                              >
+                                <td colSpan={4}>
+                                  <div className="task-details-panel">
+                                    <div className="task-detail-item">
+                                      <span className="task-detail-label">
+                                        📆 Due Date:
+                                      </span>
+                                      <span className="task-detail-value">
+                                        {formatDueDate(
+                                          selectedTask?.id === task.id
+                                            ? selectedTask?.due_date
+                                            : task.due_date
+                                        )}
+                                      </span>
+                                    </div>
+                                    {dailyUpdates.length > 0 && (
+                                      <div className="daily-updates-section">
+                                        <div className="daily-updates-header">
+                                          💬 Daily Updates
+                                        </div>
+                                        <div className="daily-updates-list">
+                                          {dailyUpdates.map((update) => (
+                                            <div
+                                              key={update.id}
+                                              className="daily-update-card"
+                                            >
+                                              <div className="daily-update-header">
+                                                <span className="daily-update-author">
+                                                  {update.username || "Unknown"}
+                                                </span>
+                                                <span className="daily-update-date">
+                                                  {new Date(
+                                                    update.created_at
+                                                  ).toLocaleDateString(
+                                                    "en-US",
+                                                    {
+                                                      year: "numeric",
+                                                      month: "short",
+                                                      day: "numeric",
+                                                      hour: "2-digit",
+                                                      minute: "2-digit",
+                                                    }
+                                                  )}
+                                                </span>
+                                              </div>
+                                              <div className="daily-update-comment">
+                                                {update.comment}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                    {loadingUpdates && (
+                                      <div className="loading-updates">
+                                        Loading updates...
+                                      </div>
+                                    )}
+                                    {!loadingUpdates &&
+                                      dailyUpdates.length === 0 && (
+                                        <div className="no-updates">
+                                          No daily updates available
+                                        </div>
+                                      )}
+                                    <div className="task-details-actions">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedTask(null);
+                                          setDailyUpdates([]);
+                                        }}
+                                        className="close-details-button"
+                                      >
+                                        Close
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
-              
+
               {/* Pagination for This Week */}
               {tasksThisWeek.length > itemsPerPage && (
                 <div className="pagination-container">
                   <div className="pagination-info">
-                    Showing {(currentPageThisWeek - 1) * itemsPerPage + 1} to {Math.min(currentPageThisWeek * itemsPerPage, tasksThisWeek.length)} of {tasksThisWeek.length} tasks
+                    Showing {(currentPageThisWeek - 1) * itemsPerPage + 1} to{" "}
+                    {Math.min(
+                      currentPageThisWeek * itemsPerPage,
+                      tasksThisWeek.length
+                    )}{" "}
+                    of {tasksThisWeek.length} tasks
                   </div>
                   <div className="pagination-controls">
                     <button
-                      onClick={() => setCurrentPageThisWeek(prev => Math.max(1, prev - 1))}
+                      onClick={() =>
+                        setCurrentPageThisWeek((prev) => Math.max(1, prev - 1))
+                      }
                       disabled={currentPageThisWeek === 1}
-                      className={`pagination-button ${currentPageThisWeek === 1 ? 'disabled' : ''}`}
+                      className={`pagination-button ${
+                        currentPageThisWeek === 1 ? "disabled" : ""
+                      }`}
                     >
                       Previous
                     </button>
                     <span className="pagination-page-info">
-                      Page {currentPageThisWeek} of {Math.ceil(tasksThisWeek.length / itemsPerPage)}
+                      Page {currentPageThisWeek} of{" "}
+                      {Math.ceil(tasksThisWeek.length / itemsPerPage)}
                     </span>
                     <button
-                      onClick={() => setCurrentPageThisWeek(prev => Math.min(Math.ceil(tasksThisWeek.length / itemsPerPage), prev + 1))}
-                      disabled={currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage)}
-                      className={`pagination-button ${currentPageThisWeek >= Math.ceil(tasksThisWeek.length / itemsPerPage) ? 'disabled' : ''}`}
+                      onClick={() =>
+                        setCurrentPageThisWeek((prev) =>
+                          Math.min(
+                            Math.ceil(tasksThisWeek.length / itemsPerPage),
+                            prev + 1
+                          )
+                        )
+                      }
+                      disabled={
+                        currentPageThisWeek >=
+                        Math.ceil(tasksThisWeek.length / itemsPerPage)
+                      }
+                      className={`pagination-button ${
+                        currentPageThisWeek >=
+                        Math.ceil(tasksThisWeek.length / itemsPerPage)
+                          ? "disabled"
+                          : ""
+                      }`}
                     >
                       Next
                     </button>
@@ -1095,7 +1481,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 <div className="task-card-title-section">
                   <h3 className="task-card-title">📆 Tasks Next Week</h3>
                   {tasksNextWeek.length > 0 && (
-                    <span className="task-count-badge">{tasksNextWeek.length}</span>
+                    <span className="task-count-badge">
+                      {tasksNextWeek.length}
+                    </span>
                   )}
                 </div>
               </div>
@@ -1121,22 +1509,48 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                       </tr>
                     )}
                     {tasksNextWeek.map((task) => {
-                      const statusConfig = 
-                        task.status === 'Completed'
-                          ? { class: 'status-completed', color: '#10b981', bg: '#d1fae5' }
-                          : task.status === 'In Progress'
-                          ? { class: 'status-in-progress', color: '#06b6d4', bg: '#cffafe' }
-                          : task.status === 'Blocked'
-                          ? { class: 'status-blocked', color: '#ef4444', bg: '#fee2e2' }
-                          : { class: 'status-todo', color: '#6366f1', bg: '#e0e7ff' };
-                      const isExpanded = selectedTask && selectedTask.source === 'nextWeek' && selectedTask.id === task.id;
+                      const statusConfig =
+                        task.status === "Completed"
+                          ? {
+                              class: "status-completed",
+                              color: "#10b981",
+                              bg: "#d1fae5",
+                            }
+                          : task.status === "In Progress"
+                          ? {
+                              class: "status-in-progress",
+                              color: "#06b6d4",
+                              bg: "#cffafe",
+                            }
+                          : task.status === "Blocked"
+                          ? {
+                              class: "status-blocked",
+                              color: "#ef4444",
+                              bg: "#fee2e2",
+                            }
+                          : {
+                              class: "status-todo",
+                              color: "#6366f1",
+                              bg: "#e0e7ff",
+                            };
+                      const isExpanded =
+                        selectedTask &&
+                        selectedTask.source === "nextWeek" &&
+                        selectedTask.id === task.id;
                       return (
-                        <>
-                          <tr key={`row-nw-${task.id}`} className={`task-row ${isExpanded ? 'expanded' : ''}`}>
+                        <React.Fragment key={`fragment-nw-${task.id}`}>
+                          <tr
+                            className={`task-row ${
+                              isExpanded ? "expanded" : ""
+                            }`}
+                          >
                             <td>
                               <a
                                 href="#"
-                                onClick={(e) => { e.preventDefault(); handleTaskSelection(task, 'nextWeek'); }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleTaskSelection(task, "nextWeek");
+                                }}
                                 className="task-link"
                               >
                                 {task.title}
@@ -1144,11 +1558,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             </td>
                             <td className="task-assignee">{task.assignee}</td>
                             <td className="status-column">
-                              <span 
+                              <span
                                 className="task-status-badge"
-                                style={{ 
-                                  color: statusConfig.color, 
-                                  backgroundColor: statusConfig.bg 
+                                style={{
+                                  color: statusConfig.color,
+                                  backgroundColor: statusConfig.bg,
                                 }}
                               >
                                 {task.status}
@@ -1157,42 +1571,76 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             <td className="task-hours">{task.estimated} hrs</td>
                           </tr>
                           {isExpanded && (
-                            <tr key={`details-nw-${task.id}`} className="task-details-row">
+                            <tr
+                              key={`details-nw-${task.id}`}
+                              className="task-details-row"
+                            >
                               <td colSpan={4}>
                                 <div className="task-details-panel">
                                   <div className="task-detail-item">
-                                    <span className="task-detail-label">📆 Due Date:</span>
+                                    <span className="task-detail-label">
+                                      📆 Due Date:
+                                    </span>
                                     <span className="task-detail-value">
-                                      {formatDueDate(selectedTask?.id === task.id ? selectedTask?.due_date : task.due_date)}
+                                      {formatDueDate(
+                                        selectedTask?.id === task.id
+                                          ? selectedTask?.due_date
+                                          : task.due_date
+                                      )}
                                     </span>
                                   </div>
                                   {dailyUpdates.length > 0 && (
                                     <div className="daily-updates-section">
-                                      <div className="daily-updates-header">💬 Daily Updates</div>
+                                      <div className="daily-updates-header">
+                                        💬 Daily Updates
+                                      </div>
                                       <div className="daily-updates-list">
                                         {dailyUpdates.map((update) => (
-                                          <div key={update.id} className="daily-update-card">
+                                          <div
+                                            key={update.id}
+                                            className="daily-update-card"
+                                          >
                                             <div className="daily-update-header">
-                                              <span className="daily-update-author">{update.username || 'Unknown'}</span>
+                                              <span className="daily-update-author">
+                                                {update.username || "Unknown"}
+                                              </span>
                                               <span className="daily-update-date">
-                                                {new Date(update.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                {new Date(
+                                                  update.created_at
+                                                ).toLocaleDateString("en-US", {
+                                                  year: "numeric",
+                                                  month: "short",
+                                                  day: "numeric",
+                                                  hour: "2-digit",
+                                                  minute: "2-digit",
+                                                })}
                                               </span>
                                             </div>
-                                            <div className="daily-update-comment">{update.comment}</div>
+                                            <div className="daily-update-comment">
+                                              {update.comment}
+                                            </div>
                                           </div>
                                         ))}
                                       </div>
                                     </div>
                                   )}
                                   {loadingUpdates && (
-                                    <div className="loading-updates">Loading updates...</div>
+                                    <div className="loading-updates">
+                                      Loading updates...
+                                    </div>
                                   )}
-                                  {!loadingUpdates && dailyUpdates.length === 0 && (
-                                    <div className="no-updates">No daily updates available</div>
-                                  )}
+                                  {!loadingUpdates &&
+                                    dailyUpdates.length === 0 && (
+                                      <div className="no-updates">
+                                        No daily updates available
+                                      </div>
+                                    )}
                                   <div className="task-details-actions">
-                                    <button 
-                                      onClick={() => { setSelectedTask(null); setDailyUpdates([]); }} 
+                                    <button
+                                      onClick={() => {
+                                        setSelectedTask(null);
+                                        setDailyUpdates([]);
+                                      }}
                                       className="close-details-button"
                                     >
                                       Close
@@ -1202,34 +1650,59 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                               </td>
                             </tr>
                           )}
-                        </>
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-              
+
               {/* Pagination for Next Week */}
               {tasksNextWeek.length > itemsPerPage && (
                 <div className="pagination-container">
                   <div className="pagination-info">
-                    Showing {(currentPageNextWeek - 1) * itemsPerPage + 1} to {Math.min(currentPageNextWeek * itemsPerPage, tasksNextWeek.length)} of {tasksNextWeek.length} tasks
+                    Showing {(currentPageNextWeek - 1) * itemsPerPage + 1} to{" "}
+                    {Math.min(
+                      currentPageNextWeek * itemsPerPage,
+                      tasksNextWeek.length
+                    )}{" "}
+                    of {tasksNextWeek.length} tasks
                   </div>
                   <div className="pagination-controls">
                     <button
-                      onClick={() => setCurrentPageNextWeek(prev => Math.max(1, prev - 1))}
+                      onClick={() =>
+                        setCurrentPageNextWeek((prev) => Math.max(1, prev - 1))
+                      }
                       disabled={currentPageNextWeek === 1}
-                      className={`pagination-button ${currentPageNextWeek === 1 ? 'disabled' : ''}`}
+                      className={`pagination-button ${
+                        currentPageNextWeek === 1 ? "disabled" : ""
+                      }`}
                     >
                       Previous
                     </button>
                     <span className="pagination-page-info">
-                      Page {currentPageNextWeek} of {Math.ceil(tasksNextWeek.length / itemsPerPage)}
+                      Page {currentPageNextWeek} of{" "}
+                      {Math.ceil(tasksNextWeek.length / itemsPerPage)}
                     </span>
                     <button
-                      onClick={() => setCurrentPageNextWeek(prev => Math.min(Math.ceil(tasksNextWeek.length / itemsPerPage), prev + 1))}
-                      disabled={currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage)}
-                      className={`pagination-button ${currentPageNextWeek >= Math.ceil(tasksNextWeek.length / itemsPerPage) ? 'disabled' : ''}`}
+                      onClick={() =>
+                        setCurrentPageNextWeek((prev) =>
+                          Math.min(
+                            Math.ceil(tasksNextWeek.length / itemsPerPage),
+                            prev + 1
+                          )
+                        )
+                      }
+                      disabled={
+                        currentPageNextWeek >=
+                        Math.ceil(tasksNextWeek.length / itemsPerPage)
+                      }
+                      className={`pagination-button ${
+                        currentPageNextWeek >=
+                        Math.ceil(tasksNextWeek.length / itemsPerPage)
+                          ? "disabled"
+                          : ""
+                      }`}
                     >
                       Next
                     </button>
@@ -1239,42 +1712,283 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             </div>
           </div>
         </div>
+        <div className="task-card">
+          <div className="task-card-header">
+            <div className="task-card-title-section">
+              <h3 className="task-card-title">
+                📅 Tasks for the selected date range
+              </h3>
+              {taskStats?.tasks !== undefined && (
+                <span className="task-count-badge">
+                  {taskStats?.tasks?.length}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="task-table-container">
+            <table className="task-table">
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Assignee</th>
+                  <th className="status-column">Status</th>
+                  <th>Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(!taskStats?.tasks || taskStats.tasks.length === 0) && (
+                  <tr>
+                    <td colSpan={4} className="empty-task-message">
+                      <div className="empty-state-content">
+                        <span className="empty-icon">📋</span>
+                        <p>No tasks in this date range</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {taskStats?.tasks
+                  ?.slice(
+                    (currentPageThisWeek - 1) * itemsPerPage,
+                    currentPageThisWeek * itemsPerPage
+                  )
+                  .map((task) => {
+                    const statusConfig =
+                      task.status === "completed"
+                        ? {
+                            class: "status-completed",
+                            color: "#10b981",
+                            bg: "#d1fae5",
+                          }
+                        : task.status === "in_progress"
+                        ? {
+                            class: "status-in-progress",
+                            color: "#06b6d4",
+                            bg: "#cffafe",
+                          }
+                        : task.status === "blocked"
+                        ? {
+                            class: "status-blocked",
+                            color: "#ef4444",
+                            bg: "#fee2e2",
+                          }
+                        : {
+                            class: "status-todo",
+                            color: "#6366f1",
+                            bg: "#e0e7ff",
+                          };
+                    const isExpanded =
+                      selectedTask &&
+                      selectedTask.source === "thisWeek" &&
+                      selectedTask.id === task.id;
+                    return (
+                      <React.Fragment key={`fragment-task-${task.id}`}>
+                        <tr
+                          className={`task-row ${isExpanded ? "expanded" : ""}`}
+                        >
+                          <td>
+                            <a
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleTaskSelection(
+                                  {
+                                    id: task.id,
+                                    title: task.name,
+                                    assignee:
+                                      task.username || String(task.assignee_id),
+                                    status: task.status,
+                                    estimated: task.planned_hours,
+                                    due_date: task.due_date,
+                                  },
+                                  "thisWeek"
+                                );
+                              }}
+                              className="task-link"
+                            >
+                              {task?.name}
+                            </a>
+                          </td>
+                          <td className="task-assignee">
+                            {task.username || `User ${task.assignee_id}`}
+                          </td>
+                          <td className="status-column">
+                            <span
+                              className="task-status-badge"
+                              style={{
+                                color: statusConfig.color,
+                                backgroundColor: statusConfig.bg,
+                              }}
+                            >
+                              {task.status}
+                            </span>
+                          </td>
+                          <td className="task-hours">
+                            {(task.actual_hours !== 0 &&
+                            task.actual_hours !== null
+                              ? task.actual_hours
+                              : task.planned_hours) || 0}
+                            hrs
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr
+                            key={`details-${task.id}`}
+                            className="task-details-row"
+                          >
+                            <td colSpan={4}>
+                              <div className="task-details-panel">
+                                <div className="task-detail-item">
+                                  <span className="task-detail-label">
+                                    📆 Due Date:
+                                  </span>
+                                  <span className="task-detail-value">
+                                    {formatDueDate(
+                                      selectedTask?.id === task.id
+                                        ? selectedTask?.due_date
+                                        : task.due_date
+                                    )}
+                                  </span>
+                                </div>
+                                {dailyUpdates.length > 0 && (
+                                  <div className="daily-updates-section">
+                                    <div className="daily-updates-header">
+                                      💬 Daily Updates
+                                    </div>
+                                    <div className="daily-updates-list">
+                                      {dailyUpdates.map((update) => (
+                                        <div
+                                          key={update.id}
+                                          className="daily-update-card"
+                                        >
+                                          <div className="daily-update-header">
+                                            <span className="daily-update-author">
+                                              {update.username || "Unknown"}
+                                            </span>
+                                            <span className="daily-update-date">
+                                              {new Date(
+                                                update.created_at
+                                              ).toLocaleDateString("en-US", {
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                              })}
+                                            </span>
+                                          </div>
+                                          <div className="daily-update-comment">
+                                            {update.comment}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {loadingUpdates && (
+                                  <div className="loading-updates">
+                                    Loading updates...
+                                  </div>
+                                )}
+                                {!loadingUpdates &&
+                                  dailyUpdates.length === 0 && (
+                                    <div className="no-updates">
+                                      No daily updates available
+                                    </div>
+                                  )}
+                                <div className="task-details-actions">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedTask(null);
+                                      setDailyUpdates([]);
+                                    }}
+                                    className="close-details-button"
+                                  >
+                                    Close
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
 
-
-
+          {/* Pagination for Tasks */}
+          {taskStats?.tasks && taskStats.tasks.length > itemsPerPage && (
+            <div className="pagination-container">
+              <div className="pagination-info">
+                Showing {(currentPageThisWeek - 1) * itemsPerPage + 1} to{" "}
+                {Math.min(
+                  currentPageThisWeek * itemsPerPage,
+                  taskStats.tasks?.length || 0
+                )}{" "}
+                of {taskStats.tasks?.length || 0} tasks
+              </div>
+              <div className="pagination-controls">
+                <button
+                  onClick={() =>
+                    setCurrentPageThisWeek((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={currentPageThisWeek === 1}
+                  className={`pagination-button ${
+                    currentPageThisWeek === 1 ? "disabled" : ""
+                  }`}
+                >
+                  Previous
+                </button>
+                <span className="pagination-page-info">
+                  Page {currentPageThisWeek} of{" "}
+                  {Math.ceil((taskStats.tasks?.length || 0) / itemsPerPage)}
+                </span>
+                <button
+                  onClick={() =>
+                    setCurrentPageThisWeek((prev) =>
+                      Math.min(
+                        Math.ceil(
+                          (taskStats.tasks?.length || 0) / itemsPerPage
+                        ),
+                        prev + 1
+                      )
+                    )
+                  }
+                  disabled={
+                    currentPageThisWeek >=
+                    Math.ceil((taskStats.tasks?.length || 0) / itemsPerPage)
+                  }
+                  className={`pagination-button ${
+                    currentPageThisWeek >=
+                    Math.ceil((taskStats.tasks?.length || 0) / itemsPerPage)
+                      ? "disabled"
+                      : ""
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
         {/* Charts Grid */}
         <div className="charts-section">
           <div className="charts-grid">
-            {/* Utilization Chart */}
-            <div className="chart-card">
-              <div className="chart-card-header">
-                <div className="chart-title-section">
-                  <h3 className="chart-title">📊 Utilization</h3>
-                  <p className="chart-subtitle">Team utilization percentage over time</p>
-                </div>
-              </div>
-              <div className="chart-content-wrapper">
-                {dashboardData.utilizationData && dashboardData.utilizationData.length > 0 ? (
-                  <UtilizationChart data={dashboardData.utilizationData} />
-                ) : (
-                  <div className="chart-empty-state">
-                    <span className="empty-chart-icon">📈</span>
-                    <p>No data available</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Productivity Chart */}
             <div className="chart-card">
               <div className="chart-card-header">
                 <div className="chart-title-section">
                   <h3 className="chart-title">⚡ Productivity</h3>
-                  <p className="chart-subtitle">Actual vs Planned hours (Productivity = Planned / Actual × 100)</p>
+                  <p className="chart-subtitle">
+                    Actual vs Planned hours (Productivity = Planned / Actual ×
+                    100)
+                  </p>
                 </div>
               </div>
               <div className="chart-content-wrapper">
-                {dashboardData.productivityData && dashboardData.productivityData.length > 0 ? (
+                {dashboardData.productivityData &&
+                dashboardData.productivityData.length > 0 ? (
                   <ProductivityChart data={dashboardData.productivityData} />
                 ) : (
                   <div className="chart-empty-state">
@@ -1290,7 +2004,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <div className="chart-card-header">
                 <div className="chart-title-section">
                   <h3 className="chart-title">👥 Team Availability</h3>
-                  <p className="chart-subtitle">Total available hours per week</p>
+                  <p className="chart-subtitle">
+                    Total available hours per week
+                  </p>
                 </div>
               </div>
               <div className="chart-content-wrapper">
@@ -1300,10 +2016,34 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     <p>No data available</p>
                   </div>
                 ) : (
-                  <AvailabilityChart 
-                    key={`availability-${filters.employeeId || 'all'}-${filters.projectId || 'all'}`}
-                    data={dashboardData.availabilityData} 
+                  <AvailabilityChart
+                    key={`availability-${filters.employeeId || "all"}-${
+                      filters.projectId || "all"
+                    }`}
+                    data={dashboardData.availabilityData}
                   />
+                )}
+              </div>
+            </div>
+            {/* Utilization Chart */}
+            <div className="chart-card">
+              <div className="chart-card-header">
+                <div className="chart-title-section">
+                  <h3 className="chart-title">📊 Utilization</h3>
+                  <p className="chart-subtitle">
+                    Team utilization percentage over time
+                  </p>
+                </div>
+              </div>
+              <div className="chart-content-wrapper">
+                {dashboardData.utilizationData &&
+                dashboardData.utilizationData.length > 0 ? (
+                  <UtilizationChart data={dashboardData.utilizationData} />
+                ) : (
+                  <div className="chart-empty-state">
+                    <span className="empty-chart-icon">📈</span>
+                    <p>No data available</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -1335,4 +2075,3 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 };
 
 export default Dashboard;
-

@@ -37,9 +37,8 @@
 
 // export default Navbar;
 
-
-import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from "react";
+import { NavLink, Link, useNavigate } from "react-router-dom";
 
 interface NavbarProps {
   user: any;
@@ -52,8 +51,8 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [darkTheme, setDarkTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return document.documentElement.getAttribute('data-theme') === 'dark';
+    if (typeof window !== "undefined") {
+      return document.documentElement.getAttribute("data-theme") === "dark";
     }
     return false;
   });
@@ -68,20 +67,25 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       }
     };
 
-    window.addEventListener('dark-theme-changed', handleThemeChange);
-    
+    window.addEventListener("dark-theme-changed", handleThemeChange);
+
     // Check initial theme
     const checkTheme = () => {
-      setDarkTheme(document.documentElement.getAttribute('data-theme') === 'dark');
+      setDarkTheme(
+        document.documentElement.getAttribute("data-theme") === "dark"
+      );
     };
     checkTheme();
-    
+
     // Also check on DOM mutations (in case theme is set elsewhere)
     const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
 
     return () => {
-      window.removeEventListener('dark-theme-changed', handleThemeChange);
+      window.removeEventListener("dark-theme-changed", handleThemeChange);
       observer.disconnect();
     };
   }, [user?.id]);
@@ -89,23 +93,26 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setShowProfileDropdown(false);
       }
     };
 
     if (showProfileDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showProfileDropdown]);
 
   const handleSettingsClick = () => {
     setShowProfileDropdown(false);
-    navigate('/settings');
+    navigate("/settings");
   };
 
   const handleLogoutClick = () => {
@@ -115,114 +122,128 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
 
   const styles = {
     navbar: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      backgroundColor: darkTheme ? '#1e293b' : '#ffffff',
-      padding: '0.8rem 1.5rem',
-      boxShadow: darkTheme ? '0 2px 8px rgba(0, 0, 0, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.05)',
-      fontFamily: 'Inter, sans-serif',
-      position: 'sticky' as const,
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: darkTheme ? "#1e293b" : "#ffffff",
+      padding: "0.8rem 1.5rem",
+      boxShadow: darkTheme
+        ? "0 2px 8px rgba(0, 0, 0, 0.3)"
+        : "0 2px 8px rgba(0, 0, 0, 0.05)",
+      fontFamily: "Inter, sans-serif",
+      position: "sticky" as const,
       top: 0,
-      zIndex: 10,
+      zIndex: 30,
     },
     brand: {
-      fontSize: '1.3rem',
+      fontSize: "1.3rem",
       fontWeight: 700,
-      color: darkTheme ? '#60a5fa' : '#0078ff',
-      textDecoration: 'none',
+      color: darkTheme ? "#60a5fa" : "#0078ff",
+      textDecoration: "none",
     },
     navLinks: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '1rem',
+      display: "flex",
+      alignItems: "center",
+      gap: "1rem",
     },
     link: (isActive: boolean, name: string) => ({
-      textDecoration: 'none',
-      color: isActive 
-        ? (darkTheme ? '#60a5fa' : '#0078ff')
-        : hoveredLink === name 
-          ? (darkTheme ? '#93c5fd' : '#005fcc')
-          : (darkTheme ? '#cbd5e1' : '#333'),
-      backgroundColor: isActive 
-        ? (darkTheme ? '#1e40af' : '#eaf4ff')
-        : 'transparent',
+      textDecoration: "none",
+      color: isActive
+        ? darkTheme
+          ? "#60a5fa"
+          : "#0078ff"
+        : hoveredLink === name
+        ? darkTheme
+          ? "#93c5fd"
+          : "#005fcc"
+        : darkTheme
+        ? "#cbd5e1"
+        : "#333",
+      backgroundColor: isActive
+        ? darkTheme
+          ? "#1e40af"
+          : "#eaf4ff"
+        : "transparent",
       fontWeight: 500,
-      padding: '0.4rem 0.8rem',
-      borderRadius: '6px',
-      transition: 'all 0.2s',
+      padding: "0.4rem 0.8rem",
+      borderRadius: "6px",
+      transition: "all 0.2s",
     }),
     userSection: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.8rem',
-      backgroundColor: darkTheme ? '#1e293b' : '#f9fafb',
-      padding: '0.5rem 0.8rem',
-      borderRadius: '8px',
-      boxShadow: darkTheme ? 'inset 0 0 4px rgba(255, 255, 255, 0.05)' : 'inset 0 0 4px rgba(0, 0, 0, 0.05)',
-      position: 'relative' as const,
+      display: "flex",
+      alignItems: "center",
+      gap: "0.8rem",
+      backgroundColor: darkTheme ? "#1e293b" : "#f9fafb",
+      padding: "0.5rem 0.8rem",
+      borderRadius: "8px",
+      boxShadow: darkTheme
+        ? "inset 0 0 4px rgba(255, 255, 255, 0.05)"
+        : "inset 0 0 4px rgba(0, 0, 0, 0.05)",
+      position: "relative" as const,
     },
     username: {
       fontWeight: 500,
-      color: darkTheme ? '#e2e8f0' : '#333',
-      fontSize: '0.95rem',
+      color: darkTheme ? "#e2e8f0" : "#333",
+      fontSize: "0.95rem",
     },
     profileIconButton: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: '36px',
-      height: '36px',
-      borderRadius: '50%',
-      backgroundColor: '#6366f1',
-      border: 'none',
-      cursor: 'pointer',
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "36px",
+      height: "36px",
+      borderRadius: "50%",
+      backgroundColor: "#6366f1",
+      border: "none",
+      cursor: "pointer",
       padding: 0,
-      transition: 'all 0.2s',
-      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+      transition: "all 0.2s",
+      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
     },
     profileIcon: {
-      width: '20px',
-      height: '20px',
-      fill: 'white',
+      width: "20px",
+      height: "20px",
+      fill: "white",
     },
     dropdown: {
-      position: 'absolute' as const,
-      top: 'calc(100% + 0.5rem)',
+      position: "absolute" as const,
+      top: "calc(100% + 0.5rem)",
       right: 0,
-      backgroundColor: darkTheme ? '#1e293b' : 'white',
-      borderRadius: '8px',
-      boxShadow: darkTheme ? '0 4px 12px rgba(0, 0, 0, 0.5)' : '0 4px 12px rgba(0, 0, 0, 0.15)',
-      minWidth: '160px',
+      backgroundColor: darkTheme ? "#1e293b" : "white",
+      borderRadius: "8px",
+      boxShadow: darkTheme
+        ? "0 4px 12px rgba(0, 0, 0, 0.5)"
+        : "0 4px 12px rgba(0, 0, 0, 0.15)",
+      minWidth: "160px",
       zIndex: 1000,
-      overflow: 'hidden',
-      border: darkTheme ? '1px solid #334155' : '1px solid #e5e7eb',
+      overflow: "hidden",
+      border: darkTheme ? "1px solid #334155" : "1px solid #e5e7eb",
     },
     dropdownItem: {
-      display: 'block',
-      width: '100%',
-      padding: '0.75rem 1rem',
-      textDecoration: 'none',
-      color: darkTheme ? '#e2e8f0' : '#333',
-      fontSize: '0.9rem',
+      display: "block",
+      width: "100%",
+      padding: "0.75rem 1rem",
+      textDecoration: "none",
+      color: darkTheme ? "#e2e8f0" : "#333",
+      fontSize: "0.9rem",
       fontWeight: 500,
-      border: 'none',
-      background: 'none',
-      cursor: 'pointer',
-      textAlign: 'left' as const,
-      transition: 'background-color 0.2s',
+      border: "none",
+      background: "none",
+      cursor: "pointer",
+      textAlign: "left" as const,
+      transition: "background-color 0.2s",
     },
     dropdownItemHover: {
-      backgroundColor: darkTheme ? '#334155' : '#f3f4f6',
+      backgroundColor: darkTheme ? "#334155" : "#f3f4f6",
     },
     dropdownDivider: {
-      height: '1px',
-      backgroundColor: darkTheme ? '#334155' : '#e5e7eb',
+      height: "1px",
+      backgroundColor: darkTheme ? "#334155" : "#e5e7eb",
       margin: 0,
-      border: 'none',
+      border: "none",
     },
     logoutItem: {
-      color: '#ef4444',
+      color: "#ef4444",
     },
   };
 
@@ -235,29 +256,33 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       <div style={styles.navLinks}>
         <NavLink
           to="/dashboard"
-          style={({ isActive }) => styles.link(isActive, 'dashboard')}
-          onMouseEnter={() => setHoveredLink('dashboard')}
+          style={({ isActive }) => styles.link(isActive, "dashboard")}
+          onMouseEnter={() => setHoveredLink("dashboard")}
           onMouseLeave={() => setHoveredLink(null)}
         >
           Dashboard
         </NavLink>
 
-        {(user?.role === 'super_admin' || user?.role === 'manager' || user?.role === 'team_lead') && (
+        {(user?.role === "super_admin" ||
+          user?.role === "manager" ||
+          user?.role === "team_lead") && (
           <NavLink
             to="/users"
-            style={({ isActive }) => styles.link(isActive, 'users')}
-            onMouseEnter={() => setHoveredLink('users')}
+            style={({ isActive }) => styles.link(isActive, "users")}
+            onMouseEnter={() => setHoveredLink("users")}
             onMouseLeave={() => setHoveredLink(null)}
           >
             Users
           </NavLink>
         )}
 
-        {user?.role === 'super_admin' && (
+        {user?.role === "super_admin" && (
           <NavLink
             to="/project-assignments"
-            style={({ isActive }) => styles.link(isActive, 'project-assignments')}
-            onMouseEnter={() => setHoveredLink('project-assignments')}
+            style={({ isActive }) =>
+              styles.link(isActive, "project-assignments")
+            }
+            onMouseEnter={() => setHoveredLink("project-assignments")}
             onMouseLeave={() => setHoveredLink(null)}
           >
             Assign Projects
@@ -266,8 +291,8 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
 
         <NavLink
           to="/projects"
-          style={({ isActive }) => styles.link(isActive, 'projects')}
-          onMouseEnter={() => setHoveredLink('projects')}
+          style={({ isActive }) => styles.link(isActive, "projects")}
+          onMouseEnter={() => setHoveredLink("projects")}
           onMouseLeave={() => setHoveredLink(null)}
         >
           Projects
@@ -275,8 +300,8 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
 
         <NavLink
           to="/tasks"
-          style={({ isActive }) => styles.link(isActive, 'tasks')}
-          onMouseEnter={() => setHoveredLink('tasks')}
+          style={({ isActive }) => styles.link(isActive, "tasks")}
+          onMouseEnter={() => setHoveredLink("tasks")}
           onMouseLeave={() => setHoveredLink(null)}
         >
           Tasks
@@ -284,31 +309,36 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       </div>
 
       <div style={styles.userSection} ref={dropdownRef}>
-        <span 
-          style={{ ...styles.username, cursor: 'pointer', userSelect: 'none' }}
+        <span
+          style={{ ...styles.username, cursor: "pointer", userSelect: "none" }}
           onClick={() => setShowProfileDropdown(!showProfileDropdown)}
           title="Profile menu"
         >
           {user?.username}
         </span>
-        
+
         <button
           type="button"
           onClick={() => setShowProfileDropdown(!showProfileDropdown)}
           style={styles.profileIconButton}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#4f46e5';
-            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.backgroundColor = "#4f46e5";
+            e.currentTarget.style.transform = "scale(1.05)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#6366f1';
-            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.backgroundColor = "#6366f1";
+            e.currentTarget.style.transform = "scale(1)";
           }}
           title="Profile menu"
         >
-          <svg style={styles.profileIcon} viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="9" r="3" fill="white"/>
-            <path d="M6 20c0-2.5 2.5-5 6-5s6 2.5 6 5" fill="white"/>
+          <svg
+            style={styles.profileIcon}
+            viewBox="0 0 24 24"
+            fill="white"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="12" cy="9" r="3" fill="white" />
+            <path d="M6 20c0-2.5 2.5-5 6-5s6 2.5 6 5" fill="white" />
           </svg>
         </button>
 
@@ -319,10 +349,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
               onClick={handleSettingsClick}
               style={styles.dropdownItem}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = darkTheme ? '#334155' : '#f3f4f6';
+                e.currentTarget.style.backgroundColor = darkTheme
+                  ? "#334155"
+                  : "#f3f4f6";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
               Settings
@@ -333,10 +365,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
               onClick={handleLogoutClick}
               style={{ ...styles.dropdownItem, ...styles.logoutItem }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = darkTheme ? '#7f1d1d' : '#fee2e2';
+                e.currentTarget.style.backgroundColor = darkTheme
+                  ? "#7f1d1d"
+                  : "#fee2e2";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
               Logout
