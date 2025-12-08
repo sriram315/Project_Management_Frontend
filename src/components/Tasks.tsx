@@ -22,6 +22,7 @@ interface TaskFilters {
   projectId: number | null;
   projectName: string | null;
   assigneeId: number | null;
+  startDate: string;
   dueDate: string;
 }
 
@@ -43,6 +44,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
     projectId: null,
     projectName: null,
     assigneeId: null,
+    startDate: "",
     dueDate: "",
   });
   const [searchTerm, setSearchTerm] = useState("");
@@ -188,6 +190,33 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
       );
     }
 
+    // Filter by start date
+    if (filters.startDate) {
+      const sameCalendarDay = (a: string, b: string): boolean => {
+        const da = new Date(a);
+        const db = new Date(b);
+        if (!isNaN(da.getTime()) && !isNaN(db.getTime())) {
+          return (
+            da.getFullYear() === db.getFullYear() &&
+            da.getMonth() === db.getMonth() &&
+            da.getDate() === db.getDate()
+          );
+        }
+        // Fallback to comparing first 10 chars (YYYY-MM-DD)
+        const a10 = (a || "").slice(0, 10).replace(/\//g, "-");
+        const b10 = (b || "").slice(0, 10).replace(/\//g, "-");
+        return a10 === b10;
+      };
+
+      filtered = filtered.filter((task) => {
+        const taskStartDate = (task as any).start_date;
+        if (!taskStartDate) return false;
+        const selected = filters.startDate;
+        // Handle ISO strings like 2025-11-14T00:00:00Z by comparing date parts
+        return sameCalendarDay(taskStartDate, selected);
+      });
+    }
+
     // Filter by due date
     if (filters.dueDate) {
       const sameCalendarDay = (a: string, b: string): boolean => {
@@ -232,80 +261,18 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
     key: keyof TaskFilters,
     value: string | number | null
   ) => {
-    console.log(value, key);
-
     setFilters((prev) => ({
       ...prev,
       [key]: value,
     }));
   };
-  useEffect(() => {
-    console.log("filters", filters);
-    console.log(
-      "teamMembers with projects:",
-      teamMembers.map((m) => ({
-        id: m.id,
-        name: m.name,
-        projects: m.projects,
-      }))
-    );
-
-    console.log(
-      teamMembers.map((member) => {
-        return {
-          projects: member.projects
-            ?.split(",")
-            .map((project: string) => project.trim()),
-          name: member.name,
-          id: member.id,
-        };
-      })
-    );
-
-    console.log(
-      "teamMembers",
-      teamMembers
-        .map((member) => {
-          return {
-            projects: member.projects
-              ?.split(",")
-              .map((project: string) => project.trim()),
-            name: member.name,
-            id: member.id,
-          };
-        })
-        .filter((member) => {
-          return filters.projectName?.length && filters.projectName.length > 0
-            ? member.projects?.includes(filters.projectName || "")
-            : true;
-        })
-        .map((member) => {
-          return { value: member.id.toString(), label: member.name };
-        })
-    );
-    console.log(
-      teamMembers.map((member) => ({
-        value: member.id.toString(),
-        label: member.name,
-      }))
-    );
-
-    // console.log("projects", projects);
-    // console.log(teamMembers);
-
-    // console.log(
-    //   "teamMembers",
-    //   teamMembers.map((member) =>
-    //     member.projects?.split(",").map((project: string) => project.trim())
-    //   )
-    // );
-  }, [filters]);
 
   const clearFilters = () => {
     setFilters({
       projectId: null,
       projectName: null,
       assigneeId: null,
+      startDate: "",
       dueDate: "",
     });
   };
@@ -525,16 +492,43 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
           )}
 
           <div className="filter-group">
+            <label htmlFor="start-date-filter">Start Date</label>
+            <input
+              type="date"
+              id="start-date-filter"
+              value={filters.startDate}
+              onChange={(e) => handleFilterChange("startDate", e.target.value)}
+              style={{
+                padding: "0.75rem",
+                border: "2px solid #e1e8ed",
+                borderRadius: "8px",
+                fontSize: "1rem",
+                height: "42px",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          <div className="filter-group">
             <label htmlFor="due-date-filter">Due Date</label>
             <input
               type="date"
               id="due-date-filter"
               value={filters.dueDate}
               onChange={(e) => handleFilterChange("dueDate", e.target.value)}
+              style={{
+                padding: "0.75rem",
+                border: "2px solid #e1e8ed",
+                borderRadius: "8px",
+                fontSize: "1rem",
+                height: "42px",
+                boxSizing: "border-box",
+              }}
             />
           </div>
 
           <div className="filter-group">
+            <label style={{ opacity: 0 }}>Actions</label>
             <button
               onClick={clearFilters}
               className="bg-white"
@@ -551,7 +545,8 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
                 fontSize: "0.9rem",
                 fontWeight: "500",
                 transition: "all 0.2s",
-                marginTop: "1.55rem",
+                height: "42px",
+                boxSizing: "border-box",
               }}
             >
               <FilterX size={18} />

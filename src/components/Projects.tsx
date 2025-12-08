@@ -1,14 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { projectAPI, userAPI, API_BASE_URL, projectAssignmentsAPI } from '../services/api';
-import { Project } from '../types';
-import ProjectList from './ProjectList';
-import AddProject from './AddProject';
-import EditProject from './EditProject';
-import Toast from './Toast';
-import { useToast } from '../hooks/useToast';
-import ConfirmationModal from './ConfirmationModal';
-import '../App.css';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  projectAPI,
+  userAPI,
+  API_BASE_URL,
+  projectAssignmentsAPI,
+} from "../services/api";
+import { Project } from "../types";
+import ProjectList from "./ProjectList";
+import AddProject from "./AddProject";
+import EditProject from "./EditProject";
+import Toast from "./Toast";
+import { useToast } from "../hooks/useToast";
+import ConfirmationModal from "./ConfirmationModal";
+import "../App.css";
 
 interface ProjectsProps {
   user?: any;
@@ -18,10 +23,10 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showAddProject, setShowAddProject] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast, showToast, hideToast } = useToast();
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
@@ -30,7 +35,7 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
   }>({
     isOpen: false,
     projectId: null,
-    projectName: '',
+    projectName: "",
   });
 
   useEffect(() => {
@@ -39,47 +44,39 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
 
   const fetchProjects = async () => {
     if (!user) {
-      console.log("⏳ Projects: Waiting for user to load...");
       return;
     }
 
     try {
       setLoading(true);
       let projectData;
-      
-      console.log("🔍 Projects component - User:", { id: user?.id, role: user?.role, username: user?.username });
-      
-      if (user?.role === 'employee') {
+
+      if (user?.role === "employee") {
         // For employees, fetch only their assigned projects
         projectData = await userAPI.getUserProjects(user.id);
-      } else if (user?.role === 'manager' || user?.role === 'team_lead') {
+      } else if (user?.role === "manager" || user?.role === "team_lead") {
         // For managers and team leads, fetch only their assigned projects
-        console.log(`📋 Fetching projects for ${user.role} (userId: ${user.id})`);
         if (!user.id || !user.role) {
-          console.error("❌ Missing user.id or user.role!", { user });
           setError("User information incomplete. Please log in again.");
           setLoading(false);
           return;
         }
         const url = `${API_BASE_URL}/projects?userId=${user.id}&userRole=${user.role}`;
-        console.log(`🌐 API URL: ${url}`);
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error("Failed to fetch projects");
         }
         projectData = await response.json();
-        console.log(`📊 Projects returned: ${projectData.length}`, projectData);
       } else {
         // For super admin, fetch all projects
-        console.log("👑 Fetching all projects for super admin");
         projectData = await projectAPI.getAll();
       }
-      
+
       setProjects(projectData || []);
-      setError('');
+      setError("");
     } catch (err) {
       console.error("❌ Error fetching projects:", err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch projects');
+      setError(err instanceof Error ? err.message : "Failed to fetch projects");
     } finally {
       setLoading(false);
     }
@@ -87,7 +84,7 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
 
   const handleProjectAdded = async (newProjectId: number) => {
     try {
-      if (user?.role && user.role !== 'employee' && user?.id) {
+      if (user?.role && user.role !== "employee" && user?.id) {
         await projectAssignmentsAPI.assign({
           project_id: newProjectId,
           assigned_to_user_id: user.id,
@@ -95,18 +92,18 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
         });
       }
     } catch (err: any) {
-      const msg = err?.message || 'Project created, but auto-assignment failed';
-      showToast(msg, 'error');
+      const msg = err?.message || "Project created, but auto-assignment failed";
+      showToast(msg, "error");
     } finally {
       await fetchProjects();
-      showToast('Project created successfully!', 'success');
+      showToast("Project created successfully!", "success");
     }
   };
 
   const handleProjectUpdated = () => {
     fetchProjects(); // Refresh the project list
     setEditingProject(null);
-    showToast('Project updated successfully!', 'success');
+    showToast("Project updated successfully!", "success");
   };
 
   const handleEditProject = (project: Project) => {
@@ -127,22 +124,29 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
     try {
       await projectAPI.delete(deleteConfirmation.projectId);
       fetchProjects();
-      showToast('Project deleted successfully!', 'success');
+      showToast("Project deleted successfully!", "success");
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to delete project';
-      showToast(errorMessage, 'error');
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to delete project";
+      showToast(errorMessage, "error");
     } finally {
-      setDeleteConfirmation({ isOpen: false, projectId: null, projectName: '' });
+      setDeleteConfirmation({
+        isOpen: false,
+        projectId: null,
+        projectName: "",
+      });
     }
   };
 
   const cancelDelete = () => {
-    setDeleteConfirmation({ isOpen: false, projectId: null, projectName: '' });
+    setDeleteConfirmation({ isOpen: false, projectId: null, projectName: "" });
   };
 
   const handleManageTeam = (projectId: number, projectName: string) => {
-    navigate(`/team-management/${projectId}`, { 
-      state: { projectName } 
+    navigate(`/team-management/${projectId}`, {
+      state: { projectName },
     });
   };
 
@@ -156,51 +160,67 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
 
   return (
     <div className="users-page">
-      <div className="page-header" style={{ marginBottom: '2rem' }}>
+      <div className="page-header" style={{ marginBottom: "2rem" }}>
         <div>
-          <h1 className="text-foreground" style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem' }}>
-            {user?.role === 'employee' ? 'My Projects' : 'Project Management'}
+          <h1
+            className="text-foreground"
+            style={{
+              fontSize: "2rem",
+              fontWeight: "700",
+              marginBottom: "0.5rem",
+            }}
+          >
+            {user?.role === "employee" ? "My Projects" : "Project Management"}
           </h1>
-          <p style={{ color: '#6b7280', fontSize: '0.95rem', marginTop: '0.25rem' }}>
+          <p
+            style={{
+              color: "#6b7280",
+              fontSize: "0.95rem",
+              marginTop: "0.25rem",
+            }}
+          >
             Manage and track all your projects in one place
           </p>
         </div>
         {projects.length > 0 && (
-          <div className="header-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div
+            className="header-actions"
+            style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}
+          >
             <input
               type="text"
               placeholder="Search projects by name, description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ 
-                padding: '0.65rem 1rem', 
-                border: '1px solid #e5e7eb', 
-                borderRadius: '8px',
-                width: '280px',
-                fontSize: '0.9rem',
-                outline: 'none'
+              style={{
+                padding: "0.65rem 1rem",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                width: "280px",
+                fontSize: "0.9rem",
+                outline: "none",
               }}
             />
-            {user?.role !== 'employee' && (
-              <button 
-                onClick={() => setShowAddProject(true)} 
+            {user?.role !== "employee" && (
+              <button
+                onClick={() => setShowAddProject(true)}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.65rem 1.25rem',
-                  backgroundColor: '#6366f1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  fontWeight: '500',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap'
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "0.65rem 1.25rem",
+                  backgroundColor: "#6366f1",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontSize: "0.9rem",
+                  fontWeight: "500",
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
                 }}
               >
-                <span style={{ fontSize: '1.1rem' }}>+</span>
+                <span style={{ fontSize: "1.1rem" }}>+</span>
                 Add Project
               </button>
             )}
@@ -208,22 +228,27 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
         )}
       </div>
 
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
+      {error && <div className="error-message">{error}</div>}
 
       <div className="projects-content">
-        {projects.filter(project => 
-          project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (project.description || '').toLowerCase().includes(searchTerm.toLowerCase())
+        {projects.filter(
+          (project) =>
+            project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (project.description || "")
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())
         ).length === 0 ? (
           <div className="empty-state">
             <h3>No projects found</h3>
-            <p>{searchTerm ? 'No projects match your search criteria.' : user?.role === 'employee' ? 'You are not assigned to any projects yet.' : 'Get started by creating your first project.'}</p>
-            {user?.role !== 'employee' && !searchTerm && (
-              <button 
+            <p>
+              {searchTerm
+                ? "No projects match your search criteria."
+                : user?.role === "employee"
+                ? "You are not assigned to any projects yet."
+                : "Get started by creating your first project."}
+            </p>
+            {user?.role !== "employee" && !searchTerm && (
+              <button
                 className="btn-enterprise btn-primary"
                 onClick={() => setShowAddProject(true)}
               >
@@ -233,14 +258,23 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
             )}
           </div>
         ) : (
-          <ProjectList 
-            projects={projects.filter(project => 
-              project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              (project.description || '').toLowerCase().includes(searchTerm.toLowerCase())
-            )} 
-            onDeleteProject={user?.role !== 'employee' ? handleDeleteProject : undefined}
-            onManageTeam={user?.role !== 'employee' ? handleManageTeam : undefined}
-            onEditProject={user?.role === 'manager' ? handleEditProject : undefined}
+          <ProjectList
+            projects={projects.filter(
+              (project) =>
+                project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (project.description || "")
+                  .toLowerCase()
+                  .includes(searchTerm.toLowerCase())
+            )}
+            onDeleteProject={
+              user?.role !== "employee" ? handleDeleteProject : undefined
+            }
+            onManageTeam={
+              user?.role !== "employee" ? handleManageTeam : undefined
+            }
+            onEditProject={
+              user?.role === "manager" ? handleEditProject : undefined
+            }
             userRole={user?.role}
             userId={user?.id}
           />
@@ -263,11 +297,7 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
       )}
 
       {toast.isVisible && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={hideToast}
-        />
+        <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
 
       <ConfirmationModal
