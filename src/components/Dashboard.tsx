@@ -144,6 +144,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   // Pagination state
   const [currentPageThisWeek, setCurrentPageThisWeek] = useState(1);
   const [currentPageNextWeek, setCurrentPageNextWeek] = useState(1);
+  const [currentPageTaskStats, setCurrentPageTaskStats] = useState(1);
   const itemsPerPage = 5;
   const [selectedTask, setSelectedTask] = useState<{
     id: number;
@@ -569,12 +570,45 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }
     // For super_admin, leave as undefined to show all projects
 
-    // Handle employeeId - employees default to their own ID
+    // Handle employeeId based on project selection
+    // If project is selected, include all employees assigned to that project
+    // If no project is selected, include all employees
+    // Exception: if employeeId filter is explicitly set, use that instead
+    // Note: Filter out super_admin users from employees list before processing
     let effectiveEmployeeId: number | number[] | undefined;
-    if (user?.role === "employee") {
-      effectiveEmployeeId = filters.employeeId || user?.id;
-    } else {
+
+    // Filter out super_admin users from employees lists
+    const filteredEmployees = employees.filter(
+      (emp) => emp && emp.id && emp.role !== "super_admin"
+    );
+    const filteredAllEmployees = allEmployees.filter(
+      (emp) => emp && emp.id && emp.role !== "super_admin"
+    );
+
+    // If employeeId filter is explicitly set, use it (for all roles)
+    if (filters.employeeId !== undefined) {
       effectiveEmployeeId = filters.employeeId;
+    } else if (user?.role === "employee") {
+      // For employees, default to their own ID if no filter is set
+      effectiveEmployeeId = user?.id;
+    } else if (
+      user?.role === "manager" ||
+      user?.role === "team_lead" ||
+      user?.role === "super_admin"
+    ) {
+      // For manager, team_lead, and super_admin roles
+      // Note: super_admin users are excluded from the employees list
+      if (filters.projectId !== undefined) {
+        // Project is selected - use all employees from that project (excluding super_admin users)
+        if (filteredEmployees.length > 0) {
+          effectiveEmployeeId = filteredEmployees.map((emp) => emp.id);
+        }
+      } else {
+        // No project selected - use all employees (excluding super_admin users)
+        if (filteredAllEmployees.length > 0) {
+          effectiveEmployeeId = filteredAllEmployees.map((emp) => emp.id);
+        }
+      }
     }
 
     // Convert projectId and employeeId to comma-separated strings for API
@@ -613,6 +647,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         payload
       );
       setTaskStats(res.data);
+      // Reset pagination when new data is fetched
+      setCurrentPageTaskStats(1);
     } catch (error) {
       console.error("Error fetching task stats:", error);
     }
@@ -871,6 +907,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
     return null;
   };
+
   const utilization = calculateUtilization();
 
   // Calculate available hours: sum of available hours from availability data
@@ -1730,6 +1767,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <thead>
                 <tr>
                   <th>Task</th>
+                  <th>Project</th>
                   <th>Assignee</th>
                   <th className="status-column">Status</th>
                   <th>Hours</th>
@@ -1738,7 +1776,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <tbody>
                 {(!taskStats?.tasks || taskStats.tasks.length === 0) && (
                   <tr>
-                    <td colSpan={4} className="empty-task-message">
+                    <td colSpan={5} className="empty-task-message">
                       <div className="empty-state-content">
                         <span className="empty-icon">📋</span>
                         <p>No tasks in this date range</p>
@@ -1748,8 +1786,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 )}
                 {taskStats?.tasks
                   ?.slice(
-                    (currentPageThisWeek - 1) * itemsPerPage,
-                    currentPageThisWeek * itemsPerPage
+                    (currentPageTaskStats - 1) * itemsPerPage,
+                    currentPageTaskStats * itemsPerPage
                   )
                   .map((task) => {
                     const statusConfig =
@@ -1780,6 +1818,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                       selectedTask &&
                       selectedTask.source === "thisWeek" &&
                       selectedTask.id === task.id;
+                    // Get project name from projects array using project_id
+                    const projectName =
+                      projects.find((p) => p.id === task.project_id)?.name ||
+                      `Project ${task.project_id}`;
                     return (
                       <React.Fragment key={`fragment-task-${task.id}`}>
                         <tr
@@ -1808,6 +1850,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                               {task?.name}
                             </a>
                           </td>
+                          <td className="task-project">{projectName}</td>
                           <td className="task-assignee">
                             {task.username || `User ${task.assignee_id}`}
                           </td>
@@ -1835,7 +1878,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                             key={`details-${task.id}`}
                             className="task-details-row"
                           >
-                            <td colSpan={4}>
+                            <td colSpan={5}>
                               <div className="task-details-panel">
                                 <div className="task-detail-item">
                                   <span className="task-detail-label">
@@ -1921,9 +1964,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           {taskStats?.tasks && taskStats.tasks.length > itemsPerPage && (
             <div className="pagination-container">
               <div className="pagination-info">
-                Showing {(currentPageThisWeek - 1) * itemsPerPage + 1} to{" "}
+                Showing {(currentPageTaskStats - 1) * itemsPerPage + 1} to{" "}
                 {Math.min(
-                  currentPageThisWeek * itemsPerPage,
+                  currentPageTaskStats * itemsPerPage,
                   taskStats.tasks?.length || 0
                 )}{" "}
                 of {taskStats.tasks?.length || 0} tasks
@@ -1931,22 +1974,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <div className="pagination-controls">
                 <button
                   onClick={() =>
-                    setCurrentPageThisWeek((prev) => Math.max(1, prev - 1))
+                    setCurrentPageTaskStats((prev) => Math.max(1, prev - 1))
                   }
-                  disabled={currentPageThisWeek === 1}
+                  disabled={currentPageTaskStats === 1}
                   className={`pagination-button ${
-                    currentPageThisWeek === 1 ? "disabled" : ""
+                    currentPageTaskStats === 1 ? "disabled" : ""
                   }`}
                 >
                   Previous
                 </button>
                 <span className="pagination-page-info">
-                  Page {currentPageThisWeek} of{" "}
+                  Page {currentPageTaskStats} of{" "}
                   {Math.ceil((taskStats.tasks?.length || 0) / itemsPerPage)}
                 </span>
                 <button
                   onClick={() =>
-                    setCurrentPageThisWeek((prev) =>
+                    setCurrentPageTaskStats((prev) =>
                       Math.min(
                         Math.ceil(
                           (taskStats.tasks?.length || 0) / itemsPerPage
@@ -1956,11 +1999,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     )
                   }
                   disabled={
-                    currentPageThisWeek >=
+                    currentPageTaskStats >=
                     Math.ceil((taskStats.tasks?.length || 0) / itemsPerPage)
                   }
                   className={`pagination-button ${
-                    currentPageThisWeek >=
+                    currentPageTaskStats >=
                     Math.ceil((taskStats.tasks?.length || 0) / itemsPerPage)
                       ? "disabled"
                       : ""
