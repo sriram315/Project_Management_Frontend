@@ -32,6 +32,31 @@ interface ProjectTeamMember {
   email: string;
 }
 
+// Helper function to format date for HTML date input (yyyy-MM-dd)
+const formatDateForInput = (dateValue: string | undefined | null): string => {
+  if (!dateValue) return "";
+  // If it's already in yyyy-MM-dd format, return as is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    return dateValue;
+  }
+  // If it's in dd-mm-yyyy format, convert it
+  if (/^\d{2}-\d{2}-\d{4}$/.test(dateValue)) {
+    const [day, month, year] = dateValue.split("-");
+    return `${year}-${month}-${day}`;
+  }
+  // If it's an ISO date string or other format, extract just the date part
+  try {
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  } catch (e) {
+    return "";
+  }
+};
+
 const EditTask: React.FC<EditTaskProps> = ({
   task,
   onTaskUpdated,
@@ -49,7 +74,8 @@ const EditTask: React.FC<EditTaskProps> = ({
     planned_hours: task.planned_hours || 0,
     priority: task.priority || "p2",
     task_type: task.task_type || "development",
-    due_date: task.due_date || "",
+    start_date: formatDateForInput((task as any).start_date),
+    due_date: formatDateForInput(task.due_date),
     attachments: task.attachments || "",
     status: task.status || "todo",
   });
@@ -144,7 +170,8 @@ const EditTask: React.FC<EditTaskProps> = ({
         planned_hours: task.planned_hours || 0,
         priority: task.priority || "p2",
         task_type: task.task_type || "development",
-        due_date: task.due_date || "",
+        start_date: formatDateForInput((task as any).start_date),
+        due_date: formatDateForInput(task.due_date),
         attachments: task.attachments || "",
         status: task.status || "todo",
       });
@@ -300,6 +327,25 @@ const EditTask: React.FC<EditTaskProps> = ({
       errors.planned_hours = "Estimated hours seems too high (max 1000)";
     }
 
+    // Start date validation (optional but if provided, cannot be past and must be before due date)
+    if (formData.start_date) {
+      const startDate = new Date(formData.start_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (startDate < today) {
+        errors.start_date = "Start date cannot be in the past";
+      }
+
+      // If due date is provided, ensure start date is before or equal to due date
+      if (formData.due_date) {
+        const dueDate = new Date(formData.due_date);
+        if (startDate > dueDate) {
+          errors.start_date = "Start date must be before or equal to due date";
+        }
+      }
+    }
+
     // Due date validation (optional but if provided should be future date)
     if (formData.due_date) {
       const dueDate = new Date(formData.due_date);
@@ -390,9 +436,14 @@ const EditTask: React.FC<EditTaskProps> = ({
   const updateTask = async () => {
     try {
       // For employees, update status and description (and daily update will be added separately)
-      const updateData = isEmployee
+      let updateData: any = isEmployee
         ? { status: formData.status, description: formData.description }
         : formData;
+
+      // Remove start_date if it's empty to avoid backend errors
+      if (!updateData.start_date || updateData.start_date.trim() === "") {
+        delete updateData.start_date;
+      }
 
       await taskAPI.update(task.id, updateData);
 
@@ -435,7 +486,7 @@ const EditTask: React.FC<EditTaskProps> = ({
           description: formData.description,
         });
       } else {
-        const taskData = {
+        const taskData: any = {
           ...formData,
           workload_warning_level: workloadData.warningLevel,
           workload_warnings: JSON.stringify(workloadData.warnings),
@@ -447,6 +498,12 @@ const EditTask: React.FC<EditTaskProps> = ({
           available_hours: workloadData.workload.availableHours,
           allocated_hours: workloadData.workload.allocatedHours,
         };
+
+        // Remove start_date if it's empty to avoid backend errors
+        if (!taskData.start_date || taskData.start_date.trim() === "") {
+          delete taskData.start_date;
+        }
+
         await taskAPI.update(task.id, taskData);
       }
 
@@ -870,6 +927,44 @@ const EditTask: React.FC<EditTaskProps> = ({
                     </small>
                   )}
                 </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="start_date">Start Date</label>
+                  <input
+                    type="date"
+                    id="start_date"
+                    name="start_date"
+                    value={formData.start_date}
+                    onChange={handleInputChange}
+                    min={(function () {
+                      const d = new Date();
+                      const y = d.getFullYear();
+                      const m = String(d.getMonth() + 1).padStart(2, "0");
+                      const day = String(d.getDate()).padStart(2, "0");
+                      return `${y}-${m}-${day}`;
+                    })()}
+                    max={formData.due_date || undefined}
+                    style={{
+                      borderColor: formErrors.start_date
+                        ? "#ef4444"
+                        : "#e1e8ed",
+                    }}
+                  />
+                  {formErrors.start_date && (
+                    <small
+                      style={{
+                        color: "#ef4444",
+                        fontSize: "0.85rem",
+                        marginTop: "0.25rem",
+                        display: "block",
+                      }}
+                    >
+                      {formErrors.start_date}
+                    </small>
+                  )}
+                </div>
 
                 <div className="form-group">
                   <label htmlFor="due_date">Due Date</label>
@@ -879,6 +974,16 @@ const EditTask: React.FC<EditTaskProps> = ({
                     name="due_date"
                     value={formData.due_date}
                     onChange={handleInputChange}
+                    min={
+                      formData.start_date ||
+                      (function () {
+                        const d = new Date();
+                        const y = d.getFullYear();
+                        const m = String(d.getMonth() + 1).padStart(2, "0");
+                        const day = String(d.getDate()).padStart(2, "0");
+                        return `${y}-${m}-${day}`;
+                      })()
+                    }
                     style={{
                       borderColor: formErrors.due_date ? "#ef4444" : "#e1e8ed",
                     }}
