@@ -420,6 +420,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           ? employeeIdStr || String(user?.id)
           : employeeIdStr;
 
+      // Calculate dates for timeline: always use actual calendar weeks (this week + next week)
+      // This ensures "Tasks This Week" and "Tasks Next Week" always show actual calendar weeks
+      // regardless of the date filter
+      // Reuse monday (already calculated as this week's Monday) and calculate next week from there
+      const thisWeekMonday = monday;
+      const nextWeekMonday = new Date(thisWeekMonday);
+      nextWeekMonday.setDate(thisWeekMonday.getDate() + 7);
+      const nextWeekFriday = new Date(nextWeekMonday);
+      nextWeekFriday.setDate(nextWeekMonday.getDate() + 4);
+
+      // Timeline dates: from this week Monday to next week Friday
+      const timelineStartDate = formatDateLocal(thisWeekMonday);
+      const timelineEndDate = formatDateLocal(nextWeekFriday);
+
       const [data, taskStatusData, tasksTimeline] = await Promise.all([
         dashboardAPI.getDashboardData({
           projectId: projectIdStr,
@@ -443,8 +457,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           userId: user?.id || 0,
           projectId: projectIdStr,
           employeeId: timelineEmployeeIdStr,
-          startDate: effectiveStartDate,
-          endDate: effectiveEndDate,
+          startDate: timelineStartDate,
+          endDate: timelineEndDate,
         }),
       ]);
 

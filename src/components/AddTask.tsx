@@ -364,13 +364,24 @@ const AddTask: React.FC<AddTaskProps> = ({
           due_date: formData.due_date,
         });
 
-        // Check if estimated hours exceed available hours
-        if (formData.planned_hours > validationResult.workload.availableHours) {
-          const violation =
-            formData.planned_hours - validationResult.workload.availableHours;
+        // Calculate available hours percentage after adding the new task
+        const { availableHours, totalHours, utilizationPercentage } =
+          validationResult.workload;
+        const totalCapacity = totalHours + availableHours; // Total weekly capacity
+        const availableHoursPercentage =
+          totalCapacity > 0 ? (availableHours / totalCapacity) * 100 : 0;
+
+        // Calculate available hours BEFORE adding the new task
+        // availableHoursAfter = availableHoursBefore - newTaskHours
+        // So: availableHoursBefore = availableHoursAfter + newTaskHours
+        const availableHoursBefore = availableHours + formData.planned_hours;
+
+        // Check if estimated hours exceed available hours BEFORE adding the task
+        if (formData.planned_hours > availableHoursBefore) {
+          const violation = formData.planned_hours - availableHoursBefore;
           setShowWorkloadWarning({
             warnings: [
-              `Estimated hours (${formData.planned_hours}h) exceed available hours (${validationResult.workload.availableHours}h) for this week`,
+              `Estimated hours (${formData.planned_hours}h) exceed available hours (${availableHoursBefore}h) for this week`,
               `This task requires ${violation}h more than what's available`,
               ...validationResult.warnings,
             ],
@@ -382,7 +393,7 @@ const AddTask: React.FC<AddTaskProps> = ({
           return;
         }
 
-        // If there are other warnings, show the warning modal
+        // If there are warnings from backend, show the warning modal
         if (validationResult.warningLevel !== "none") {
           setShowWorkloadWarning({
             warnings: validationResult.warnings,

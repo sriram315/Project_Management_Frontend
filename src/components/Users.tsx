@@ -4,6 +4,7 @@ import Toast from "./Toast";
 import { useToast } from "../hooks/useToast";
 import ConfirmationModal from "./ConfirmationModal";
 import { API_BASE_URL, userAPI } from "../services/api";
+import { PencilIcon, TrashIcon, EyeIcon } from "@heroicons/react/24/outline";
 
 interface User {
   id: number;
@@ -70,11 +71,16 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
   const fetchUsers = async () => {
     try {
       const params = new URLSearchParams();
-      if (currentUser?.id && (currentUser?.role === 'manager' || currentUser?.role === 'team_lead')) {
-        params.append('userId', String(currentUser.id));
-        params.append('userRole', currentUser.role);
+      if (
+        currentUser?.id &&
+        (currentUser?.role === "manager" || currentUser?.role === "team_lead")
+      ) {
+        params.append("userId", String(currentUser.id));
+        params.append("userRole", currentUser.role);
       }
-      const url = `${API_BASE_URL}/users${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = `${API_BASE_URL}/users${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
       const response = await axios.get(url);
       setUsers(response.data);
     } catch (error) {
@@ -101,7 +107,8 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
     if (!newUser.password) {
       errors.password = "Password is required";
     } else {
-      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-={}\[\]|;:'",.<>\/?`~]).{8,15}$/;
+      const passwordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-={}\[\]|;:'",.<>\/?`~]).{8,15}$/;
       if (!passwordRegex.test(newUser.password)) {
         errors.password =
           "Password must be 8-15 characters, include at least one uppercase, one lowercase, and one special character";
@@ -172,7 +179,8 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
     } catch (error: any) {
       console.error("Error adding user:", error);
       const errorResponse = error.response?.data;
-      const errorMessage = errorResponse?.message || "Failed to create user. Please try again.";
+      const errorMessage =
+        errorResponse?.message || "Failed to create user. Please try again.";
       const errorField = errorResponse?.field;
 
       // If the backend specifies which field has the error, set it in formErrors
@@ -289,7 +297,8 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
     } catch (error: any) {
       console.error("Error updating user:", error);
       const errorResponse = error.response?.data;
-      const errorMessage = errorResponse?.message || "Failed to update user. Please try again.";
+      const errorMessage =
+        errorResponse?.message || "Failed to update user. Please try again.";
       const errorField = errorResponse?.field;
 
       // If the backend specifies which field has the error, set it in formErrors
@@ -311,17 +320,17 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
     setLoadingEmployeeDetails(true);
     setEmployeeProjects([]);
     setEmployeeTasks([]);
-    
+
     try {
       const [projects, tasks] = await Promise.all([
-        userAPI.getUserProjects(user.id),
-        userAPI.getUserTasks(user.id)
+        userAPI.getUserProjects(user.id).catch(() => []), // Return empty array on error
+        userAPI.getUserTasks(user.id).catch(() => []), // Return empty array on error
       ]);
-      setEmployeeProjects(projects);
-      setEmployeeTasks(tasks);
+      setEmployeeProjects(projects || []);
+      setEmployeeTasks(tasks || []);
     } catch (err: any) {
-      console.error('Error fetching employee details:', err);
-      showToast('Failed to load team member details', 'error');
+      console.error("Error fetching user details:", err);
+      showToast("Failed to load user details", "error");
     } finally {
       setLoadingEmployeeDetails(false);
     }
@@ -339,9 +348,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
     if (!deleteConfirmation.userId) return;
 
     try {
-      await axios.delete(
-        `${API_BASE_URL}/users/${deleteConfirmation.userId}`
-      );
+      await axios.delete(`${API_BASE_URL}/users/${deleteConfirmation.userId}`);
       fetchUsers();
       showToast("User deleted successfully!", "success");
     } catch (error: any) {
@@ -692,7 +699,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
               fontSize: "0.9rem",
             }}
           />
-          {currentUser?.role === 'super_admin' && (
+          {currentUser?.role === "super_admin" && (
             <button
               onClick={handleOpenAddForm}
               style={{
@@ -714,7 +721,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
               Add User
             </button>
           )}
-          {currentUser?.role === 'super_admin' && (
+          {currentUser?.role === "super_admin" && (
             <button
               onClick={handleExportUsers}
               className="bg-white"
@@ -736,7 +743,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
               Export
             </button>
           )}
-          {currentUser?.role === 'super_admin' && (
+          {currentUser?.role === "super_admin" && (
             <label
               className="bg-white"
               style={{
@@ -819,7 +826,11 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                 ×
               </button>
             </div>
-            <form key="add-user-form" onSubmit={handleAddUser} className="user-form">
+            <form
+              key="add-user-form"
+              onSubmit={handleAddUser}
+              className="user-form"
+            >
               <div className="form-group">
                 <label>
                   Username: <span style={{ color: "#ef4444" }}>*</span>
@@ -856,7 +867,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                 <label>
                   Password: <span style={{ color: "#ef4444" }}>*</span>
                 </label>
-                <div style={{ position: 'relative' }}>
+                <div style={{ position: "relative" }}>
                   <input
                     type={showPassword ? "text" : "password"}
                     value={newUser.password}
@@ -865,8 +876,8 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                     }
                     style={{
                       borderColor: formErrors.password ? "#ef4444" : "#e1e8ed",
-                      paddingRight: '2.5rem',
-                      width: '100%'
+                      paddingRight: "2.5rem",
+                      width: "100%",
                     }}
                     placeholder="8-15 chars, 1 upper, 1 lower, 1 special"
                     autoComplete="new-password"
@@ -875,31 +886,49 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     style={{
-                      position: 'absolute',
-                      right: '0.5rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: '0.25rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#666',
-                      fontSize: '1.1rem',
-                      width: '1.5rem',
-                      height: '1.5rem'
+                      position: "absolute",
+                      right: "0.5rem",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "0.25rem",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#666",
+                      fontSize: "1.1rem",
+                      width: "1.5rem",
+                      height: "1.5rem",
                     }}
                     title={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
                         <line x1="1" y1="1" x2="23" y2="23"></line>
                       </svg>
                     ) : (
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                         <circle cx="12" cy="12" r="3"></circle>
                       </svg>
@@ -1055,9 +1084,11 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
       <div
         className="users-table-container bg-white"
         style={{
-          borderRadius: "12px",
+          borderRadius: "0.5rem",
           overflow: "hidden",
           border: "1px solid #e5e7eb",
+          boxShadow:
+            "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
           maxHeight: "600px",
           display: "flex",
           flexDirection: "column",
@@ -1066,71 +1097,85 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
         <div style={{ overflow: "auto", flex: 1 }}>
           <table
             className="users-table"
-            style={{ width: "100%", borderCollapse: "collapse" }}
+            style={{
+              width: "100%",
+              borderCollapse: "separate",
+              borderSpacing: 0,
+            }}
           >
             <thead style={{ position: "sticky", top: 0, zIndex: 10 }}>
               <tr
-                className="bg-gray-50"
                 style={{
+                  backgroundColor: "#f9fafb",
                   borderBottom: "1px solid #e5e7eb",
                 }}
               >
                 <th
-                  className="text-muted-foreground"
                   style={{
-                    padding: "1rem 1.5rem",
+                    padding: "0.75rem 1rem",
                     textAlign: "left",
                     fontWeight: "600",
-                    fontSize: "0.875rem",
-                    textTransform: "none",
+                    fontSize: "0.75rem",
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase",
+                    color: "#6b7280",
+                    backgroundColor: "#f9fafb",
                   }}
                 >
-                  First Name/Last Name
+                  Name
                 </th>
                 <th
-                  className="text-muted-foreground"
                   style={{
-                    padding: "1rem 1.5rem",
+                    padding: "0.75rem 1rem",
                     textAlign: "left",
                     fontWeight: "600",
-                    fontSize: "0.875rem",
-                    textTransform: "none",
+                    fontSize: "0.75rem",
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase",
+                    color: "#6b7280",
+                    backgroundColor: "#f9fafb",
                   }}
                 >
                   Email
                 </th>
                 <th
-                  className="text-muted-foreground"
                   style={{
-                    padding: "1rem 1.5rem",
+                    padding: "0.75rem 1rem",
                     textAlign: "left",
                     fontWeight: "600",
-                    fontSize: "0.875rem",
-                    textTransform: "none",
+                    fontSize: "0.75rem",
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase",
+                    color: "#6b7280",
+                    backgroundColor: "#f9fafb",
                   }}
                 >
                   Role
                 </th>
                 <th
-                  className="text-muted-foreground"
                   style={{
-                    padding: "1rem 1.5rem",
+                    padding: "0.75rem 1rem",
                     textAlign: "left",
                     fontWeight: "600",
-                    fontSize: "0.875rem",
-                    textTransform: "none",
+                    fontSize: "0.75rem",
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase",
+                    color: "#6b7280",
+                    backgroundColor: "#f9fafb",
                   }}
                 >
                   Hours/Week
                 </th>
                 <th
-                  className="text-muted-foreground"
                   style={{
-                    padding: "1rem 1.5rem",
+                    padding: "0.75rem 1rem",
                     textAlign: "left",
                     fontWeight: "600",
-                    fontSize: "0.875rem",
-                    textTransform: "none",
+                    fontSize: "0.75rem",
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase",
+                    color: "#6b7280",
+                    backgroundColor: "#f9fafb",
                   }}
                 >
                   Actions
@@ -1139,8 +1184,21 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
             </thead>
             <tbody>
               {filteredUsers.map((user) => (
-                <tr key={user.id} className="border-gray-200" style={{ borderBottom: "1px solid #f3f4f6" }}>
-                  <td style={{ padding: "1rem 1.5rem" }}>
+                <tr
+                  key={user.id}
+                  style={{
+                    borderBottom: "1px solid #f3f4f6",
+                    transition: "background-color 0.15s ease-in-out",
+                    backgroundColor: "#ffffff",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f9fafb";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#ffffff";
+                  }}
+                >
+                  <td style={{ padding: "1rem" }}>
                     <div
                       style={{
                         display: "flex",
@@ -1150,12 +1208,12 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                     >
                       <div
                         style={{
-                          width: "40px",
-                          height: "40px",
+                          width: "2.5rem",
+                          height: "2.5rem",
                           background:
                             "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                           color: "white",
-                          borderRadius: "50%",
+                          borderRadius: "9999px",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -1173,18 +1231,19 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                       </div>
                       <div>
                         <div
-                          className="text-foreground"
                           style={{
                             fontWeight: "500",
-                            fontSize: "0.9rem",
+                            fontSize: "0.875rem",
+                            color: "#111827",
+                            lineHeight: "1.25rem",
                           }}
                         >
                           {user.username}
                         </div>
                         <div
-                          className="text-muted-foreground"
                           style={{
-                            fontSize: "0.8rem",
+                            fontSize: "0.75rem",
+                            color: "#6b7280",
                             marginTop: "0.125rem",
                           }}
                         >
@@ -1193,39 +1252,44 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: "1rem 1.5rem" }}>
+                  <td style={{ padding: "1rem" }}>
                     <div
-                      className="text-foreground"
                       style={{
                         display: "flex",
                         alignItems: "center",
                         gap: "0.5rem",
                         fontSize: "0.875rem",
+                        color: "#374151",
                       }}
                     >
-                      <span>✉️</span>
-                      {user.email}
+                      <span style={{ fontSize: "0.875rem" }}>✉️</span>
+                      <span>{user.email}</span>
                     </div>
                   </td>
-                  <td style={{ padding: "1rem 1.5rem" }}>
+                  <td style={{ padding: "1rem" }}>
                     <span
                       style={{
-                        display: "inline-block",
-                        padding: "0.375rem 0.75rem",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        padding: "0.25rem 0.625rem",
                         borderRadius: "9999px",
                         fontSize: "0.75rem",
-                        fontWeight: "600",
+                        fontWeight: "500",
                         backgroundColor:
                           user.role === "manager"
                             ? "#d1fae5"
                             : user.role === "team_lead"
                             ? "#fef3c7"
+                            : user.role === "super_admin"
+                            ? "#ede9fe"
                             : "#dbeafe",
                         color:
                           user.role === "manager"
                             ? "#065f46"
                             : user.role === "team_lead"
                             ? "#92400e"
+                            : user.role === "super_admin"
+                            ? "#5b21b6"
                             : "#1e40af",
                       }}
                     >
@@ -1233,99 +1297,200 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                         ? "Manager"
                         : user.role === "team_lead"
                         ? "Team Lead"
+                        : user.role === "super_admin"
+                        ? "Super Admin"
                         : "Team Member"}
                     </span>
                   </td>
-                  <td style={{ padding: "1rem 1.5rem" }}>
+                  <td style={{ padding: "1rem" }}>
                     <div
-                      className="text-foreground"
                       style={{
                         display: "flex",
                         alignItems: "center",
                         gap: "0.5rem",
                         fontSize: "0.875rem",
+                        color: "#374151",
                       }}
                     >
-                      <span>🕒</span>
-                      {user.available_hours_per_week || 40}h/week
+                      <span style={{ fontSize: "0.875rem" }}>🕒</span>
+                      <span>{user.available_hours_per_week || 40}h/week</span>
                     </div>
                   </td>
-                  <td style={{ padding: "1rem 1.5rem" }}>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      {currentUser?.role === 'super_admin' && user.role !== 'super_admin' ? (
+                  <td style={{ padding: "1rem" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.5rem",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {currentUser?.role === "super_admin" &&
+                      user.role !== "super_admin" ? (
                         <>
                           <button
                             onClick={() => handleEditUser(user)}
-                            className="bg-white"
+                            title="Edit User"
                             style={{
-                              display: "flex",
+                              display: "inline-flex",
                               alignItems: "center",
-                              gap: "0.375rem",
-                              padding: "0.5rem 0.875rem",
+                              justifyContent: "center",
+                              width: "2rem",
+                              height: "2rem",
+                              padding: "0",
+                              backgroundColor: "#ffffff",
                               color: "#374151",
-                              border: "1px solid #e5e7eb",
-                              borderRadius: "6px",
+                              border: "1px solid #d1d5db",
+                              borderRadius: "0.375rem",
                               cursor: "pointer",
-                              fontSize: "0.875rem",
-                              fontWeight: "500",
-                              transition: "all 0.2s",
+                              transition: "all 0.2s ease-in-out",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = "#f9fafb";
+                              e.currentTarget.style.borderColor = "#9ca3af";
+                              e.currentTarget.style.color = "#111827";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = "#ffffff";
+                              e.currentTarget.style.borderColor = "#d1d5db";
+                              e.currentTarget.style.color = "#374151";
                             }}
                           >
-                            <span style={{ fontSize: "0.875rem" }}>✏️</span>
-                            Edit
+                            <PencilIcon
+                              style={{ width: "1rem", height: "1rem" }}
+                            />
                           </button>
                           <button
-                            onClick={() => handleDeleteUser(user.id, user.username)}
+                            onClick={() =>
+                              handleDeleteUser(user.id, user.username)
+                            }
+                            title="Delete User"
                             style={{
-                              display: "flex",
+                              display: "inline-flex",
                               alignItems: "center",
-                              gap: "0.375rem",
-                              padding: "0.5rem 0.875rem",
+                              justifyContent: "center",
+                              width: "2rem",
+                              height: "2rem",
+                              padding: "0",
                               backgroundColor: "#ef4444",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "6px",
+                              color: "#ffffff",
+                              border: "1px solid #ef4444",
+                              borderRadius: "0.375rem",
                               cursor: "pointer",
-                              fontSize: "0.875rem",
-                              fontWeight: "500",
-                              transition: "all 0.2s",
+                              transition: "all 0.2s ease-in-out",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = "#dc2626";
+                              e.currentTarget.style.borderColor = "#dc2626";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = "#ef4444";
+                              e.currentTarget.style.borderColor = "#ef4444";
                             }}
                           >
-                            <span style={{ fontSize: "0.875rem" }}>🗑️</span>
-                            Delete
+                            <TrashIcon
+                              style={{ width: "1rem", height: "1rem" }}
+                            />
+                          </button>
+                          <button
+                            onClick={() => handleViewEmployeeDetails(user)}
+                            title="View User Details"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: "2rem",
+                              height: "2rem",
+                              padding: "0",
+                              backgroundColor: "#6366f1",
+                              color: "#ffffff",
+                              border: "1px solid #6366f1",
+                              borderRadius: "0.375rem",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease-in-out",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = "#4f46e5";
+                              e.currentTarget.style.borderColor = "#4f46e5";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = "#6366f1";
+                              e.currentTarget.style.borderColor = "#6366f1";
+                            }}
+                          >
+                            <EyeIcon
+                              style={{ width: "1rem", height: "1rem" }}
+                            />
                           </button>
                         </>
-                      ) : currentUser?.role === 'super_admin' && user.role === 'super_admin' ? (
-                        <span style={{ color: "#9ca3af", fontSize: "0.875rem" }}>View only</span>
-                      ) : (currentUser?.role === 'manager' && (user.role === 'employee' || user.role === 'team_lead')) || (currentUser?.role === 'team_lead' && user.role === 'employee') ? (
+                      ) : currentUser?.role === "super_admin" &&
+                        user.role === "super_admin" ? (
                         <button
                           onClick={() => handleViewEmployeeDetails(user)}
+                          title="View User Details"
                           style={{
-                            display: "flex",
+                            display: "inline-flex",
                             alignItems: "center",
-                            gap: "0.375rem",
-                            padding: "0.5rem 0.875rem",
+                            justifyContent: "center",
+                            width: "2rem",
+                            height: "2rem",
+                            padding: "0",
                             backgroundColor: "#6366f1",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "6px",
+                            color: "#ffffff",
+                            border: "1px solid #6366f1",
+                            borderRadius: "0.375rem",
                             cursor: "pointer",
-                            fontSize: "0.875rem",
-                            fontWeight: "500",
-                            transition: "all 0.2s",
+                            transition: "all 0.2s ease-in-out",
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.backgroundColor = "#4f46e5";
+                            e.currentTarget.style.borderColor = "#4f46e5";
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.backgroundColor = "#6366f1";
+                            e.currentTarget.style.borderColor = "#6366f1";
                           }}
                         >
-                          <span style={{ fontSize: "0.875rem" }}></span>
-                          View Details
+                          <EyeIcon style={{ width: "1rem", height: "1rem" }} />
+                        </button>
+                      ) : (currentUser?.role === "manager" &&
+                          (user.role === "employee" ||
+                            user.role === "team_lead")) ||
+                        (currentUser?.role === "team_lead" &&
+                          user.role === "employee") ? (
+                        <button
+                          onClick={() => handleViewEmployeeDetails(user)}
+                          title="View User Details"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "2rem",
+                            height: "2rem",
+                            padding: "0",
+                            backgroundColor: "#6366f1",
+                            color: "#ffffff",
+                            border: "1px solid #6366f1",
+                            borderRadius: "0.375rem",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease-in-out",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#4f46e5";
+                            e.currentTarget.style.borderColor = "#4f46e5";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = "#6366f1";
+                            e.currentTarget.style.borderColor = "#6366f1";
+                          }}
+                        >
+                          <EyeIcon style={{ width: "1rem", height: "1rem" }} />
                         </button>
                       ) : (
-                        <span style={{ color: "#9ca3af", fontSize: "0.875rem" }}>View only</span>
+                        <span
+                          style={{ color: "#9ca3af", fontSize: "0.875rem" }}
+                        >
+                          View only
+                        </span>
                       )}
                     </div>
                   </td>
@@ -1336,9 +1501,22 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
         </div>
         {filteredUsers.length === 0 && (
           <div
-            style={{ padding: "3rem", textAlign: "center", color: "#6b7280" }}
+            style={{
+              padding: "3rem",
+              textAlign: "center",
+              color: "#6b7280",
+              backgroundColor: "#ffffff",
+            }}
           >
-            <p>No users found. Try adjusting your search or add new users.</p>
+            <p
+              style={{
+                fontSize: "0.875rem",
+                fontWeight: "400",
+                color: "#6b7280",
+              }}
+            >
+              No users found. Try adjusting your search or add new users.
+            </p>
           </div>
         )}
       </div>
@@ -1378,7 +1556,10 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                   type="text"
                   value={editingUser.username}
                   onChange={(e) => {
-                    setEditingUser({ ...editingUser, username: e.target.value });
+                    setEditingUser({
+                      ...editingUser,
+                      username: e.target.value,
+                    });
                     // Clear username error when user starts typing
                     if (formErrors.username) {
                       setFormErrors({ ...formErrors, username: "" });
@@ -1548,36 +1729,52 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
         variant="danger"
       />
 
-      {/* Team Member Details Modal */}
+      {/* User Details Modal */}
       {showViewModal && viewingUser && (
         <div className="modal-overlay" onClick={() => setShowViewModal(false)}>
-          <div className="modal-content" style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', margin: '-2rem -2rem 1.5rem -2rem', padding: '1.5rem 2rem', borderRadius: '12px 12px 0 0', position: 'relative' }}>
-              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>Team Member Details</h2>
+          <div
+            className="modal-content"
+            style={{ maxWidth: "800px", maxHeight: "90vh", overflowY: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="modal-header"
+              style={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                color: "white",
+                margin: "-2rem -2rem 1.5rem -2rem",
+                padding: "1.5rem 2rem",
+                borderRadius: "12px 12px 0 0",
+                position: "relative",
+              }}
+            >
+              <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 600 }}>
+                User Details
+              </h2>
               <button
                 onClick={() => setShowViewModal(false)}
                 style={{
-                  position: 'absolute',
-                  top: '1rem',
-                  right: '1rem',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '32px',
-                  height: '32px',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '1.25rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'background 0.2s'
+                  position: "absolute",
+                  top: "1rem",
+                  right: "1rem",
+                  background: "rgba(255, 255, 255, 0.2)",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: "32px",
+                  height: "32px",
+                  color: "white",
+                  cursor: "pointer",
+                  fontSize: "1.25rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background 0.2s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.3)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
                 }}
               >
                 ×
@@ -1585,72 +1782,255 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
             </div>
 
             {loadingEmployeeDetails ? (
-              <div className="text-foreground" style={{ padding: '2rem', textAlign: 'center' }}>
-                <p>Loading team member details...</p>
+              <div
+                className="text-foreground"
+                style={{ padding: "2rem", textAlign: "center" }}
+              >
+                <p>Loading user details...</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1.5rem",
+                }}
+              >
                 {/* Basic Information */}
                 <div>
-                  <h3 className="text-foreground" style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: 600 }}>Basic Information</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                  <h3
+                    className="text-foreground"
+                    style={{
+                      marginBottom: "1rem",
+                      fontSize: "1.125rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Basic Information
+                  </h3>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, 1fr)",
+                      gap: "1rem",
+                    }}
+                  >
                     <div>
-                      <label className="text-muted-foreground" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Username</label>
-                      <div className="bg-gray-50 text-foreground" style={{ padding: '0.5rem', borderRadius: '6px' }}>{viewingUser.username}</div>
+                      <label
+                        className="text-muted-foreground"
+                        style={{
+                          display: "block",
+                          fontSize: "0.875rem",
+                          fontWeight: 500,
+                          marginBottom: "0.25rem",
+                        }}
+                      >
+                        Username
+                      </label>
+                      <div
+                        className="bg-gray-50 text-foreground"
+                        style={{ padding: "0.5rem", borderRadius: "6px" }}
+                      >
+                        {viewingUser.username}
+                      </div>
                     </div>
                     <div>
-                      <label className="text-muted-foreground" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Email</label>
-                      <div className="bg-gray-50 text-foreground" style={{ padding: '0.5rem', borderRadius: '6px' }}>{viewingUser.email || 'N/A'}</div>
+                      <label
+                        className="text-muted-foreground"
+                        style={{
+                          display: "block",
+                          fontSize: "0.875rem",
+                          fontWeight: 500,
+                          marginBottom: "0.25rem",
+                        }}
+                      >
+                        Email
+                      </label>
+                      <div
+                        className="bg-gray-50 text-foreground"
+                        style={{ padding: "0.5rem", borderRadius: "6px" }}
+                      >
+                        {viewingUser.email || "N/A"}
+                      </div>
                     </div>
                     <div>
-                      <label className="text-muted-foreground" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Role</label>
-                      <div className="bg-gray-50 text-foreground" style={{ padding: '0.5rem', borderRadius: '6px', textTransform: 'capitalize' }}>{viewingUser.role.replace('_', ' ')}</div>
+                      <label
+                        className="text-muted-foreground"
+                        style={{
+                          display: "block",
+                          fontSize: "0.875rem",
+                          fontWeight: 500,
+                          marginBottom: "0.25rem",
+                        }}
+                      >
+                        Role
+                      </label>
+                      <div
+                        className="bg-gray-50 text-foreground"
+                        style={{
+                          padding: "0.5rem",
+                          borderRadius: "6px",
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {viewingUser.role.replace("_", " ")}
+                      </div>
                     </div>
                     <div>
-                      <label className="text-muted-foreground" style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>Available Hours/Week</label>
-                      <div className="bg-gray-50 text-foreground" style={{ padding: '0.5rem', borderRadius: '6px' }}>{viewingUser.available_hours_per_week || 40} hours</div>
+                      <label
+                        className="text-muted-foreground"
+                        style={{
+                          display: "block",
+                          fontSize: "0.875rem",
+                          fontWeight: 500,
+                          marginBottom: "0.25rem",
+                        }}
+                      >
+                        Available Hours/Week
+                      </label>
+                      <div
+                        className="bg-gray-50 text-foreground"
+                        style={{ padding: "0.5rem", borderRadius: "6px" }}
+                      >
+                        {viewingUser.available_hours_per_week || 40} hours
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Assigned Projects */}
                 <div>
-                  <h3 className="text-foreground" style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: 600 }}>Assigned Projects ({employeeProjects.length})</h3>
+                  <h3
+                    className="text-foreground"
+                    style={{
+                      marginBottom: "1rem",
+                      fontSize: "1.125rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Assigned Projects ({employeeProjects.length})
+                  </h3>
                   {employeeProjects.length > 0 ? (
-                    <div className="border-gray-200" style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <div
+                      className="border-gray-200"
+                      style={{
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "8px",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <table
+                        style={{ width: "100%", borderCollapse: "collapse" }}
+                      >
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Project Name</th>
-                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Status</th>
-                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Allocated Hours/Week</th>
+                            <th
+                              className="text-muted-foreground"
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                fontSize: "0.875rem",
+                                fontWeight: 600,
+                                borderBottom: "1px solid #e5e7eb",
+                              }}
+                            >
+                              Project Name
+                            </th>
+                            <th
+                              className="text-muted-foreground"
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                fontSize: "0.875rem",
+                                fontWeight: 600,
+                                borderBottom: "1px solid #e5e7eb",
+                              }}
+                            >
+                              Status
+                            </th>
+                            <th
+                              className="text-muted-foreground"
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                fontSize: "0.875rem",
+                                fontWeight: 600,
+                                borderBottom: "1px solid #e5e7eb",
+                              }}
+                            >
+                              Allocated Hours/Week
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           {employeeProjects.map((project: any) => (
-                            <tr key={project.id} className="border-gray-200" style={{ borderBottom: '1px solid #f3f4f6' }}>
-                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{project.name}</td>
-                              <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>
-                                <span style={{
-                                  padding: '0.25rem 0.5rem',
-                                  borderRadius: '4px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 500,
-                                  textTransform: 'capitalize',
-                                  backgroundColor: project.status === 'active' ? '#d1fae5' : project.status === 'completed' ? '#dbeafe' : '#f3f4f6',
-                                  color: project.status === 'active' ? '#065f46' : project.status === 'completed' ? '#1e40af' : '#6b7280'
-                                }}>
+                            <tr
+                              key={project.id}
+                              className="border-gray-200"
+                              style={{ borderBottom: "1px solid #f3f4f6" }}
+                            >
+                              <td
+                                className="text-foreground"
+                                style={{
+                                  padding: "0.75rem",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                {project.name}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    padding: "0.25rem 0.5rem",
+                                    borderRadius: "4px",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 500,
+                                    textTransform: "capitalize",
+                                    backgroundColor:
+                                      project.status === "active"
+                                        ? "#d1fae5"
+                                        : project.status === "completed"
+                                        ? "#dbeafe"
+                                        : "#f3f4f6",
+                                    color:
+                                      project.status === "active"
+                                        ? "#065f46"
+                                        : project.status === "completed"
+                                        ? "#1e40af"
+                                        : "#6b7280",
+                                  }}
+                                >
                                   {project.status}
                                 </span>
                               </td>
-                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{project.allocated_hours_per_week || 'N/A'}</td>
+                              <td
+                                className="text-foreground"
+                                style={{
+                                  padding: "0.75rem",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                {project.allocated_hours_per_week || "N/A"}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                   ) : (
-                    <div className="bg-gray-50 text-muted-foreground" style={{ padding: '1.5rem', textAlign: 'center', borderRadius: '8px' }}>
+                    <div
+                      className="bg-gray-50 text-muted-foreground"
+                      style={{
+                        padding: "1.5rem",
+                        textAlign: "center",
+                        borderRadius: "8px",
+                      }}
+                    >
                       No projects assigned
                     </div>
                   )}
@@ -1658,46 +2038,185 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
 
                 {/* Assigned Tasks */}
                 <div>
-                  <h3 className="text-foreground" style={{ marginBottom: '1rem', fontSize: '1.125rem', fontWeight: 600 }}>Assigned Tasks ({employeeTasks.length})</h3>
+                  <h3
+                    className="text-foreground"
+                    style={{
+                      marginBottom: "1rem",
+                      fontSize: "1.125rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Assigned Tasks ({employeeTasks.length})
+                  </h3>
                   {employeeTasks.length > 0 ? (
-                    <div className="border-gray-200" style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <div
+                      className="border-gray-200"
+                      style={{
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "8px",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <table
+                        style={{ width: "100%", borderCollapse: "collapse" }}
+                      >
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Task Name</th>
-                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Project</th>
-                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Status</th>
-                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Planned Hours</th>
-                            <th className="text-muted-foreground" style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.875rem', fontWeight: 600, borderBottom: '1px solid #e5e7eb' }}>Due Date</th>
+                            <th
+                              className="text-muted-foreground"
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                fontSize: "0.875rem",
+                                fontWeight: 600,
+                                borderBottom: "1px solid #e5e7eb",
+                              }}
+                            >
+                              Task Name
+                            </th>
+                            <th
+                              className="text-muted-foreground"
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                fontSize: "0.875rem",
+                                fontWeight: 600,
+                                borderBottom: "1px solid #e5e7eb",
+                              }}
+                            >
+                              Project
+                            </th>
+                            <th
+                              className="text-muted-foreground"
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                fontSize: "0.875rem",
+                                fontWeight: 600,
+                                borderBottom: "1px solid #e5e7eb",
+                              }}
+                            >
+                              Status
+                            </th>
+                            <th
+                              className="text-muted-foreground"
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                fontSize: "0.875rem",
+                                fontWeight: 600,
+                                borderBottom: "1px solid #e5e7eb",
+                              }}
+                            >
+                              Planned Hours
+                            </th>
+                            <th
+                              className="text-muted-foreground"
+                              style={{
+                                padding: "0.75rem",
+                                textAlign: "left",
+                                fontSize: "0.875rem",
+                                fontWeight: 600,
+                                borderBottom: "1px solid #e5e7eb",
+                              }}
+                            >
+                              Due Date
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
                           {employeeTasks.map((task: any) => (
-                            <tr key={task.id} className="border-gray-200" style={{ borderBottom: '1px solid #f3f4f6' }}>
-                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{task.name}</td>
-                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{task.project_name || 'N/A'}</td>
-                              <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>
-                                <span style={{
-                                  padding: '0.25rem 0.5rem',
-                                  borderRadius: '4px',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 500,
-                                  textTransform: 'capitalize',
-                                  backgroundColor: task.status === 'completed' ? '#d1fae5' : task.status === 'in_progress' ? '#dbeafe' : task.status === 'blocked' ? '#fee2e2' : '#f3f4f6',
-                                  color: task.status === 'completed' ? '#065f46' : task.status === 'in_progress' ? '#1e40af' : task.status === 'blocked' ? '#991b1b' : '#6b7280'
-                                }}>
-                                  {task.status.replace('_', ' ')}
+                            <tr
+                              key={task.id}
+                              className="border-gray-200"
+                              style={{ borderBottom: "1px solid #f3f4f6" }}
+                            >
+                              <td
+                                className="text-foreground"
+                                style={{
+                                  padding: "0.75rem",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                {task.name}
+                              </td>
+                              <td
+                                className="text-foreground"
+                                style={{
+                                  padding: "0.75rem",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                {task.project_name || "N/A"}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "0.75rem",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    padding: "0.25rem 0.5rem",
+                                    borderRadius: "4px",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 500,
+                                    textTransform: "capitalize",
+                                    backgroundColor:
+                                      task.status === "completed"
+                                        ? "#d1fae5"
+                                        : task.status === "in_progress"
+                                        ? "#dbeafe"
+                                        : task.status === "blocked"
+                                        ? "#fee2e2"
+                                        : "#f3f4f6",
+                                    color:
+                                      task.status === "completed"
+                                        ? "#065f46"
+                                        : task.status === "in_progress"
+                                        ? "#1e40af"
+                                        : task.status === "blocked"
+                                        ? "#991b1b"
+                                        : "#6b7280",
+                                  }}
+                                >
+                                  {task.status.replace("_", " ")}
                                 </span>
                               </td>
-                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{task.planned_hours}h</td>
-                              <td className="text-foreground" style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A'}</td>
+                              <td
+                                className="text-foreground"
+                                style={{
+                                  padding: "0.75rem",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                {task.planned_hours}h
+                              </td>
+                              <td
+                                className="text-foreground"
+                                style={{
+                                  padding: "0.75rem",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                {task.due_date
+                                  ? new Date(task.due_date).toLocaleDateString()
+                                  : "N/A"}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                   ) : (
-                    <div className="bg-gray-50 text-muted-foreground" style={{ padding: '1.5rem', textAlign: 'center', borderRadius: '8px' }}>
+                    <div
+                      className="bg-gray-50 text-muted-foreground"
+                      style={{
+                        padding: "1.5rem",
+                        textAlign: "center",
+                        borderRadius: "8px",
+                      }}
+                    >
                       No tasks assigned
                     </div>
                   )}
@@ -1705,25 +2224,32 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
               </div>
             )}
 
-            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <div
+              style={{
+                marginTop: "1.5rem",
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "0.75rem",
+              }}
+            >
               <button
                 onClick={() => setShowViewModal(false)}
                 style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#f3f4f6',
-                  color: '#374151',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
+                  padding: "0.5rem 1rem",
+                  backgroundColor: "#f3f4f6",
+                  color: "#374151",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "0.875rem",
                   fontWeight: 500,
-                  transition: 'all 0.2s'
+                  transition: "all 0.2s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#e5e7eb';
+                  e.currentTarget.style.backgroundColor = "#e5e7eb";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+                  e.currentTarget.style.backgroundColor = "#f3f4f6";
                 }}
               >
                 Close

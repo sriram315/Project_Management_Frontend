@@ -763,6 +763,23 @@ export const projectAssignmentsAPI = {
       throw new Error(error.message || "Failed to unassign project");
     }
   },
+
+  // Update a project assignment
+  update: async (assignmentId: number, data: {
+    assigned_to_user_id?: number;
+    assigned_by_user_id?: number;
+  }): Promise<any> => {
+    const response = await fetch(`${API_BASE_URL}/project-assignments/${assignmentId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to update project assignment");
+    }
+    return response.json();
+  },
 };
 
 export default {
