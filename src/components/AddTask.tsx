@@ -280,14 +280,18 @@ const AddTask: React.FC<AddTaskProps> = ({
       errors.planned_hours = "Estimated hours seems too high (max 1000)";
     }
 
-    // Start date validation (optional but if provided, cannot be past)
+    // Start date validation (optional but if provided, cannot be before Monday of current week)
     if (formData.start_date) {
       const startDate = new Date(formData.start_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const mondayOfWeek = new Date();
+      mondayOfWeek.setHours(0, 0, 0, 0);
+      // Get Monday of the current week
+      const dayOfWeek = mondayOfWeek.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      mondayOfWeek.setDate(mondayOfWeek.getDate() - daysToMonday);
 
-      if (startDate < today) {
-        errors.start_date = "Start date cannot be in the past";
+      if (startDate < mondayOfWeek) {
+        errors.start_date = "Start date cannot be before Monday of this week";
       }
     }
 
@@ -769,6 +773,11 @@ const AddTask: React.FC<AddTaskProps> = ({
                 onChange={handleInputChange}
                 min={(function () {
                   const d = new Date();
+                  // Get Monday of the current week
+                  // getDay() returns 0 for Sunday, 1 for Monday, etc.
+                  const dayOfWeek = d.getDay();
+                  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                  d.setDate(d.getDate() - daysToMonday);
                   const y = d.getFullYear();
                   const m = String(d.getMonth() + 1).padStart(2, "0");
                   const day = String(d.getDate()).padStart(2, "0");
