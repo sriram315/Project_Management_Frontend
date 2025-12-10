@@ -42,6 +42,21 @@ interface TaskStats {
     available_hours_per_week?: number;
     week?: string;
   }>;
+  taskStats?: {
+    total?: number;
+    completed?: number;
+    blocked?: number;
+    pending?: number;
+    in_progress?: number;
+  };
+  final?: {
+    productivity?: string | number;
+    utilization?: string | number;
+    available_hours?: number;
+  };
+  availabilityData?: WeeklyData[];
+  productivityData?: WeeklyData[];
+  utilizationData?: WeeklyData[];
   totalTasks?: number;
   completed?: number;
   blocked?: number;
@@ -434,24 +449,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       const timelineStartDate = formatDateLocal(thisWeekMonday);
       const timelineEndDate = formatDateLocal(nextWeekFriday);
 
-      const [data, taskStatusData, tasksTimeline] = await Promise.all([
-        dashboardAPI.getDashboardData({
-          projectId: projectIdStr,
-          employeeId: statsEmployeeIdStr,
-          startDate: effectiveStartDate,
-          endDate: effectiveEndDate,
-          userId: user?.id,
-          userRole: user?.role,
-        }),
-        dashboardAPI.getTaskStatus({
-          projectId: projectIdStr,
-          employeeId: statsEmployeeIdStr,
-          // Don't filter by date for task status - show all tasks from assigned projects
-          // startDate: effectiveStartDate,
-          // endDate: effectiveEndDate,
-          userId: user?.id,
-          userRole: user?.role,
-        }),
+      const [tasksTimeline] = await Promise.all([
+        // dashboardAPI.getDashboardData({
+        //   projectId: projectIdStr,
+        //   employeeId: statsEmployeeIdStr,
+        //   startDate: effectiveStartDate,
+        //   endDate: effectiveEndDate,
+        //   userId: user?.id,
+        //   userRole: user?.role,
+        // }),
+        // dashboardAPI.getTaskStatus({
+        //   projectId: projectIdStr,
+        //   employeeId: statsEmployeeIdStr,
+        //   // Don't filter by date for task status - show all tasks from assigned projects
+        //   // startDate: effectiveStartDate,
+        //   // endDate: effectiveEndDate,
+        //   userId: user?.id,
+        //   userRole: user?.role,
+        // }),
         dashboardAPI.getTasksTimeline({
           role: user?.role || "employee",
           userId: user?.id || 0,
@@ -461,8 +476,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           endDate: timelineEndDate,
         }),
       ]);
-
-      setDashboardData(data);
+      fetchData();
+      // setDashboardData(data);
       setTaskStatusData(taskStatusData);
       const thisWeekTasks = tasksTimeline.thisWeek || [];
       const nextWeekTasks = tasksTimeline.nextWeek || [];
@@ -656,10 +671,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }
 
     try {
+      // const res = await axios.post(
+      //   `${API_BASE_URL}/dashboard/raw-tasks`,
+      //   payload
+      // );
       const res = await axios.post(
-        `${API_BASE_URL}/dashboard/raw-tasks`,
+        `${API_BASE_URL}/dashboard/newData`,
         payload
       );
+
       setTaskStats(res.data);
       // Reset pagination when new data is fetched
       setCurrentPageTaskStats(1);
@@ -669,7 +689,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   };
   useEffect(() => {
     if (user && projects.length > 0) {
-      fetchData();
+      fetchDashboardData();
     }
   }, [forceRefreshKey, user, projects]);
 
@@ -791,10 +811,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }, [projects, employees]);
 
   // Fetch dashboard data on initial mount and manual refresh only (not on filter change)
-  useEffect(() => {
-    fetchDashboardData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forceRefreshKey, user]);
+  // useEffect(() => {
+  //   fetchDashboardData();
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [forceRefreshKey, user]);
 
   // When filters change, also update localStorage (user-specific)
   const persistFilters = (newFilters: FilterType) => {
@@ -954,7 +974,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     {
       label: "Total Tasks",
       // value: displayOrHyphen(totalTasks),
-      value: taskStats?.totalTasks || 0,
+      value: taskStats?.taskStats?.total || 0,
       icon: ClipboardDocumentListIcon,
       color: "bg-indigo-500",
       trend: "+12% vs last week",
@@ -963,7 +983,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     {
       label: "Completed",
       // value: displayOrHyphen(completedTasks),
-      value: taskStats?.completed || 0,
+      value: taskStats?.taskStats?.completed || 0,
       icon: CheckCircleIcon,
       color: "bg-indigo-500",
       trend: "+3 this week",
@@ -972,7 +992,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     {
       label: "Blocked",
       // value: displayOrHyphen(blockedTasks),
-      value: taskStats?.blocked || 0,
+      value: taskStats?.taskStats?.blocked || 0,
       icon: ExclamationTriangleIcon,
       color: "bg-indigo-500",
       trend: "needs attention",
@@ -981,7 +1001,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     {
       label: "Pending",
       // value: displayOrHyphen(totalTasks - completedTasks),
-      value: taskStats?.pending || 0,
+      value: taskStats?.taskStats?.pending || 0,
       icon: ClockIcon,
       color: "bg-indigo-500",
       trend: "+3 this week",
@@ -993,7 +1013,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       //   typeof productivity === "number" && !isNaN(productivity)
       //     ? `${productivity}%`
       //     : "0%",
-      value: `${taskStats?.productivity || 0}%`,
+      value: `${taskStats?.final?.productivity || 0}%`,
       icon: RocketLaunchIcon,
       color: "bg-indigo-500",
       trend: "+5% improvement",
@@ -1005,7 +1025,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       //   typeof utilization === "number" && !isNaN(utilization)
       //     ? `${utilization}%`
       //     : "0%",
-      value: `${taskStats?.utilization || 0}%`,
+      value: `${taskStats?.final?.utilization || 0}%`,
       icon: PresentationChartLineIcon,
       color: "bg-indigo-500",
       trend: "+2% this week",
@@ -1017,7 +1037,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       //   typeof availableHours === "number" && !isNaN(availableHours)
       //     ? availableHours
       //     : displayOrHyphen(availableHours),
-      value: taskStats?.available_hours || 0,
+      value: taskStats?.final?.available_hours || 0,
       icon: StopCircleIcon,
       color: "bg-indigo-500",
       trend: "per week",
@@ -2044,9 +2064,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </div>
               </div>
               <div className="chart-content-wrapper">
-                {dashboardData.productivityData &&
-                dashboardData.productivityData.length > 0 ? (
-                  <ProductivityChart data={dashboardData.productivityData} />
+                {taskStats.productivityData &&
+                taskStats.productivityData.length > 0 ? (
+                  <ProductivityChart data={taskStats.productivityData} />
                 ) : (
                   <div className="chart-empty-state">
                     <span className="empty-chart-icon">📈</span>
@@ -2067,7 +2087,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </div>
               </div>
               <div className="chart-content-wrapper">
-                {dashboardData.availabilityData.length === 0 ? (
+                {!taskStats.availabilityData ||
+                taskStats.availabilityData.length === 0 ? (
                   <div className="chart-empty-state">
                     <span className="empty-chart-icon">📈</span>
                     <p>No data available</p>
@@ -2077,7 +2098,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     key={`availability-${filters.employeeId || "all"}-${
                       filters.projectId || "all"
                     }`}
-                    data={dashboardData.availabilityData}
+                    data={taskStats.availabilityData}
                   />
                 )}
               </div>
@@ -2093,9 +2114,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </div>
               </div>
               <div className="chart-content-wrapper">
-                {dashboardData.utilizationData &&
-                dashboardData.utilizationData.length > 0 ? (
-                  <UtilizationChart data={dashboardData.utilizationData} />
+                {taskStats.utilizationData &&
+                taskStats.utilizationData.length > 0 ? (
+                  <UtilizationChart data={taskStats.utilizationData} />
                 ) : (
                   <div className="chart-empty-state">
                     <span className="empty-chart-icon">📈</span>
@@ -2120,7 +2141,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     <p>No tasks available</p>
                   </div>
                 ) : (
-                  <TaskStatusChart data={taskStatusData} />
+                  // <TaskStatusChart data={taskStatusData} />
+                  <TaskStatusChart
+                    data={{
+                      todo: taskStats.taskStats?.pending || 0,
+                      in_progress: taskStats.taskStats?.in_progress || 0,
+                      completed: taskStats.taskStats?.completed || 0,
+                      blocked: taskStats.taskStats?.blocked || 0,
+                    }}
+                  />
                 )}
               </div>
             </div>
