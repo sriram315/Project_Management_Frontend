@@ -478,7 +478,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       ]);
       fetchData();
       // setDashboardData(data);
-      setTaskStatusData(taskStatusData);
+      // Task status data will be updated from fetchData() which calls newData endpoint
       const thisWeekTasks = tasksTimeline.thisWeek || [];
       const nextWeekTasks = tasksTimeline.nextWeek || [];
       setTasksThisWeek(thisWeekTasks);
@@ -681,6 +681,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       );
 
       setTaskStats(res.data);
+
+      // Update taskStatusData from the response
+      if (res.data?.taskStats) {
+        setTaskStatusData({
+          todo: res.data.taskStats.pending || 0,
+          in_progress: res.data.taskStats.in_progress || 0,
+          completed: res.data.taskStats.completed || 0,
+          blocked: res.data.taskStats.blocked || 0,
+        });
+      }
+
       // Reset pagination when new data is fetched
       setCurrentPageTaskStats(1);
     } catch (error) {
@@ -2141,15 +2152,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     <p>No tasks available</p>
                   </div>
                 ) : (
-                  // <TaskStatusChart data={taskStatusData} />
-                  <TaskStatusChart
-                    data={{
-                      todo: taskStats.taskStats?.pending || 0,
-                      in_progress: taskStats.taskStats?.in_progress || 0,
-                      completed: taskStats.taskStats?.completed || 0,
-                      blocked: taskStats.taskStats?.blocked || 0,
-                    }}
-                  />
+                  <TaskStatusChart data={taskStatusData} />
                 )}
               </div>
             </div>
