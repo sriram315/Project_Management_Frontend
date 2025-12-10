@@ -1,12 +1,17 @@
-import React from 'react';
-import { DashboardFilters as FilterType } from '../types';
-import CustomMultiSelect from './CustomMultiSelect';
-import './DashboardFilters.css';
+import React from "react";
+import { DashboardFilters as FilterType } from "../types";
+import CustomMultiSelect from "./CustomMultiSelect";
+import "./DashboardFilters.css";
 
 interface DashboardFiltersProps {
   filters: FilterType;
   projects: Array<{ id: number; name: string; status: string }>;
-  employees: Array<{ id: number; username: string; email: string; role: string }>;
+  employees: Array<{
+    id: number;
+    username: string;
+    email: string;
+    role: string;
+  }>;
   onFilterChange: (filters: FilterType) => void;
   userRole?: string; // Add user role to control visibility
 }
@@ -33,7 +38,9 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   };
 
   const handleProjectChange = (projectIds: (string | number)[]) => {
-    const ids = projectIds.map(id => parseInt(String(id))).filter(id => !isNaN(id));
+    const ids = projectIds
+      .map((id) => parseInt(String(id)))
+      .filter((id) => !isNaN(id));
     onFilterChange({
       ...filters,
       projectId: ids.length === 0 ? undefined : ids.length === 1 ? ids[0] : ids,
@@ -41,52 +48,101 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   };
 
   const handleEmployeeChange = (employeeIds: (string | number)[]) => {
-    const ids = employeeIds.map(id => parseInt(String(id))).filter(id => !isNaN(id));
+    const ids = employeeIds
+      .map((id) => parseInt(String(id)))
+      .filter((id) => !isNaN(id));
     onFilterChange({
       ...filters,
-      employeeId: ids.length === 0 ? undefined : ids.length === 1 ? ids[0] : ids,
+      employeeId:
+        ids.length === 0 ? undefined : ids.length === 1 ? ids[0] : ids,
     });
   };
 
-  const handleDateChange = (field: 'startDate' | 'endDate', value: string) => {
+  // Helper function to get the Monday of a given date
+  const getMonday = (date: Date): string => {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const diff = day === 0 ? -6 : 1 - day; // Days to subtract to get Monday
+    d.setDate(d.getDate() + diff);
+    return d.toISOString().split("T")[0];
+  };
+
+  // Helper function to get the Friday of a given date
+  const getFriday = (date: Date): string => {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    // Calculate days to add to get Friday
+    // If Sunday (0), add 5 days; if Monday (1), add 4 days; ... if Friday (5), add 0 days; if Saturday (6), add -1 day (previous Friday)
+    const diff = day === 0 ? 5 : day === 6 ? -1 : 5 - day;
+    d.setDate(d.getDate() + diff);
+    return d.toISOString().split("T")[0];
+  };
+
+  const handleDateChange = (field: "startDate" | "endDate", value: string) => {
     // Normalize any dd-mm-yyyy values to yyyy-mm-dd for the HTML date input
     const normalizeToInputDate = (v: string) => {
       if (!v) return v;
-      const parts = v.split('-');
-      if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
+      const parts = v.split("-");
+      if (
+        parts.length === 3 &&
+        parts[0].length === 2 &&
+        parts[2].length === 4
+      ) {
         // dd-mm-yyyy -> yyyy-mm-dd
         const [dd, mm, yyyy] = parts;
-        return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+        return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
       }
       return v;
     };
 
     const normalized = normalizeToInputDate(value);
-    
-    // Validate date range
+
+    // Validate date range and enforce Monday/Friday restrictions
     let newStartDate = filters.startDate;
     let newEndDate = filters.endDate;
-    
-    if (field === 'startDate') {
-      newStartDate = normalized || undefined;
-      // If start date is after end date, adjust end date
-      if (newStartDate && newEndDate && new Date(newStartDate) > new Date(newEndDate)) {
-        // Set end date to be same as start date (or 7 days later)
-        const start = new Date(newStartDate);
-        start.setDate(start.getDate() + 7);
-        newEndDate = start.toISOString().split('T')[0];
+
+    if (field === "startDate") {
+      if (normalized) {
+        const selectedDate = new Date(normalized);
+        // Force to Monday
+        newStartDate = getMonday(selectedDate);
+
+        // If start date is after end date, adjust end date to Friday of the same week
+        if (newEndDate && new Date(newStartDate) > new Date(newEndDate)) {
+          const start = new Date(newStartDate);
+          // Get Friday of the same week (4 days after Monday)
+          start.setDate(start.getDate() + 4);
+          newEndDate = start.toISOString().split("T")[0];
+        } else if (newEndDate) {
+          // Ensure end date is still a Friday
+          const endDateObj = new Date(newEndDate);
+          newEndDate = getFriday(endDateObj);
+        }
+      } else {
+        newStartDate = undefined;
       }
-    } else if (field === 'endDate') {
-      newEndDate = normalized || undefined;
-      // If end date is before start date, adjust start date
-      if (newStartDate && newEndDate && new Date(newEndDate) < new Date(newStartDate)) {
-        // Set start date to be same as end date (or 7 days earlier)
-        const end = new Date(newEndDate);
-        end.setDate(end.getDate() - 7);
-        newStartDate = end.toISOString().split('T')[0];
+    } else if (field === "endDate") {
+      if (normalized) {
+        const selectedDate = new Date(normalized);
+        // Force to Friday
+        newEndDate = getFriday(selectedDate);
+
+        // If end date is before start date, adjust start date to Monday of the same week
+        if (newStartDate && new Date(newEndDate) < new Date(newStartDate)) {
+          const end = new Date(newEndDate);
+          // Get Monday of the same week (4 days before Friday)
+          end.setDate(end.getDate() - 4);
+          newStartDate = end.toISOString().split("T")[0];
+        } else if (newStartDate) {
+          // Ensure start date is still a Monday
+          const startDateObj = new Date(newStartDate);
+          newStartDate = getMonday(startDateObj);
+        }
+      } else {
+        newEndDate = undefined;
       }
     }
-    
+
     onFilterChange({
       ...filters,
       startDate: newStartDate,
@@ -96,11 +152,11 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
 
   // Ensure values rendered in the input are in yyyy-mm-dd
   const formatForInput = (v?: string) => {
-    if (!v) return '';
-    const parts = v.split('-');
+    if (!v) return "";
+    const parts = v.split("-");
     if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
       const [dd, mm, yyyy] = parts;
-      return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+      return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
     }
     return v;
   };
@@ -112,31 +168,36 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   // Prepare project options for CustomMultiSelect (no "all" option, empty array = all)
   // Filter out invalid projects and ensure all fields are strings
   const projectOptions = projects
-    .filter(project => project && project.id && project.name)
-    .map(project => ({
+    .filter((project) => project && project.id && project.name)
+    .map((project) => ({
       value: Number(project.id),
-      label: String(project.name || `Project ${project.id}`)
+      label: String(project.name || `Project ${project.id}`),
     }));
 
   // Prepare employee options for CustomMultiSelect (no "all" option, empty array = all)
   // Filter out invalid employees and superadmin users, ensure all fields are strings
   const employeeOptions = employees
-    .filter(employee => 
-      employee && 
-      employee.id && 
-      employee.username &&
-      employee.role !== 'super_admin' && 
-      employee.role !== 'superadmin'
+    .filter(
+      (employee) =>
+        employee &&
+        employee.id &&
+        employee.username &&
+        employee.role !== "super_admin" &&
+        employee.role !== "superadmin"
     )
-    .map(employee => ({
+    .map((employee) => ({
       value: Number(employee.id),
-      label: `${String(employee.username || `User ${employee.id}`)} (${String(employee.role || 'employee')})`
+      label: `${String(employee.username || `User ${employee.id}`)} (${String(
+        employee.role || "employee"
+      )})`,
     }));
 
   return (
     <div className="flex flex-wrap gap-4">
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-muted-foreground">Projects:</label>
+        <label className="text-sm font-medium text-muted-foreground">
+          Projects:
+        </label>
         <CustomMultiSelect
           value={getProjectIds()}
           onChange={handleProjectChange}
@@ -146,9 +207,11 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
       </div>
 
       {/* Hide employee filter for employee role */}
-      {userRole !== 'employee' && (
+      {userRole !== "employee" && (
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-muted-foreground">Team Members:</label>
+          <label className="text-sm font-medium text-muted-foreground">
+            Team Members:
+          </label>
           <CustomMultiSelect
             value={getEmployeeIds()}
             onChange={handleEmployeeChange}
@@ -159,12 +222,14 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
       )}
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-muted-foreground">Date Range:</label>
+        <label className="text-sm font-medium text-muted-foreground">
+          Date Range:
+        </label>
         <div className="flex items-center gap-2">
           <input
             type="date"
             value={startDateForInput}
-            onChange={(e) => handleDateChange('startDate', e.target.value)}
+            onChange={(e) => handleDateChange("startDate", e.target.value)}
             className="w-[140px] bg-background border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             placeholder="Start Date"
             max={endDateForInput || undefined}
@@ -173,7 +238,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
           <input
             type="date"
             value={endDateForInput}
-            onChange={(e) => handleDateChange('endDate', e.target.value)}
+            onChange={(e) => handleDateChange("endDate", e.target.value)}
             className="w-[140px] bg-background border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             placeholder="End Date"
             min={startDateForInput || undefined}

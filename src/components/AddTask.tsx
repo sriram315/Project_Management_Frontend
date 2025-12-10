@@ -195,20 +195,52 @@ const AddTask: React.FC<AddTaskProps> = ({
     }
   }, [formData.project_id, teamMembers]);
 
+  // Helper function to get the nearest weekday (Monday-Friday)
+  const getNearestWeekday = (date: Date): string => {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
+    if (day === 0) {
+      // Sunday - move to Monday (next day)
+      d.setDate(d.getDate() + 1);
+    } else if (day === 6) {
+      // Saturday - move to Friday (previous day)
+      d.setDate(d.getDate() - 1);
+    }
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const dayStr = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${dayStr}`;
+  };
+
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => {
     const { name, value } = e.target;
+
+    // Handle due_date: prevent selecting weekends (Saturday/Sunday)
+    let processedValue = value;
+    if (name === "due_date" && value) {
+      const selectedDate = new Date(value);
+      const dayOfWeek = selectedDate.getDay();
+
+      // If Saturday (6) or Sunday (0), adjust to nearest weekday
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        processedValue = getNearestWeekday(selectedDate);
+      }
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]:
         name === "planned_hours" ||
         name === "assignee_id" ||
         name === "project_id"
-          ? parseInt(value) || 0
-          : value,
+          ? parseInt(processedValue) || 0
+          : processedValue,
     }));
     // Clear error for this field when user types
     if (formErrors[name]) {
@@ -295,16 +327,23 @@ const AddTask: React.FC<AddTaskProps> = ({
       }
     }
 
-    // Due date validation (mandatory and cannot be past)
+    // Due date validation (mandatory and cannot be past or weekend)
     if (!formData.due_date) {
       errors.due_date = "Due date is required";
     } else {
       const dueDate = new Date(formData.due_date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const dayOfWeek = dueDate.getDay(); // 0 = Sunday, 6 = Saturday
 
       if (dueDate < today) {
         errors.due_date = "Due date cannot be in the past";
+      }
+
+      // Prevent selecting weekends (Saturday or Sunday)
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        errors.due_date =
+          "Due date cannot be on a weekend (Saturday or Sunday)";
       }
 
       // If start date is provided, ensure it's before or equal to due date

@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -7,9 +7,9 @@ import {
   Title,
   Tooltip,
   Legend,
-} from 'chart.js';
-import { Bar } from 'react-chartjs-2';
-import { WeeklyData } from '../../types';
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
+import { WeeklyData } from "../../types";
 
 ChartJS.register(
   CategoryScale,
@@ -26,16 +26,19 @@ interface ProductivityChartProps {
 
 const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
   const chartData = {
-    labels: data.map(item => item?.week || ''),
+    labels: data.map((item) => item?.week || ""),
     datasets: [
       {
-        label: 'Productivity %',
-        data: data.map(item => {
+        label: "Productivity %",
+        data: data.map((item) => {
           const value = item?.productivity;
-          return value !== null && value !== undefined && !isNaN(value) ? value : 0;
+          if (value === null || value === undefined) return 0;
+          // Convert string to number if needed
+          const numValue = typeof value === 'string' ? parseFloat(value) : Number(value);
+          return !isNaN(numValue) ? numValue : 0;
         }),
-        backgroundColor: 'rgb(34, 197, 94)',
-        borderColor: 'rgb(34, 197, 94)',
+        backgroundColor: "rgb(34, 197, 94)",
+        borderColor: "rgb(34, 197, 94)",
         borderWidth: 0,
         borderRadius: 4,
       },
@@ -48,13 +51,13 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
     plugins: {
       legend: {
         display: true,
-        position: 'top' as const,
+        position: "top" as const,
         labels: {
           usePointStyle: true,
           padding: 20,
           font: {
             size: 12,
-            weight: 'bold' as const,
+            weight: "bold" as const,
           },
         },
       },
@@ -63,29 +66,34 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
       },
       tooltip: {
         callbacks: {
-          label: function(context: any) {
+          label: function (context: any) {
             const dataIndex = context.dataIndex;
             const item = data[dataIndex];
             const productivity = item?.productivity;
             const hours = item?.hours ?? 0;
             const plannedHours = item?.plannedHours ?? 0;
-            
+
             if (productivity === null || productivity === undefined) {
               return [
                 `Productivity: N/A (no completed tasks)`,
-                `Actual Hours: ${hours.toFixed(1)}h`,
-                `Planned Hours: ${plannedHours.toFixed(1)}h`
+                `Actual Hours: ${hours?.toFixed(1)}h`,
+                `Planned Hours: ${plannedHours?.toFixed(1)}h`,
               ];
             }
-            
+
+            // Convert productivity to number if it's a string
+            const productivityNum = typeof productivity === 'string' 
+              ? parseFloat(productivity) 
+              : Number(productivity);
+
             return [
-              `Productivity: ${productivity.toFixed(1)}%`,
-              `Actual Hours: ${hours.toFixed(1)}h`,
-              `Planned Hours: ${plannedHours.toFixed(1)}h`
+              `Productivity: ${!isNaN(productivityNum) ? productivityNum.toFixed(1) : 'N/A'}%`,
+              `Actual Hours: ${hours?.toFixed(1)}h`,
+              `Planned Hours: ${plannedHours?.toFixed(1)}h`,
             ];
-          }
-        }
-      }
+          },
+        },
+      },
     },
     scales: {
       x: {
@@ -106,12 +114,12 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
           font: {
             size: 11,
           },
-          callback: function(value: any) {
-            return value + '%';
-          }
+          callback: function (value: any) {
+            return value + "%";
+          },
         },
         grid: {
-          color: 'rgba(0, 0, 0, 0.1)',
+          color: "rgba(0, 0, 0, 0.1)",
         },
       },
     },
