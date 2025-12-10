@@ -476,7 +476,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           endDate: timelineEndDate,
         }),
       ]);
-      fetchData();
       // setDashboardData(data);
       // Task status data will be updated from fetchData() which calls newData endpoint
       const thisWeekTasks = tasksTimeline.thisWeek || [];
@@ -701,6 +700,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   useEffect(() => {
     if (user && projects.length > 0) {
       fetchDashboardData();
+      fetchData();
     }
   }, [forceRefreshKey, user, projects]);
 
