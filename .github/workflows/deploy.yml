@@ -10,9 +10,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout Code
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Upload Files to Server
       - name: Upload project to VM
         uses: appleboy/scp-action@v0.1.4
         with:
@@ -25,25 +27,26 @@ jobs:
           overwrite: true
           rm: true
 
-      - name: Build & run container on VM
+      # Build and Deploy Docker Container
+      - name: Build & Run Container on VM
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          timeout: 600
-          command_timeout: 600
+          timeout: 10m           # MUST have units
+          command_timeout: 10m   # MUST have units
           envs: GITHUB_SHA
           script: |
             set -e
             cd ~/app-pm-frontend
 
-            echo "🛑 Stopping any running container..."
+            echo "🛑 Stopping running container (if exists)..."
             docker stop pm-frontend || true
             docker rm pm-frontend || true
 
-            echo "🏗️ Building Docker image using BuildKit..."
+            echo "🏗️ Building Docker image..."
             docker build -t pm-frontend:${GITHUB_SHA} .
 
             echo "🚀 Starting new container..."
@@ -52,8 +55,8 @@ jobs:
               -p 3005:80 \
               pm-frontend:${GITHUB_SHA}
 
-            echo "🧹 Removing unused containers and images..."
+            echo "🧹 Cleaning unused Docker resources..."
             docker container prune -f
             docker image prune -f
 
-            echo "✅ Deployment completed successfully!"
+            echo "🎉 Deployment completed successfully!"
