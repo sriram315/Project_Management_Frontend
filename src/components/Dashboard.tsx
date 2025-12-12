@@ -684,7 +684,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       // Update taskStatusData from the response
       if (res.data?.taskStats) {
         setTaskStatusData({
-          todo: res.data.taskStats.pending || 0,
+          todo: res.data.taskStats.todo || 0,
           in_progress: res.data.taskStats.in_progress || 0,
           completed: res.data.taskStats.completed || 0,
           blocked: res.data.taskStats.blocked || 0,
@@ -1161,41 +1161,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           })}
         </div> */}
 
-        {/* Metric Cards - First Row (4 columns) */}
-        <div className="metrics-grid metrics-grid-row-1">
-          {stats.slice(0, 4).map((stat) => {
-            const IconComponent = stat.icon;
-
-            return (
-              <div
-                key={stat.label}
-                className="metric-card"
-                style={{
-                  borderLeftColor: totalTasksBorderColor,
-                }}
-              >
-                <div className="metric-card-content">
-                  <div className="metric-card-header">
-                    <div
-                      className="metric-icon-wrapper"
-                      style={{ background: utilizationIconBackground }}
-                    >
-                      <IconComponent className="metric-icon" />
-                    </div>
-                    <div className="metric-info">
-                      <p className="metric-label">{stat.label}</p>
-                      <p className="metric-value">{stat.value}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Metric Cards - Second Row (3 columns) */}
-        <div className="metrics-grid metrics-grid-row-2">
-          {stats.slice(4).map((stat) => {
+        {/* Metric Cards - All in One Row (7 columns) */}
+        <div className="metrics-grid metrics-grid-single-row">
+          {stats.map((stat) => {
             const IconComponent = stat.icon;
 
             return (

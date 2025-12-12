@@ -58,13 +58,12 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
     });
   };
 
-  // Helper function to get the Monday of a given date
-  const getMonday = (date: Date): string => {
-    const d = new Date(date);
-    const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    const diff = day === 0 ? -6 : 1 - day; // Days to subtract to get Monday
-    d.setDate(d.getDate() + diff);
-    return d.toISOString().split("T")[0];
+  // Helper function to format date as YYYY-MM-DD (local time, no timezone issues)
+  const formatDateLocal = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
   // Helper function to get the Friday of a given date
@@ -75,7 +74,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
     // If Sunday (0), add 5 days; if Monday (1), add 4 days; ... if Friday (5), add 0 days; if Saturday (6), add -1 day (previous Friday)
     const diff = day === 0 ? 5 : day === 6 ? -1 : 5 - day;
     d.setDate(d.getDate() + diff);
-    return d.toISOString().split("T")[0];
+    return formatDateLocal(d);
   };
 
   const handleDateChange = (field: "startDate" | "endDate", value: string) => {
@@ -97,26 +96,22 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
 
     const normalized = normalizeToInputDate(value);
 
-    // Validate date range and enforce Monday/Friday restrictions
+    // Validate date range
+    // Start date: Allow any date selection (including future dates)
+    // End date: Automatically set to Friday of the selected week
     let newStartDate = filters.startDate;
     let newEndDate = filters.endDate;
 
     if (field === "startDate") {
       if (normalized) {
-        const selectedDate = new Date(normalized);
-        // Force to Monday
-        newStartDate = getMonday(selectedDate);
+        // Allow any date selection for start date - no automatic adjustment
+        // This allows selecting next week and all future weeks
+        newStartDate = normalized;
 
-        // If start date is after end date, adjust end date to Friday of the same week
+        // If start date is after end date, adjust end date to Friday of the week containing start date
         if (newEndDate && new Date(newStartDate) > new Date(newEndDate)) {
           const start = new Date(newStartDate);
-          // Get Friday of the same week (4 days after Monday)
-          start.setDate(start.getDate() + 4);
-          newEndDate = start.toISOString().split("T")[0];
-        } else if (newEndDate) {
-          // Ensure end date is still a Friday
-          const endDateObj = new Date(newEndDate);
-          newEndDate = getFriday(endDateObj);
+          newEndDate = getFriday(start);
         }
       } else {
         newStartDate = undefined;
@@ -124,19 +119,15 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
     } else if (field === "endDate") {
       if (normalized) {
         const selectedDate = new Date(normalized);
-        // Force to Friday
+        // Automatically set to Friday of the selected week
         newEndDate = getFriday(selectedDate);
 
-        // If end date is before start date, adjust start date to Monday of the same week
+        // If end date is before start date, adjust start date to the Monday of that week
         if (newStartDate && new Date(newEndDate) < new Date(newStartDate)) {
           const end = new Date(newEndDate);
           // Get Monday of the same week (4 days before Friday)
           end.setDate(end.getDate() - 4);
-          newStartDate = end.toISOString().split("T")[0];
-        } else if (newStartDate) {
-          // Ensure start date is still a Monday
-          const startDateObj = new Date(newStartDate);
-          newStartDate = getMonday(startDateObj);
+          newStartDate = formatDateLocal(end);
         }
       } else {
         newEndDate = undefined;
@@ -164,6 +155,16 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   // Compute constraints: end date cannot be before start date
   const startDateForInput = formatForInput(filters.startDate);
   const endDateForInput = formatForInput(filters.endDate);
+  
+  // Calculate max date (10 years from now) to allow future date selection
+  // This functionality works for all roles: employee, manager, and superadmin
+  const getMaxDate = (): string => {
+    const maxDate = new Date();
+    maxDate.setFullYear(maxDate.getFullYear() + 10);
+    return formatDateLocal(maxDate);
+  };
+  
+  const maxDateForInput = getMaxDate();
 
   // Prepare project options for CustomMultiSelect (no "all" option, empty array = all)
   // Filter out invalid projects and ensure all fields are strings
@@ -221,6 +222,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
         </div>
       )}
 
+      {/* Date Range Picker - Available for all roles (employee, manager, superadmin) */}
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-muted-foreground">
           Date Range:
@@ -232,7 +234,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
             onChange={(e) => handleDateChange("startDate", e.target.value)}
             className="w-[140px] bg-background border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             placeholder="Start Date"
-            max={endDateForInput || undefined}
+            max={maxDateForInput}
           />
           <span className="text-sm text-muted-foreground">to</span>
           <input
@@ -242,6 +244,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
             className="w-[140px] bg-background border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             placeholder="End Date"
             min={startDateForInput || undefined}
+            max={maxDateForInput}
           />
         </div>
       </div>

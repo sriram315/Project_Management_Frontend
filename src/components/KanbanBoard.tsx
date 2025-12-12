@@ -47,6 +47,12 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     plannedHours: number;
   } | null>(null);
   const [expandedTask, setExpandedTask] = useState<number | null>(null);
+  const [tasksToShow, setTasksToShow] = useState<Record<string, number>>({
+    todo: 3,
+    in_progress: 3,
+    blocked: 3,
+    completed: 3,
+  });
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
     taskId: number | null;
@@ -309,7 +315,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
             </div>
 
             <div className="kanban-column-content">
-              {columnTasks.map((task) => (
+              {columnTasks.slice(0, tasksToShow[column.id] || 3).map((task) => (
                 <div
                   key={task.id}
                   className={`kanban-card compact ${
@@ -518,6 +524,72 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 <div className="empty-column">
                   <p>No tasks</p>
                 </div>
+              )}
+              
+              {columnTasks.length > (tasksToShow[column.id] || 3) && (
+                <button
+                  className="show-more-tasks-btn"
+                  onClick={() => {
+                    setTasksToShow((prev) => ({
+                      ...prev,
+                      [column.id]: (prev[column.id] || 3) + 3,
+                    }));
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    marginTop: "0.5rem",
+                    backgroundColor: "#f3f4f6",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    color: "#374151",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#e5e7eb";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f3f4f6";
+                  }}
+                >
+                  Show More ({columnTasks.length - (tasksToShow[column.id] || 3)} more)
+                </button>
+              )}
+              
+              {columnTasks.length > 3 && (tasksToShow[column.id] || 3) > 3 && (
+                <button
+                  className="show-less-tasks-btn"
+                  onClick={() => {
+                    setTasksToShow((prev) => ({
+                      ...prev,
+                      [column.id]: 3,
+                    }));
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "0.75rem",
+                    marginTop: "0.5rem",
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "8px",
+                    color: "#6b7280",
+                    fontSize: "0.875rem",
+                    fontWeight: "500",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f9fafb";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#ffffff";
+                  }}
+                >
+                  Show Less
+                </button>
               )}
             </div>
           </div>

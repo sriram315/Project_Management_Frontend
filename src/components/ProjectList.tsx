@@ -168,29 +168,6 @@ const ProjectList: React.FC<ProjectListProps> = ({
                     </button>
                   ) : (
                     <>
-                      {onEditProject && userRole === 'manager' && (
-                        <button 
-                          onClick={() => onEditProject(project)}
-                          title="Edit project"
-                          className="bg-white"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.375rem',
-                            padding: '0.5rem 0.875rem',
-                            color: '#374151',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            fontSize: '0.875rem',
-                            fontWeight: '500',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          <span style={{ fontSize: '0.875rem' }}>✏️</span>
-                          Edit
-                        </button>
-                      )}
                       {onManageTeam && (
                         <button 
                           onClick={() => onManageTeam(project.id, project.name)}
@@ -212,6 +189,29 @@ const ProjectList: React.FC<ProjectListProps> = ({
                         >
                           <span style={{ fontSize: '0.875rem' }}>👥</span>
                           Manage Team
+                        </button>
+                      )}
+                      {onEditProject && (
+                        <button 
+                          onClick={() => onEditProject(project)}
+                          title="Edit project"
+                          className="bg-white"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.375rem',
+                            padding: '0.5rem 0.875rem',
+                            color: '#374151',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <span style={{ fontSize: '0.875rem' }}>✏️</span>
+                          Edit
                         </button>
                       )}
                       {onDeleteProject && (

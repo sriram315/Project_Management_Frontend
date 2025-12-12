@@ -276,19 +276,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
           </NavLink>
         )}
 
-        {user?.role === "super_admin" && (
-          <NavLink
-            to="/project-assignments"
-            style={({ isActive }) =>
-              styles.link(isActive, "project-assignments")
-            }
-            onMouseEnter={() => setHoveredLink("project-assignments")}
-            onMouseLeave={() => setHoveredLink(null)}
-          >
-            Assign Projects
-          </NavLink>
-        )}
-
+        {/* Assign Projects is now merged into Projects page for superadmin */}
         <NavLink
           to="/projects"
           style={({ isActive }) => styles.link(isActive, "projects")}

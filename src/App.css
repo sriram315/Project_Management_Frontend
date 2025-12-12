@@ -2145,6 +2145,12 @@ select::-webkit-scrollbar-thumb:hover {
   margin-bottom: 1rem;
 }
 
+/* Dashboard Metrics Grid - Single Row (7 columns) */
+.metrics-grid-single-row {
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 1rem;
+}
+
 .metric-card {
   background: white;
   border-radius: 16px;
@@ -2648,7 +2654,8 @@ select::-webkit-scrollbar-thumb:hover {
   }
 
   .metrics-grid-row-1,
-  .metrics-grid-row-2 {
+  .metrics-grid-row-2,
+  .metrics-grid-single-row {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
 }
@@ -2686,7 +2693,8 @@ select::-webkit-scrollbar-thumb:hover {
   }
 
   .metrics-grid-row-1,
-  .metrics-grid-row-2 {
+  .metrics-grid-row-2,
+  .metrics-grid-single-row {
     grid-template-columns: 1fr;
   }
 

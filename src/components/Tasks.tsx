@@ -190,57 +190,120 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
       );
     }
 
-    // Filter by start date
-    if (filters.startDate) {
-      const sameCalendarDay = (a: string, b: string): boolean => {
-        const da = new Date(a);
-        const db = new Date(b);
-        if (!isNaN(da.getTime()) && !isNaN(db.getTime())) {
-          return (
-            da.getFullYear() === db.getFullYear() &&
-            da.getMonth() === db.getMonth() &&
-            da.getDate() === db.getDate()
-          );
-        }
-        // Fallback to comparing first 10 chars (YYYY-MM-DD)
-        const a10 = (a || "").slice(0, 10).replace(/\//g, "-");
-        const b10 = (b || "").slice(0, 10).replace(/\//g, "-");
-        return a10 === b10;
-      };
+    // Default filter: Show only tasks from the next 3 weeks (when no date filters are set)
+    if (!filters.startDate && !filters.dueDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Calculate 3 weeks from today
+      const threeWeeksFromNow = new Date(today);
+      threeWeeksFromNow.setDate(today.getDate() + 21); // 3 weeks = 21 days
+      threeWeeksFromNow.setHours(23, 59, 59, 999);
 
       filtered = filtered.filter((task) => {
+        // Check if task has a due_date within the next 3 weeks
+        if (task.due_date) {
+          const dueDate = new Date(task.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          if (dueDate >= today && dueDate <= threeWeeksFromNow) {
+            return true;
+          }
+        }
+        
+        // Also check start_date if due_date is not available or outside range
         const taskStartDate = (task as any).start_date;
-        if (!taskStartDate) return false;
-        const selected = filters.startDate;
-        // Handle ISO strings like 2025-11-14T00:00:00Z by comparing date parts
-        return sameCalendarDay(taskStartDate, selected);
+        if (taskStartDate) {
+          const startDate = new Date(taskStartDate);
+          startDate.setHours(0, 0, 0, 0);
+          if (startDate >= today && startDate <= threeWeeksFromNow) {
+            return true;
+          }
+        }
+        
+        // If task has no dates or dates are outside range, exclude it
+        return false;
       });
     }
 
-    // Filter by due date
-    if (filters.dueDate) {
-      const sameCalendarDay = (a: string, b: string): boolean => {
-        const da = new Date(a);
-        const db = new Date(b);
-        if (!isNaN(da.getTime()) && !isNaN(db.getTime())) {
-          return (
-            da.getFullYear() === db.getFullYear() &&
-            da.getMonth() === db.getMonth() &&
-            da.getDate() === db.getDate()
-          );
-        }
-        // Fallback to comparing first 10 chars (YYYY-MM-DD)
-        const a10 = (a || "").slice(0, 10).replace(/\//g, "-");
-        const b10 = (b || "").slice(0, 10).replace(/\//g, "-");
-        return a10 === b10;
-      };
+    // Filter by date range (when both start and due dates are selected, show tasks within the range)
+    // When only one date is selected, apply that filter independently
+    if (filters.startDate || filters.dueDate) {
+      const selectedStartDate = filters.startDate
+        ? new Date(filters.startDate)
+        : null;
+      if (selectedStartDate) {
+        selectedStartDate.setHours(0, 0, 0, 0);
+      }
+
+      const selectedDueDate = filters.dueDate ? new Date(filters.dueDate) : null;
+      if (selectedDueDate) {
+        selectedDueDate.setHours(23, 59, 59, 999); // Include the entire selected day
+      }
 
       filtered = filtered.filter((task) => {
-        if (!task.due_date) return false;
-        const rawTask = task.due_date;
-        const selected = filters.dueDate;
-        // Handle ISO strings like 2025-11-14T00:00:00Z by comparing date parts
-        return sameCalendarDay(rawTask, selected);
+        const taskStartDate = (task as any).start_date
+          ? new Date((task as any).start_date)
+          : null;
+        const taskDueDate = task.due_date ? new Date(task.due_date) : null;
+
+        // Normalize dates for comparison
+        if (taskStartDate) taskStartDate.setHours(0, 0, 0, 0);
+        if (taskDueDate) taskDueDate.setHours(0, 0, 0, 0);
+
+        // When both dates are selected, show tasks that overlap with the date range
+        if (selectedStartDate && selectedDueDate) {
+          // Task overlaps if:
+          // - Task starts within range, OR
+          // - Task ends within range, OR
+          // - Task spans the entire range
+          if (taskStartDate) {
+            if (
+              (taskStartDate >= selectedStartDate &&
+                taskStartDate <= selectedDueDate) ||
+              (taskDueDate &&
+                taskDueDate >= selectedStartDate &&
+                taskDueDate <= selectedDueDate) ||
+              (taskStartDate <= selectedStartDate &&
+                taskDueDate &&
+                taskDueDate >= selectedDueDate)
+            ) {
+              return true;
+            }
+          } else if (taskDueDate) {
+            // If only due_date exists, check if it's within range
+            if (
+              taskDueDate >= selectedStartDate &&
+              taskDueDate <= selectedDueDate
+            ) {
+              return true;
+            }
+          }
+          return false;
+        }
+
+        // When only start date is selected
+        if (selectedStartDate && !selectedDueDate) {
+          if (taskStartDate && taskStartDate >= selectedStartDate) {
+            return true;
+          }
+          if (taskDueDate && !taskStartDate && taskDueDate >= selectedStartDate) {
+            return true;
+          }
+          return false;
+        }
+
+        // When only due date is selected
+        if (selectedDueDate && !selectedStartDate) {
+          if (taskDueDate && taskDueDate <= selectedDueDate) {
+            return true;
+          }
+          if (taskStartDate && !taskDueDate && taskStartDate <= selectedDueDate) {
+            return true;
+          }
+          return false;
+        }
+
+        return false;
       });
     }
 

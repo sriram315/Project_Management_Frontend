@@ -57,6 +57,25 @@ const formatDateForInput = (dateValue: string | undefined | null): string => {
   }
 };
 
+// Helper function to format date to YYYY-MM-DD
+const formatDateLocal = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// Helper function to get the Friday of a given date's week
+const getFriday = (date: Date): string => {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  // Calculate days to add to get Friday
+  // If Sunday (0), add 5 days; if Monday (1), add 4 days; ... if Friday (5), add 0 days; if Saturday (6), add -1 day (previous Friday)
+  const diff = day === 0 ? 5 : day === 6 ? -1 : 5 - day;
+  d.setDate(d.getDate() + diff);
+  return formatDateLocal(d);
+};
+
 const EditTask: React.FC<EditTaskProps> = ({
   task,
   onTaskUpdated,
@@ -246,15 +265,35 @@ const EditTask: React.FC<EditTaskProps> = ({
     >
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        name === "planned_hours" ||
-        name === "assignee_id" ||
-        name === "project_id"
-          ? parseInt(value) || 0
-          : value,
-    }));
+    
+    // If start_date is changed, automatically set due_date to Friday of that week
+    if (name === "start_date" && value) {
+      const startDate = new Date(value);
+      if (!isNaN(startDate.getTime())) {
+        const fridayDate = getFriday(startDate);
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+          due_date: fridayDate,
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]:
+          name === "planned_hours" ||
+          name === "assignee_id" ||
+          name === "project_id"
+            ? parseInt(value) || 0
+            : value,
+      }));
+    }
+    
     // Clear error for this field when user types
     if (formErrors[name]) {
       setFormErrors((prev) => {
@@ -493,10 +532,20 @@ const EditTask: React.FC<EditTaskProps> = ({
     try {
       // For employees, update status and description (workload validation doesn't apply)
       if (isEmployee) {
-        await taskAPI.update(task.id, {
+        const employeeUpdateData: any = {
           status: formData.status,
           description: formData.description,
-        });
+        };
+        
+        // Include start_date and due_date if they are provided
+        if (formData.start_date) {
+          employeeUpdateData.start_date = formData.start_date;
+        }
+        if (formData.due_date) {
+          employeeUpdateData.due_date = formData.due_date;
+        }
+        
+        await taskAPI.update(task.id, employeeUpdateData);
       } else {
         const taskData: any = {
           ...formData,
@@ -941,80 +990,6 @@ const EditTask: React.FC<EditTaskProps> = ({
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="start_date">Start Date</label>
-                  <input
-                    type="date"
-                    id="start_date"
-                    name="start_date"
-                    value={formData.start_date}
-                    onChange={handleInputChange}
-                    min={(function () {
-                      const d = new Date();
-                      const y = d.getFullYear();
-                      const m = String(d.getMonth() + 1).padStart(2, "0");
-                      const day = String(d.getDate()).padStart(2, "0");
-                      return `${y}-${m}-${day}`;
-                    })()}
-                    max={formData.due_date || undefined}
-                    style={{
-                      borderColor: formErrors.start_date
-                        ? "#ef4444"
-                        : "#e1e8ed",
-                    }}
-                  />
-                  {formErrors.start_date && (
-                    <small
-                      style={{
-                        color: "#ef4444",
-                        fontSize: "0.85rem",
-                        marginTop: "0.25rem",
-                        display: "block",
-                      }}
-                    >
-                      {formErrors.start_date}
-                    </small>
-                  )}
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="due_date">Due Date</label>
-                  <input
-                    type="date"
-                    id="due_date"
-                    name="due_date"
-                    value={formData.due_date}
-                    onChange={handleInputChange}
-                    min={
-                      formData.start_date ||
-                      (function () {
-                        const d = new Date();
-                        const y = d.getFullYear();
-                        const m = String(d.getMonth() + 1).padStart(2, "0");
-                        const day = String(d.getDate()).padStart(2, "0");
-                        return `${y}-${m}-${day}`;
-                      })()
-                    }
-                    style={{
-                      borderColor: formErrors.due_date ? "#ef4444" : "#e1e8ed",
-                    }}
-                  />
-                  {formErrors.due_date && (
-                    <small
-                      style={{
-                        color: "#ef4444",
-                        fontSize: "0.85rem",
-                        marginTop: "0.25rem",
-                        display: "block",
-                      }}
-                    >
-                      {formErrors.due_date}
-                    </small>
-                  )}
-                </div>
-              </div>
-
               <div className="form-group">
                 <label htmlFor="attachments">Attachments</label>
                 <input
@@ -1028,6 +1003,80 @@ const EditTask: React.FC<EditTaskProps> = ({
               </div>
             </>
           )}
+
+          {/* Date fields - shown for all users (employees, managers, team leads, superadmin) */}
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="start_date">Start Date</label>
+              <input
+                type="date"
+                id="start_date"
+                name="start_date"
+                value={formData.start_date}
+                onChange={handleInputChange}
+                min={(function () {
+                  const d = new Date();
+                  const y = d.getFullYear();
+                  const m = String(d.getMonth() + 1).padStart(2, "0");
+                  const day = String(d.getDate()).padStart(2, "0");
+                  return `${y}-${m}-${day}`;
+                })()}
+                style={{
+                  borderColor: formErrors.start_date
+                    ? "#ef4444"
+                    : "#e1e8ed",
+                }}
+              />
+              {formErrors.start_date && (
+                <small
+                  style={{
+                    color: "#ef4444",
+                    fontSize: "0.85rem",
+                    marginTop: "0.25rem",
+                    display: "block",
+                  }}
+                >
+                  {formErrors.start_date}
+                </small>
+              )}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="due_date">Due Date</label>
+              <input
+                type="date"
+                id="due_date"
+                name="due_date"
+                value={formData.due_date}
+                onChange={handleInputChange}
+                min={
+                  formData.start_date ||
+                  (function () {
+                    const d = new Date();
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, "0");
+                    const day = String(d.getDate()).padStart(2, "0");
+                    return `${y}-${m}-${day}`;
+                  })()
+                }
+                style={{
+                  borderColor: formErrors.due_date ? "#ef4444" : "#e1e8ed",
+                }}
+              />
+              {formErrors.due_date && (
+                <small
+                  style={{
+                    color: "#ef4444",
+                    fontSize: "0.85rem",
+                    marginTop: "0.25rem",
+                    display: "block",
+                  }}
+                >
+                  {formErrors.due_date}
+                </small>
+              )}
+            </div>
+          </div>
 
           {/* Status field - shown for all users */}
           <div className="form-group">
