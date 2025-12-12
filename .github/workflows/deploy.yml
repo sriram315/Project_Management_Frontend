@@ -1,184 +1,61 @@
-# # .github/workflows/deploy.yml
-# name: Deploy Project Management Frontend
-
-# on:
-#   push:
-#     branches: [ "main" ]
-#   workflow_dispatch:
-
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
-
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v4
-
-#       - name: Upload project to VM
-#         uses: appleboy/scp-action@v0.1.4
-#         with:
-#           host: ${{ secrets.SSH_HOST }}
-#           username: ${{ secrets.SSH_USER }}
-#           password: ${{ secrets.SSH_PASSWORD }}
-#           port: ${{ secrets.SSH_PORT || 22 }}
-#           source: "."
-#           target: "~/app-pm-frontend"
-#           overwrite: true
-#           rm: true
-
-#       - name: Build & run container on VM
-#         uses: appleboy/ssh-action@v1.0.3
-#         with:
-#           host: ${{ secrets.SSH_HOST }}
-#           username: ${{ secrets.SSH_USER }}
-#           password: ${{ secrets.SSH_PASSWORD }}
-#           port: ${{ secrets.SSH_PORT || 22 }}
-#           envs: GITHUB_SHA
-#           script: |
-#             set -e
-#             cd ~/app-pm-frontend
-
-#             echo "🛑 Stopping any running container..."
-#             docker stop pm-frontend || true
-#             docker rm pm-frontend || true
-
-#             echo "⚙️  Disabling Docker BuildKit to avoid buildx errors..."
-#             export DOCKER_BUILDKIT=0
-#             echo "✅ BuildKit disabled. Proceeding with build..."
-
-#             echo "🏗️  Building Docker image..."
-#             docker build -t pm-frontend:${GITHUB_SHA} .
-
-#             echo "🚀 Running new container..."
-#             docker run -d --name pm-frontend \
-#               --restart unless-stopped \
-#               -p 3005:80 \
-#               pm-frontend:${GITHUB_SHA}
-
-#             echo "🧹 Cleaning up unused images..."
-#             docker image prune -f
-
-#             echo "✅ Deployment completed successfully!"
-
-
-
-name: Deploy Project Management Frontend (static)
+# .github/workflows/deploy.yml
+name: Deploy Project Management Frontend
 
 on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
 
-env:
-  PUBLISH_DIR: build    # change to "dist" if your build outputs to dist/
-
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Use Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Try auto-fixing lint issues (non-destructive)
-        run: |
-          # attempt to auto-fix obvious eslint issues (safe, non-blocking)
-          if npm run -s lint:fix; then
-            echo "eslint --fix completed (if any fixes were possible)"
-          else
-            echo "eslint --fix returned non-zero or rule prevents auto-fix — continuing (this step is best-effort)"
-          fi
-        shell: bash
-        # NOTE: lint:fix should be defined in package.json; fallback below will run eslint directly if not present
-      - name: Fallback: eslint --fix if lint:fix script not present
-        if: ${{ failure() }}
-        run: |
-          npx eslint 'src/**/*.{ts,tsx,js,jsx}' --fix || true
-        shell: bash
-
-      - name: Build project (allow warnings)
-        env:
-          CI: "false"        # <- prevents treating warnings as errors (temporary unblock)
-        run: |
-          npm run build
-
-      - name: Archive build folder
-        run: |
-          if [ ! -d "${{ env.PUBLISH_DIR }}" ]; then
-            echo "ERROR: Build folder '${{ env.PUBLISH_DIR }}' not found. Check your build command and PUBLISH_DIR."
-            exit 1
-          fi
-          tar -czf build.tar.gz -C "${{ env.PUBLISH_DIR }}" .
-        shell: bash
-
-      - name: Upload build to VM
+      - name: Upload project to VM
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          source: "build.tar.gz"
+          source: "."
           target: "~/app-pm-frontend"
           overwrite: true
           rm: true
-          debug: true
 
-      - name: Extract & serve on VM (pm2 serve)
+      - name: Build & run container on VM
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          envs: GITHUB_SHA
           script: |
             set -e
-            mkdir -p ~/app-pm-frontend
             cd ~/app-pm-frontend
 
-            # clean previous content
-            rm -rf ./current || true
-            mkdir -p ./current
+            echo "🛑 Stopping any running container..."
+            docker stop pm-frontend || true
+            docker rm pm-frontend || true
 
-            # extract uploaded build into `current`
-            tar -xzf build.tar.gz -C ./current
+            echo "⚙️  Disabling Docker BuildKit to avoid buildx errors..."
+            export DOCKER_BUILDKIT=0
+            echo "✅ BuildKit disabled. Proceeding with build..."
 
-            # ensure Node/npm are installed (if not, try to install via apt — adjust if your distro differs)
-            if ! command -v node >/dev/null 2>&1; then
-              echo "[info] node not found — installing node (requires sudo)"
-              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-            fi
+            echo "🏗️  Building Docker image..."
+            docker build -t pm-frontend:${GITHUB_SHA} .
 
-            # install pm2 and serve if missing (global)
-            if ! command -v pm2 >/dev/null 2>&1; then
-              echo "[info] Installing pm2 globally (requires sudo)"
-              sudo npm install -g pm2
-            fi
+            echo "🚀 Running new container..."
+            docker run -d --name pm-frontend \
+              --restart unless-stopped \
+              -p 3005:80 \
+              pm-frontend:${GITHUB_SHA}
 
-            if ! npm list -g serve >/dev/null 2>&1; then
-              echo "[info] Installing serve globally (requires sudo)"
-              sudo npm install -g serve
-            fi
+            echo "🧹 Cleaning up unused images..."
+            docker image prune -f
 
-            # start/replace pm2 process to serve static files
-            # Bind to port 80 can require root; if preferred use 3005 (change below)
-            pm2 stop pm-frontend || true
-            pm2 delete pm-frontend || true
-
-            # Use pm2 to run serve from the 'current' folder
-            pm2 start serve --name pm-frontend -- -s ~/app-pm-frontend/current -l 80 || \
-            ( echo "[warn] failed to bind 80, falling back to 3005" && pm2 start serve --name pm-frontend -- -s ~/app-pm-frontend/current -l 3005 )
-
-            pm2 save
-
-            echo "✅ Deployment completed. pm2 status:"
-            pm2 status
+            echo "✅ Deployment completed successfully!"
