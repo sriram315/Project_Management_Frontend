@@ -1,4 +1,3 @@
-# .github/workflows/deploy.yml
 name: Deploy Project Management Frontend
 
 on:
@@ -33,6 +32,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          timeout: 600
+          command_timeout: 600
           envs: GITHUB_SHA
           script: |
             set -e
@@ -42,20 +43,17 @@ jobs:
             docker stop pm-frontend || true
             docker rm pm-frontend || true
 
-            echo "⚙️  Disabling Docker BuildKit to avoid buildx errors..."
-            export DOCKER_BUILDKIT=0
-            echo "✅ BuildKit disabled. Proceeding with build..."
-
-            echo "🏗️  Building Docker image..."
+            echo "🏗️ Building Docker image using BuildKit..."
             docker build -t pm-frontend:${GITHUB_SHA} .
 
-            echo "🚀 Running new container..."
+            echo "🚀 Starting new container..."
             docker run -d --name pm-frontend \
               --restart unless-stopped \
               -p 3005:80 \
               pm-frontend:${GITHUB_SHA}
 
-            echo "🧹 Cleaning up unused images..."
+            echo "🧹 Removing unused containers and images..."
+            docker container prune -f
             docker image prune -f
 
             echo "✅ Deployment completed successfully!"
