@@ -104,13 +104,17 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
 
     if (field === "startDate") {
       if (normalized) {
-        // Allow any date selection for start date - no automatic adjustment
-        // This allows selecting next week and all future weeks
+        // Allow any date selection for start date
         newStartDate = normalized;
-
-        // If start date is after end date, adjust end date to Friday of the week containing start date
-        if (newEndDate && new Date(newStartDate) > new Date(newEndDate)) {
-          const start = new Date(newStartDate);
+        
+        // Always set the end date to Friday of the selected week
+        // This ensures consistent behavior for both previous and future weeks
+        const start = new Date(newStartDate);
+        newEndDate = getFriday(start);
+        
+        // If the selected date is Saturday, show the next Friday
+        if (start.getDay() === 6) {
+          start.setDate(start.getDate() + 6);
           newEndDate = getFriday(start);
         }
       } else {

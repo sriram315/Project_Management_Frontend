@@ -65,12 +65,21 @@ const formatDateLocal = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-// Helper function to get the Friday of a given date's week
-const getFriday = (date: Date): string => {
-  const d = new Date(date);
-  const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+// Helper function to get the Monday of the previous week
+const getLastWeekMonday = (): string => {
+  const d = new Date();
+  const day = d.getDay();
+  // Go to previous Monday, then back one more week
+  const diff = day === 0 ? -13 : -6 - day;
+  d.setDate(d.getDate() + diff);
+  return formatDateLocal(d);
+};
+
+// Helper function to get the Friday of the current week
+const getThisWeekFriday = (): string => {
+  const d = new Date();
+  const day = d.getDay();
   // Calculate days to add to get Friday
-  // If Sunday (0), add 5 days; if Monday (1), add 4 days; ... if Friday (5), add 0 days; if Saturday (6), add -1 day (previous Friday)
   const diff = day === 0 ? 5 : day === 6 ? -1 : 5 - day;
   d.setDate(d.getDate() + diff);
   return formatDateLocal(d);
@@ -85,6 +94,10 @@ const EditTask: React.FC<EditTaskProps> = ({
   // Check if user is an employee (limited access)
   const isEmployee = user?.role === "employee";
 
+  // Set default dates - last week's Monday and this week's Friday
+  const defaultStartDate = getLastWeekMonday();
+  const defaultDueDate = getThisWeekFriday();
+
   const [formData, setFormData] = useState({
     name: task.name || "",
     description: task.description || "",
@@ -93,8 +106,8 @@ const EditTask: React.FC<EditTaskProps> = ({
     planned_hours: task.planned_hours || 0,
     priority: task.priority || "p2",
     task_type: task.task_type || "development",
-    start_date: formatDateForInput((task as any).start_date),
-    due_date: formatDateForInput(task.due_date),
+    start_date: formatDateForInput((task as any).start_date) || defaultStartDate,
+    due_date: formatDateForInput(task.due_date) || defaultDueDate,
     attachments: task.attachments || "",
     status: task.status || "todo",
   });
@@ -189,8 +202,8 @@ const EditTask: React.FC<EditTaskProps> = ({
         planned_hours: task.planned_hours || 0,
         priority: task.priority || "p2",
         task_type: task.task_type || "development",
-        start_date: formatDateForInput((task as any).start_date),
-        due_date: formatDateForInput(task.due_date),
+        start_date: formatDateForInput((task as any).start_date) || defaultStartDate,
+        due_date: formatDateForInput(task.due_date) || defaultDueDate,
         attachments: task.attachments || "",
         status: task.status || "todo",
       });
@@ -259,42 +272,44 @@ const EditTask: React.FC<EditTaskProps> = ({
     fetchDailyUpdates();
   }, [task.id]);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    const { name, value } = e.target;
-    
-    // If start_date is changed, automatically set due_date to Friday of that week
-    if (name === "start_date" && value) {
-      const startDate = new Date(value);
-      if (!isNaN(startDate.getTime())) {
-        const fridayDate = getFriday(startDate);
-        setFormData((prev) => ({
-          ...prev,
-          [name]: value,
-          due_date: fridayDate,
-        }));
-      } else {
-        setFormData((prev) => ({
-          ...prev,
-          [name]: value,
-        }));
+ const handleInputChange = (
+  e: React.ChangeEvent<
+    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+  >
+) => {
+  const { name, value } = e.target;
+
+  // Handle start_date → auto-set due_date to Friday of the same week
+  if (name === "start_date" && value) {
+    const startDate = new Date(value);
+
+    if (!isNaN(startDate.getTime())) {
+      const day = startDate.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+
+      // Correct formula to find Friday (weekday 5)
+      let daysToAdd = 5 - day;
+
+      // If Saturday → previous Friday
+      if (day === 6) {
+        daysToAdd = -1;
       }
+
+      const fridayDate = new Date(startDate);
+      fridayDate.setDate(startDate.getDate() + daysToAdd);
+
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        due_date: formatDateLocal(fridayDate),
+      }));
     } else {
       setFormData((prev) => ({
         ...prev,
-        [name]:
-          name === "planned_hours" ||
-          name === "assignee_id" ||
-          name === "project_id"
-            ? parseInt(value) || 0
-            : value,
+        [name]: value,
       }));
     }
-    
-    // Clear error for this field when user types
+
+    // Clear error for this field
     if (formErrors[name]) {
       setFormErrors((prev) => {
         const newErrors = { ...prev };
@@ -302,7 +317,30 @@ const EditTask: React.FC<EditTaskProps> = ({
         return newErrors;
       });
     }
-  };
+
+    return;
+  }
+
+  // Normal handling for other fields
+  setFormData((prev) => ({
+    ...prev,
+    [name]:
+      name === "planned_hours" ||
+      name === "assignee_id" ||
+      name === "project_id"
+        ? parseInt(value) || 0
+        : value,
+  }));
+
+  // Clear error for this field when typing
+  if (formErrors[name]) {
+    setFormErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors[name];
+      return newErrors;
+    });
+  }
+};
 
   const handleSelectChange = (name: string) => (value: string) => {
     setFormData((prev) => ({
@@ -1014,13 +1052,13 @@ const EditTask: React.FC<EditTaskProps> = ({
                 name="start_date"
                 value={formData.start_date}
                 onChange={handleInputChange}
-                min={(function () {
-                  const d = new Date();
-                  const y = d.getFullYear();
-                  const m = String(d.getMonth() + 1).padStart(2, "0");
-                  const day = String(d.getDate()).padStart(2, "0");
-                  return `${y}-${m}-${day}`;
-                })()}
+                // min={(function () {
+                //   const d = new Date();
+                //   const y = d.getFullYear();
+                //   const m = String(d.getMonth() + 1).padStart(2, "0");
+                //   const day = String(d.getDate()).padStart(2, "0");
+                //   return `${y}-${m}-${day}`;
+                // })()}
                 style={{
                   borderColor: formErrors.start_date
                     ? "#ef4444"
@@ -1049,20 +1087,13 @@ const EditTask: React.FC<EditTaskProps> = ({
                 name="due_date"
                 value={formData.due_date}
                 onChange={handleInputChange}
-                min={
-                  formData.start_date ||
-                  (function () {
-                    const d = new Date();
-                    const y = d.getFullYear();
-                    const m = String(d.getMonth() + 1).padStart(2, "0");
-                    const day = String(d.getDate()).padStart(2, "0");
-                    return `${y}-${m}-${day}`;
-                  })()
-                }
+                // Prevent due date before start date when start is set
+                min={formData.start_date || undefined}
                 style={{
                   borderColor: formErrors.due_date ? "#ef4444" : "#e1e8ed",
                 }}
               />
+
               {formErrors.due_date && (
                 <small
                   style={{

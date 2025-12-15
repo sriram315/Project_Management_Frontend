@@ -21,6 +21,7 @@ import {
   StopCircleIcon,
 } from "@heroicons/react/24/solid";
 import axios from "axios";
+
 // Using simple Unicode symbols instead of react-icons to avoid TypeScript issues
 
 interface DashboardProps {
@@ -493,6 +494,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }
   }, [filters]);
 
+  // Force refresh data when component mounts or user changes
+  useEffect(() => {
+    fetchData();
+    // Reset page numbers when filters change
+    setCurrentPageThisWeek(1);
+    setCurrentPageNextWeek(1);
+    setCurrentPageTaskStats(1);
+  }, [user?.id, user?.role, forceRefreshKey]);
+
   // Reset filters when user changes (user.id or user.role changes)
   useEffect(() => {
     if (user?.id) {
@@ -574,18 +584,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     };
   }
 
-  const fetchData = async () => {
+  const fetchData = async (overrideFilters?: FilterType) => {
+    const activeFilters = overrideFilters ?? filters;
     const { monday, friday } = getThisWeekRange();
 
     // Use filters if dates are available, otherwise use defaults
-    const effectiveStartDate = filters.startDate || monday;
-    const effectiveEndDate = filters.endDate || friday;
+    const effectiveStartDate = activeFilters.startDate || monday;
+    const effectiveEndDate = activeFilters.endDate || friday;
 
     // Handle projectId - if undefined, default to all assigned projects for employees/managers/team leads
     let effectiveProjectId: number | number[] | undefined;
-    if (filters.projectId !== undefined) {
+    if (activeFilters.projectId !== undefined) {
       // Use filter value if set
-      effectiveProjectId = filters.projectId;
+      effectiveProjectId = activeFilters.projectId;
     } else if (
       user?.role === "employee" ||
       user?.role === "manager" ||
@@ -614,8 +625,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     );
 
     // If employeeId filter is explicitly set, use it (for all roles)
-    if (filters.employeeId !== undefined) {
-      effectiveEmployeeId = filters.employeeId;
+    if (activeFilters.employeeId !== undefined) {
+      effectiveEmployeeId = activeFilters.employeeId;
     } else if (user?.role === "employee") {
       // For employees, default to their own ID if no filter is set
       effectiveEmployeeId = user?.id;
@@ -626,7 +637,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     ) {
       // For manager, team_lead, and super_admin roles
       // Note: super_admin users are excluded from the employees list
-      if (filters.projectId !== undefined) {
+      if (activeFilters.projectId !== undefined) {
         // Project is selected - use all employees from that project (excluding super_admin users)
         if (filteredEmployees.length > 0) {
           effectiveEmployeeId = filteredEmployees.map((emp) => emp.id);
@@ -697,6 +708,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       console.error("Error fetching task stats:", error);
     }
   };
+
+  const clearFilters = () => {
+    setFilters({
+      projectId: undefined,
+      employeeId: undefined,
+      startDate: undefined,
+      endDate: undefined,
+    });
+    // Force a refresh after clearing filters
+    setForceRefreshKey((prev) => prev + 1);
+  };
+
+  const handleRefresh = () => {
+    // Explicitly refetch using the current filters only when refresh is clicked
+    fetchDashboardData();
+    fetchData();
+    setForceRefreshKey((k) => k + 1);
+  };
+
   useEffect(() => {
     if (user && projects.length > 0) {
       fetchDashboardData();
@@ -854,9 +884,35 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setFilters(normalizedFilters);
   };
 
-  // The filter handler: changes state only
-  const handleDashboardFilterChange = (newFilters: FilterType) => {
-    persistFilters(newFilters);
+  // The filter handler: only updates state/local storage; refresh button will fetch
+  const handleFilterChange = (newFilters: Partial<FilterType>) => {
+    setFilters((prev) => {
+      const updatedFilters: FilterType = {
+        ...prev,
+        ...newFilters,
+      };
+
+      // Persist updated filters for user (without triggering fetch)
+      const storageKey = user?.id
+        ? `dashboard-filters-${user.id}`
+        : "dashboard-filters";
+      const normalizedForStorage = {
+        ...updatedFilters,
+        projectId: Array.isArray(updatedFilters.projectId)
+          ? updatedFilters.projectId
+          : updatedFilters.projectId !== undefined
+          ? Number(updatedFilters.projectId)
+          : undefined,
+        employeeId: Array.isArray(updatedFilters.employeeId)
+          ? updatedFilters.employeeId
+          : updatedFilters.employeeId !== undefined
+          ? Number(updatedFilters.employeeId)
+          : undefined,
+      };
+      localStorage.setItem(storageKey, JSON.stringify(normalizedForStorage));
+
+      return updatedFilters;
+    });
   };
 
   // Calculate metrics from data
@@ -915,6 +971,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
     return null;
   };
+  
   const productivity = calculateProductivity();
 
   // Calculate utilization: use overall metrics from backend if available, otherwise calculate from weekly data
@@ -1126,11 +1183,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 filters={filters}
                 projects={projects}
                 employees={employees}
-                onFilterChange={handleDashboardFilterChange}
+                onFilterChange={handleFilterChange}
                 userRole={user?.role}
               />
               <button
-                onClick={() => setForceRefreshKey((k) => k + 1)}
+                onClick={handleRefresh}
                 className="refresh-button"
               >
                 <span className="refresh-icon">🔄</span>

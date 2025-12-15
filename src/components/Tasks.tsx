@@ -30,6 +30,45 @@ interface TasksProps {
   user?: any;
 }
 
+// Function to get the start (Monday) and end (Friday) of the current work week
+const getCurrentWorkWeek = () => {
+  const now = new Date();
+  const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (currentDay === 0 ? 6 : currentDay - 1)); // Adjust to Monday
+  
+  // Calculate Friday of the current week
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4); // Add 4 days to get to Friday
+  
+  // Format as YYYY-MM-DD for date inputs
+  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  
+  return {
+    monday: formatDate(monday),
+    friday: formatDate(friday)
+  };
+};
+
+// Given any date string, return the Friday of that same week (ISO yyyy-mm-dd)
+const getFridayOfWeek = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = d.getDay(); // 0=Sun, 6=Sat
+  const diff = day === 0 ? 5 : day === 6 ? -1 : 5 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split("T")[0];
+};
+
+const { monday: startOfWeek, friday: endOfWeek } = getCurrentWorkWeek();
+const initialTaskFilters: TaskFilters = {
+  projectId: null,
+  projectName: null,
+  assigneeId: null,
+  startDate: startOfWeek,
+  dueDate: endOfWeek,
+};
+
 const Tasks: React.FC<TasksProps> = ({ user }) => {
   const location = useLocation();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -40,13 +79,9 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
   const [error, setError] = useState("");
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [filters, setFilters] = useState<TaskFilters>({
-    projectId: null,
-    projectName: null,
-    assigneeId: null,
-    startDate: "",
-    dueDate: "",
-  });
+  const [filters, setFilters] = useState<TaskFilters>(initialTaskFilters);
+  const [pendingFilters, setPendingFilters] =
+    useState<TaskFilters>(initialTaskFilters);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast, showToast, hideToast } = useToast();
 
@@ -324,20 +359,38 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
     key: keyof TaskFilters,
     value: string | number | null
   ) => {
-    setFilters((prev) => ({
+    // Update pending (form) state only; apply on submit
+    if (key === "startDate" && typeof value === "string" && value) {
+      const friday = getFridayOfWeek(value);
+      setPendingFilters((prev) => ({
+        ...prev,
+        startDate: value,
+        dueDate: friday,
+      }));
+      return;
+    }
+
+    setPendingFilters((prev) => ({
       ...prev,
       [key]: value,
     }));
   };
 
+  const handleApplyFilters = () => {
+    setFilters(pendingFilters);
+  };
+
   const clearFilters = () => {
-    setFilters({
+    const { monday: startOfWeek, friday: endOfWeek } = getCurrentWorkWeek();
+    const resetFilters: TaskFilters = {
       projectId: null,
       projectName: null,
       assigneeId: null,
-      startDate: "",
-      dueDate: "",
-    });
+      startDate: startOfWeek,
+      dueDate: endOfWeek,
+    };
+    setPendingFilters(resetFilters);
+    setFilters(resetFilters);
   };
 
   const handleTaskAdded = () => {
@@ -454,7 +507,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
           <div className="filter-group">
             <label htmlFor="project-filter">Project</label>
             <CustomSelect
-              value={filters.projectId?.toString() || ""}
+              value={pendingFilters.projectId?.toString() || ""}
               onChange={(value) => {
                 const projectId = value ? parseInt(value) : null;
                 const selectedProject = projectId
@@ -486,7 +539,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
             <div className="filter-group">
               <label htmlFor="assignee-filter">Team Member</label>
               <CustomSelect
-                value={filters.assigneeId?.toString() || ""}
+                value={pendingFilters.assigneeId?.toString() || ""}
                 onChange={(value) =>
                   handleFilterChange(
                     "assigneeId",
@@ -559,7 +612,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
             <input
               type="date"
               id="start-date-filter"
-              value={filters.startDate}
+                value={pendingFilters.startDate}
               onChange={(e) => handleFilterChange("startDate", e.target.value)}
               style={{
                 padding: "0.75rem",
@@ -577,7 +630,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
             <input
               type="date"
               id="due-date-filter"
-              value={filters.dueDate}
+                value={pendingFilters.dueDate}
               onChange={(e) => handleFilterChange("dueDate", e.target.value)}
               style={{
                 padding: "0.75rem",
@@ -592,29 +645,58 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
 
           <div className="filter-group">
             <label style={{ opacity: 0 }}>Actions</label>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
             <button
-              onClick={clearFilters}
-              className="bg-white"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-                padding: "0.75rem 1.25rem",
-                color: "#374151",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontSize: "0.9rem",
-                fontWeight: "500",
-                transition: "all 0.2s",
-                height: "42px",
-                boxSizing: "border-box",
-              }}
-            >
-              <FilterX size={18} />
-              Clear Filters
-            </button>
+  onClick={handleApplyFilters}
+  className="bg-white"
+  style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "0.5rem",
+    padding: "0.75rem 1.25rem",
+    color: "#ffffff",               // White text
+    border: "1px solid #2563eb",    // Blue border
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "0.9rem",
+    fontWeight: "500",
+    transition: "all 0.2s",
+    height: "42px",
+    width: "160px",                 // ⬅️ Larger width (adjust as needed)
+    boxSizing: "border-box",
+    backgroundColor: "#3b82f6",     // Blue background
+  }}
+>
+  Apply
+</button>
+
+<button
+  onClick={clearFilters}
+  className="bg-white"
+  style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "0.5rem",
+    padding: "0.75rem 1.25rem",
+    color: "#374151",
+    border: "1px solid #e5e7eb",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "0.9rem",
+    fontWeight: "500",
+    transition: "all 0.2s",
+    height: "42px",
+    width: "160px",    // ⬅️ Added width (same as Apply button)
+    boxSizing: "border-box",
+  }}
+>
+  <FilterX size={18} />
+  Clear
+</button>
+
+            </div>
           </div>
         </div>
 
