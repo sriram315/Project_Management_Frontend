@@ -13,7 +13,7 @@ const getApiBaseUrl = () => {
     }
   }
   // For Docker/production/remote server, use production URL
-  return 'http://72.60.101.240:5005/api';
+  return 'http://72.61.240.130:5005/api';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
