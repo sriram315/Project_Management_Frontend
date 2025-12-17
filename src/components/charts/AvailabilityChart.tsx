@@ -37,6 +37,16 @@ const AvailabilityChart: React.FC<AvailabilityChartProps> = ({ data }) => {
     );
   }
 
+  // Power BI–style blue bars: first bar strong, others lighter
+  const blueShades = [
+    "rgba(37, 99, 235, 1)", // strongest
+    "rgba(59, 130, 246, 0.95)",
+    "rgba(96, 165, 250, 0.9)",
+    "rgba(147, 197, 253, 0.9)",
+    "rgba(191, 219, 254, 0.9)",
+    "rgba(219, 234, 254, 0.9)",
+  ];
+
   // split values into positive (available) and negative (overly utilised)
   const availableData = data.map((item) => {
     const hours = item.availableHours ?? 0;
@@ -58,10 +68,12 @@ const AvailabilityChart: React.FC<AvailabilityChartProps> = ({ data }) => {
     {
       label: "Available Hours",
       data: availableData,
-      backgroundColor: "rgb(34, 197, 94)", // green
-      borderColor: "rgb(34, 197, 94)",
+      backgroundColor: data.map(
+        (_item, idx) => blueShades[Math.min(idx, blueShades.length - 1)]
+      ),
+      borderColor: "rgba(37, 99, 235, 1)",
       borderWidth: 0,
-      borderRadius: 4,
+      borderRadius: 0,
       minBarLength: 2, // Ensure zero values are visible
     },
   ];
@@ -70,10 +82,10 @@ const AvailabilityChart: React.FC<AvailabilityChartProps> = ({ data }) => {
     datasets.push({
       label: "Overly Utilised",
       data: overlyUtilisedData,
-      backgroundColor: "rgb(239, 68, 68)", // red
-      borderColor: "rgb(239, 68, 68)",
+      backgroundColor: "rgba(248, 113, 113, 0.9)", // soft red
+      borderColor: "rgba(248, 113, 113, 1)",
       borderWidth: 0,
-      borderRadius: 4,
+      borderRadius: 0,
       minBarLength: 2, // Ensure zero values are visible
     });
   }
@@ -91,16 +103,7 @@ const AvailabilityChart: React.FC<AvailabilityChartProps> = ({ data }) => {
     },
     plugins: {
       legend: {
-        display: true,
-        position: "top" as const,
-        labels: {
-          usePointStyle: true,
-          padding: 20,
-          font: {
-            size: 12,
-            weight: "bold" as const,
-          },
-        },
+        display: false,
       },
       tooltip: {
         callbacks: {

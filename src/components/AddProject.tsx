@@ -129,12 +129,13 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
   return (
     <div className="modal-overlay">
       <div className="modal" style={{ maxWidth: '600px' }}>
-        <div className="modal-header" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', margin: '-2rem -2rem 1.5rem -2rem', padding: '1.5rem 2rem', borderRadius: '12px 12px 0 0' }}>
+        <div className="modal-header" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', margin: 0, borderRadius: '12px 12px 0 0' }}>
           <h2 style={{ margin: 0, color: 'white' }}>Add New Project</h2>
           <button className="close-btn" onClick={onClose} style={{ color: 'white' }}>×</button>
         </div>
         
-        <form onSubmit={handleSubmit} className="user-form">
+        <div className="modal-body">
+          <form onSubmit={handleSubmit} className="user-form">
           <div className="form-group">
             <label htmlFor="name">Project Name <span style={{ color: '#ef4444' }}>*</span></label>
             <input
@@ -269,6 +270,7 @@ const AddProject: React.FC<AddProjectProps> = ({ onProjectAdded, onClose }) => {
             onClose={hideToast}
           />
         )}
+        </div>
       </div>
     </div>
   );

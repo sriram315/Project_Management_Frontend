@@ -75,6 +75,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [allTeamMembers, setAllTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAddTask, setShowAddTask] = useState(false);
@@ -114,6 +115,54 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
     applyFilters();
   }, [tasks, filters, searchTerm]);
 
+  const mapEmployeesToTeamMembers = (
+    employeesData: any[],
+    projectIdToNameMap: Map<number, string>,
+    employeeProjectMap: Map<number, Set<string>>
+  ) => {
+    return employeesData.map((emp: any) => {
+      let projectsStr = emp.projects || emp.project_names || "";
+      if (!projectsStr && employeeProjectMap.has(emp.id)) {
+        const projectSet = employeeProjectMap.get(emp.id);
+        if (projectSet && projectSet.size > 0) {
+          projectsStr = Array.from(projectSet).join(",");
+        }
+      }
+      return {
+        id: emp.id,
+        name: emp.username,
+        role: emp.role,
+        available_hours: emp.available_hours_per_week || 40,
+        status: "online" as const,
+        tasks_count: 0,
+        planned_hours: 0,
+        productivity: 0,
+        utilization: 0,
+        projects: projectsStr,
+      };
+    });
+  };
+
+  const buildEmployeeProjectMap = (
+    tasksData: Task[],
+    projectIdToNameMap: Map<number, string>
+  ) => {
+    const employeeProjectMap = new Map<number, Set<string>>();
+    tasksData.forEach((task) => {
+      if (task.assignee_id && task.project_id) {
+        const projectName =
+          projectIdToNameMap.get(task.project_id) || task.project_name;
+        if (projectName) {
+          if (!employeeProjectMap.has(task.assignee_id)) {
+            employeeProjectMap.set(task.assignee_id, new Set());
+          }
+          employeeProjectMap.get(task.assignee_id)?.add(projectName);
+        }
+      }
+    });
+    return employeeProjectMap;
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -146,60 +195,49 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
           projectIdToNameMap.set(project.id, project.name);
         });
 
-        // Build a map of employee IDs to their assigned project names from tasks
-        const employeeProjectMap = new Map<number, Set<string>>();
-        fetchedTasks.forEach((task) => {
-          if (task.assignee_id && task.project_id) {
-            // Use project name from projects array for consistency, fallback to task.project_name
-            const projectName =
-              projectIdToNameMap.get(task.project_id) || task.project_name;
-            if (projectName) {
-              if (!employeeProjectMap.has(task.assignee_id)) {
-                employeeProjectMap.set(task.assignee_id, new Set());
-              }
-              employeeProjectMap.get(task.assignee_id)?.add(projectName);
-            }
-          }
-        });
+        const employeeProjectMap = buildEmployeeProjectMap(
+          fetchedTasks,
+          projectIdToNameMap
+        );
 
-        // Convert employees to teamMembers format
-        teamData = employeesData.map((emp: any) => {
-          // Get projects from API response, or derive from tasks data
-          let projectsStr = emp.projects || emp.project_names || "";
-
-          // If projects field is missing, derive from tasks
-          if (!projectsStr && employeeProjectMap.has(emp.id)) {
-            const projectSet = employeeProjectMap.get(emp.id);
-            if (projectSet && projectSet.size > 0) {
-              projectsStr = Array.from(projectSet).join(",");
-            }
-          }
-
-          return {
-            id: emp.id,
-            name: emp.username,
-            role: emp.role,
-            available_hours: emp.available_hours_per_week || 40,
-            status: "online" as const,
-            tasks_count: 0,
-            planned_hours: 0,
-            productivity: 0,
-            utilization: 0,
-            projects: projectsStr, // Include projects field for filtering
-          };
-        });
+        teamData = mapEmployeesToTeamMembers(
+          employeesData,
+          projectIdToNameMap,
+          employeeProjectMap
+        );
       } else {
-        // For super admin, fetch all data
-        [tasksData, projectsData, teamData] = await Promise.all([
-          taskAPI.getAll(),
-          projectAPI.getAll(),
-          teamAPI.getAll(),
-        ]);
+        // For super admin, fetch all data but keep employees project-scoped for filtering
+        const [fetchedTasks, fetchedProjects, employeesData] =
+          await Promise.all([
+            taskAPI.getAll(),
+            projectAPI.getAll(),
+            dashboardAPI.getEmployees(), // include project info
+          ]);
+
+        tasksData = fetchedTasks;
+        projectsData = fetchedProjects;
+
+        const projectIdToNameMap = new Map<number, string>();
+        fetchedProjects.forEach((project) => {
+          projectIdToNameMap.set(project.id, project.name);
+        });
+
+        const employeeProjectMap = buildEmployeeProjectMap(
+          fetchedTasks,
+          projectIdToNameMap
+        );
+
+        teamData = mapEmployeesToTeamMembers(
+          employeesData,
+          projectIdToNameMap,
+          employeeProjectMap
+        );
       }
 
       setTasks(tasksData);
       setProjects(projectsData);
       setTeamMembers(teamData);
+      setAllTeamMembers(teamData);
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch data");
@@ -207,6 +245,48 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
       setLoading(false);
     }
   };
+  // When project filter changes, refresh team members to only those in the project
+  useEffect(() => {
+    const loadTeamMembersForProject = async () => {
+      if (user?.role === "employee") return;
+      const projectId = pendingFilters.projectId;
+      if (!projectId) {
+        setTeamMembers(allTeamMembers);
+        return;
+      }
+      try {
+        const projectIdStr = projectId.toString();
+        const employees = await dashboardAPI.getEmployees(
+          projectIdStr,
+          user?.id,
+          user?.role
+        );
+        // Reuse existing maps for project names
+        const projectIdToNameMap = new Map<number, string>();
+        projects.forEach((p) => projectIdToNameMap.set(p.id, p.name));
+        const employeeProjectMap = buildEmployeeProjectMap(tasks, projectIdToNameMap);
+        const mapped = mapEmployeesToTeamMembers(
+          employees,
+          projectIdToNameMap,
+          employeeProjectMap
+        );
+        setTeamMembers(mapped);
+        // Clear invalid assignee selection if not in the new list
+        if (
+          pendingFilters.assigneeId &&
+          !mapped.some((m) => m.id === pendingFilters.assigneeId)
+        ) {
+          handleFilterChange("assigneeId", null);
+        }
+      } catch (err) {
+        console.error("Failed to load team members for project filter", err);
+        // fallback to all team members
+        setTeamMembers(allTeamMembers);
+      }
+    };
+    loadTeamMembersForProject();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFilters.projectId]);
 
   const applyFilters = () => {
     let filtered = [...tasks];
@@ -439,42 +519,24 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
 
   return (
     <div className="users-page">
-      <div className="page-header" style={{ marginBottom: "2rem" }}>
+      <div className="page-header">
         <div>
-          <h1
-            className="text-foreground"
-            style={{
-              fontSize: "2rem",
-              fontWeight: "700",
-              marginBottom: "0.5rem",
-            }}
-          >
+          <h1 style={{ color: "white" }}>
             {user?.role === "employee" ? "My Tasks" : "Task Management"}
           </h1>
-          <p
-            className="text-muted-foreground"
-            style={{ fontSize: "0.95rem", marginTop: "0.25rem" }}
-          >
+          <p style={{ fontSize: "0.9rem", marginTop: "0.25rem", opacity: 0.9, color: "rgba(255, 255, 255, 0.9)" }}>
             Manage and track all your tasks in one place
           </p>
         </div>
-        <div
-          className="header-actions"
-          style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}
-        >
+        <div className="header-actions">
           <input
             type="text"
             placeholder="Search tasks by name, description..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-background"
+            className="search-input"
             style={{
-              padding: "0.65rem 1rem",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              width: "280px",
-              fontSize: "0.9rem",
-              outline: "none",
+              width: "300px",
             }}
           />
           <button
@@ -483,19 +545,30 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
               display: "flex",
               alignItems: "center",
               gap: "0.5rem",
-              padding: "0.65rem 1.25rem",
-              backgroundColor: "#6366f1",
+              padding: "0.75rem 1.5rem",
+              backgroundColor: "rgba(255, 255, 255, 0.2)",
+              backdropFilter: "blur(10px)",
               color: "white",
-              border: "none",
-              borderRadius: "8px",
+              border: "2px solid rgba(255, 255, 255, 0.3)",
+              borderRadius: "10px",
               cursor: "pointer",
-              fontSize: "0.9rem",
-              fontWeight: "500",
-              transition: "all 0.2s",
+              fontSize: "0.95rem",
+              fontWeight: "600",
+              transition: "all 0.3s",
               whiteSpace: "nowrap",
             }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.3)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
           >
-            <span style={{ fontSize: "1.1rem" }}>+</span>
+            <span style={{ fontSize: "1.2rem" }}>+</span>
             Add New Task
           </button>
         </div>
@@ -648,24 +721,32 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
             <div style={{ display: "flex", gap: "0.5rem" }}>
             <button
   onClick={handleApplyFilters}
-  className="bg-white"
   style={{
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: "0.5rem",
-    padding: "0.75rem 1.25rem",
-    color: "#ffffff",               // White text
-    border: "1px solid #2563eb",    // Blue border
-    borderRadius: "8px",
+    padding: "0.75rem 1.5rem",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "10px",
     cursor: "pointer",
     fontSize: "0.9rem",
-    fontWeight: "500",
-    transition: "all 0.2s",
+    fontWeight: "600",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     height: "42px",
-    width: "160px",                 // ⬅️ Larger width (adjust as needed)
+    width: "160px",
     boxSizing: "border-box",
-    backgroundColor: "#3b82f6",     // Blue background
+    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    boxShadow: "0 4px 12px rgba(102, 126, 234, 0.3)",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform = "translateY(-2px)";
+    e.currentTarget.style.boxShadow = "0 6px 20px rgba(102, 126, 234, 0.4)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform = "translateY(0)";
+    e.currentTarget.style.boxShadow = "0 4px 12px rgba(102, 126, 234, 0.3)";
   }}
 >
   Apply
@@ -673,23 +754,35 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
 
 <button
   onClick={clearFilters}
-  className="bg-white"
   style={{
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: "0.5rem",
-    padding: "0.75rem 1.25rem",
-    color: "#374151",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
+    padding: "0.75rem 1.5rem",
+    color: "#475569",
+    border: "2px solid #e2e8f0",
+    borderRadius: "10px",
     cursor: "pointer",
     fontSize: "0.9rem",
-    fontWeight: "500",
-    transition: "all 0.2s",
+    fontWeight: "600",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     height: "42px",
-    width: "160px",    // ⬅️ Added width (same as Apply button)
+    width: "160px",
     boxSizing: "border-box",
+    backgroundColor: "white",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.borderColor = "#cbd5e1";
+    e.currentTarget.style.backgroundColor = "#f8fafc";
+    e.currentTarget.style.transform = "translateY(-2px)";
+    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.08)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.borderColor = "#e2e8f0";
+    e.currentTarget.style.backgroundColor = "white";
+    e.currentTarget.style.transform = "translateY(0)";
+    e.currentTarget.style.boxShadow = "none";
   }}
 >
   <FilterX size={18} />

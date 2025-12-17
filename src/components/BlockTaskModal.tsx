@@ -75,14 +75,27 @@ const BlockTaskModal: React.FC<BlockTaskModalProps> = ({ taskId, taskName, onCon
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h2>Block Task</h2>
-          <button className="modal-close" onClick={onCancel}>
+      <div className="modal" style={{ maxWidth: "700px", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column", padding: 0 }}>
+        <div
+          className="modal-header"
+          style={{
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            color: "white",
+            padding: "1.5rem 2rem",
+            borderRadius: "12px 12px 0 0",
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+            flexShrink: 0,
+          }}
+        >
+          <h2 style={{ margin: 0, color: "white" }}>Block Task</h2>
+          <button className="close-btn" onClick={onCancel} style={{ color: "white" }}>
             ×
           </button>
         </div>
 
+        <div style={{ padding: "1.5rem 2rem 2rem 2rem", overflowY: "auto", flex: 1, minHeight: 0 }}>
         <form onSubmit={handleSubmit} className="user-form">
           {error && <div className="error-message">{error}</div>}
 
@@ -132,6 +145,7 @@ const BlockTaskModal: React.FC<BlockTaskModalProps> = ({ taskId, taskName, onCon
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );

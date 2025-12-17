@@ -775,15 +775,18 @@ const EditTask: React.FC<EditTaskProps> = ({
 
   return (
     <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: "700px" }}>
+      <div className="modal" style={{ maxWidth: "700px", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column", padding: 0 }}>
         <div
           className="modal-header"
           style={{
             background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
             color: "white",
-            margin: "-2rem -2rem 1.5rem -2rem",
             padding: "1.5rem 2rem",
             borderRadius: "12px 12px 0 0",
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
+            flexShrink: 0,
           }}
         >
           <h2 style={{ margin: 0, color: "white" }}>Edit Task</h2>
@@ -796,6 +799,7 @@ const EditTask: React.FC<EditTaskProps> = ({
           </button>
         </div>
 
+        <div style={{ padding: "1.5rem 2rem 2rem 2rem", overflowY: "auto", flex: 1, minHeight: 0 }}>
         <form onSubmit={handleSubmit} className="user-form">
           {error && <div className="error-message">{error}</div>}
 
@@ -1345,6 +1349,7 @@ const EditTask: React.FC<EditTaskProps> = ({
             onClose={hideToast}
           />
         )}
+        </div>
       </div>
 
       {/* Workload Warning Modal */}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
-import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
 import Users from './components/Users';
 import Projects from './components/Projects';
 import Tasks from './components/Tasks';
@@ -135,8 +135,9 @@ function App() {
 
   return (
     <Router>
-      <div className="App">
-        {isAuthenticated && <Navbar user={user} onLogout={handleLogout} />}
+      <div className="App sidebar-layout">
+        {isAuthenticated && <Sidebar user={user} onLogout={handleLogout} />}
+        <main className="sidebar-content">
         <Routes>
           <Route 
             path="/login" 
@@ -230,6 +231,7 @@ function App() {
           />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </main>
       </div>
     </Router>
   );

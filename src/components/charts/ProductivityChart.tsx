@@ -25,6 +25,16 @@ interface ProductivityChartProps {
 }
 
 const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
+  // Power BI–style descending blue bars: first bar strong, others lighter
+  const blueShades = [
+    "rgba(37, 99, 235, 1)", // strongest
+    "rgba(59, 130, 246, 0.95)",
+    "rgba(96, 165, 250, 0.9)",
+    "rgba(147, 197, 253, 0.9)",
+    "rgba(191, 219, 254, 0.9)",
+    "rgba(219, 234, 254, 0.9)",
+  ];
+
   const chartData = {
     labels: data.map((item) => item?.week || ""),
     datasets: [
@@ -34,13 +44,17 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
           const value = item?.productivity;
           if (value === null || value === undefined) return 0;
           // Convert string to number if needed
-          const numValue = typeof value === 'string' ? parseFloat(value) : Number(value);
+          const numValue =
+            typeof value === "string" ? parseFloat(value) : Number(value);
           return !isNaN(numValue) ? numValue : 0;
         }),
-        backgroundColor: "rgb(34, 197, 94)",
-        borderColor: "rgb(34, 197, 94)",
+        backgroundColor: data.map(
+          (_item, idx) =>
+            blueShades[Math.min(idx, blueShades.length - 1)]
+        ),
+        borderColor: "rgba(37, 99, 235, 1)",
         borderWidth: 0,
-        borderRadius: 4,
+        borderRadius: 0, // square bars like the reference
       },
     ],
   };
@@ -50,16 +64,7 @@ const ProductivityChart: React.FC<ProductivityChartProps> = ({ data }) => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: true,
-        position: "top" as const,
-        labels: {
-          usePointStyle: true,
-          padding: 20,
-          font: {
-            size: 12,
-            weight: "bold" as const,
-          },
-        },
+        display: false,
       },
       title: {
         display: false,

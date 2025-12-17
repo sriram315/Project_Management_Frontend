@@ -85,7 +85,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           return {
             projectId: parsed.projectId ?? undefined,
             employeeId: parsed.employeeId ?? undefined,
-            // Don't load dates from localStorage - they will be set to current week by useEffect
+            // Date range always defaults to undefined - will be set to current week by useEffect
             startDate: undefined,
             endDate: undefined,
           };
@@ -183,6 +183,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }>
   >([]);
   const [loadingUpdates, setLoadingUpdates] = useState(false);
+  const [activeTaskView, setActiveTaskView] = useState<
+    "thisWeek" | "nextWeek"
+  >("thisWeek");
 
   // Display helper: show hyphen for null/empty API values
   const displayOrHyphen = (value: any): string | number => {
@@ -506,7 +509,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   // Reset filters when user changes (user.id or user.role changes)
   useEffect(() => {
     if (user?.id) {
-      // Reset filters to defaults when user changes
+      // Reset filters to persisted values (date range always defaults to current week on refresh)
       const today = new Date();
       const dayOfWeek = today.getDay();
       const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
@@ -521,9 +524,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         return `${year}-${month}-${day}`;
       };
 
-      // Load user-specific filters or use defaults
-      // NOTE: Date range is ALWAYS reset to current week on login to avoid showing old dates
-      // Only project and employee filters are preserved from localStorage
       const storageKey = `dashboard-filters-${user.id}`;
       const savedFilters = localStorage.getItem(storageKey);
 
@@ -533,7 +533,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           setFilters({
             projectId: saved.projectId ?? undefined,
             employeeId: saved.employeeId ?? undefined,
-            // Always use current week for dates, don't load from localStorage
+            // Date range always defaults to current week (Monday-Friday) on page refresh
             startDate: formatDateLocal(monday),
             endDate: formatDateLocal(friday),
           });
@@ -615,6 +615,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     // Exception: if employeeId filter is explicitly set, use that instead
     // Note: Filter out super_admin users from employees list before processing
     let effectiveEmployeeId: number | number[] | undefined;
+    let noEmployeesForSelectedProject = false;
 
     // Filter out super_admin users from employees lists
     const filteredEmployees = employees.filter(
@@ -641,6 +642,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         // Project is selected - use all employees from that project (excluding super_admin users)
         if (filteredEmployees.length > 0) {
           effectiveEmployeeId = filteredEmployees.map((emp) => emp.id);
+        } else {
+          // Explicitly signal no employees for this project
+          effectiveEmployeeId = -1;
+          noEmployeesForSelectedProject = true;
         }
       } else {
         // No project selected - use all employees (excluding super_admin users)
@@ -690,15 +695,34 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         payload
       );
 
-      setTaskStats(res.data);
+      // If no employees are assigned to the selected project, force zeroed stats/availability
+      const adjustedData =
+        noEmployeesForSelectedProject && activeFilters.projectId !== undefined
+          ? {
+              ...res.data,
+              taskStats: { total: 0, completed: 0, blocked: 0, pending: 0, in_progress: 0 },
+              tasks: [],
+              productivityData: [],
+              utilizationData: [],
+              availabilityData: [],
+              final: {
+                ...(res.data?.final || {}),
+                available_hours: 0,
+                productivity: 0,
+                utilization: 0,
+              },
+            }
+          : res.data;
+
+      setTaskStats(adjustedData);
 
       // Update taskStatusData from the response
-      if (res.data?.taskStats) {
+      if (adjustedData?.taskStats) {
         setTaskStatusData({
-          todo: res.data.taskStats.todo || 0,
-          in_progress: res.data.taskStats.in_progress || 0,
-          completed: res.data.taskStats.completed || 0,
-          blocked: res.data.taskStats.blocked || 0,
+          todo: adjustedData.taskStats.todo || 0,
+          in_progress: adjustedData.taskStats.in_progress || 0,
+          completed: adjustedData.taskStats.completed || 0,
+          blocked: adjustedData.taskStats.blocked || 0,
         });
       }
 
@@ -893,11 +917,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       };
 
       // Persist updated filters for user (without triggering fetch)
+      // Note: Date range is NOT saved to localStorage - it will always default to current week on refresh
       const storageKey = user?.id
         ? `dashboard-filters-${user.id}`
         : "dashboard-filters";
       const normalizedForStorage = {
-        ...updatedFilters,
         projectId: Array.isArray(updatedFilters.projectId)
           ? updatedFilters.projectId
           : updatedFilters.projectId !== undefined
@@ -908,6 +932,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           : updatedFilters.employeeId !== undefined
           ? Number(updatedFilters.employeeId)
           : undefined,
+        // Explicitly exclude startDate and endDate from being saved
       };
       localStorage.setItem(storageKey, JSON.stringify(normalizedForStorage));
 
@@ -1029,6 +1054,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     return totalAvailableHours > 0 ? Math.round(totalAvailableHours) : null;
   };
   const availableHours = calculateAvailableHours();
+  const trendData =
+    taskStats?.utilizationData && taskStats.utilizationData.length > 0
+      ? taskStats.utilizationData
+      : taskStats?.productivityData || [];
 
   // Metric cards
   const baseStats: Array<{
@@ -1335,16 +1364,550 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
         </div> */}
 
-        {/* Tasks This Week and Next Week (Tables with hyperlinks) */}
-        <div className="tasks-section">
-          <div className="tasks-grid">
+        <div className="dashboard-main-grid">
+          <div className="dashboard-left-col">
+            {/* Tasks view with compact tabs */}
+            <div className="tasks-section">
+              <div className="tasks-panel">
+                <div className="tasks-nav">
+                  <button
+                    className={`tasks-tab ${
+                      activeTaskView === "thisWeek" ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      setActiveTaskView("thisWeek");
+                      setCurrentPageThisWeek(1);
+                    }}
+                  >
+                    Tasks This Week
+                  </button>
+                  <button
+                    className={`tasks-tab ${
+                      activeTaskView === "nextWeek" ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      setActiveTaskView("nextWeek");
+                      setCurrentPageNextWeek(1);
+                    }}
+                  >
+                    Tasks Next Week
+                  </button>
+                </div>
+
+                {activeTaskView === "thisWeek" ? (
+                  <div className="task-card task-card-compact">
+                    <div className="task-card-header">
+                      <div className="task-card-title-section">
+                        <h3 className="task-card-title">📅 Tasks This Week</h3>
+                        {tasksThisWeek.length > 0 && (
+                          <span className="task-count-badge">
+                            {tasksThisWeek.length}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="task-table-container">
+                      <table className="task-table">
+                        <thead>
+                          <tr>
+                            <th>Task</th>
+                            <th>Assignee</th>
+                            <th className="status-column">Status</th>
+                            <th>Hours</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tasksThisWeek.length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="empty-task-message">
+                                <div className="empty-state-content">
+                                  <span className="empty-icon">📋</span>
+                                  <p>No tasks for this week</p>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          {tasksThisWeek
+                            .slice(
+                              (currentPageThisWeek - 1) * itemsPerPage,
+                              currentPageThisWeek * itemsPerPage
+                            )
+                            .map((task) => {
+                              const statusConfig =
+                                task.status === "Completed"
+                                  ? {
+                                      class: "status-completed",
+                                      color: "#10b981",
+                                      bg: "#d1fae5",
+                                    }
+                                  : task.status === "In Progress"
+                                  ? {
+                                      class: "status-in-progress",
+                                      color: "#06b6d4",
+                                      bg: "#cffafe",
+                                    }
+                                  : task.status === "Blocked"
+                                  ? {
+                                      class: "status-blocked",
+                                      color: "#ef4444",
+                                      bg: "#fee2e2",
+                                    }
+                                  : {
+                                      class: "status-todo",
+                                      color: "#6366f1",
+                                      bg: "#e0e7ff",
+                                    };
+                              const isExpanded =
+                                selectedTask &&
+                                selectedTask.source === "thisWeek" &&
+                                selectedTask.id === task.id;
+                              return (
+                                <React.Fragment key={`fragment-${task.id}`}>
+                                  <tr
+                                    className={`task-row ${
+                                      isExpanded ? "expanded" : ""
+                                    }`}
+                                  >
+                                    <td>
+                                      <a
+                                        href="#"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          handleTaskSelection(task, "thisWeek");
+                                        }}
+                                        className="task-link"
+                                      >
+                                        {task.title}
+                                      </a>
+                                    </td>
+                                    <td className="task-assignee">
+                                      {task.assignee}
+                                    </td>
+                                    <td className="status-column">
+                                      <span
+                                        className="task-status-badge"
+                                        style={{
+                                          color: statusConfig.color,
+                                          backgroundColor: statusConfig.bg,
+                                        }}
+                                      >
+                                        {task.status}
+                                      </span>
+                                    </td>
+                                    <td className="task-hours">
+                                      {task.estimated} hrs
+                                    </td>
+                                  </tr>
+                                  {isExpanded && (
+                                    <tr
+                                      key={`details-${task.id}`}
+                                      className="task-details-row"
+                                    >
+                                      <td colSpan={4}>
+                                        <div className="task-details-panel">
+                                          <div className="task-detail-item">
+                                            <span className="task-detail-label">
+                                              📆 Due Date:
+                                            </span>
+                                            <span className="task-detail-value">
+                                              {formatDueDate(
+                                                selectedTask?.id === task.id
+                                                  ? selectedTask?.due_date
+                                                  : task.due_date
+                                              )}
+                                            </span>
+                                          </div>
+                                          {dailyUpdates.length > 0 && (
+                                            <div className="daily-updates-section">
+                                              <div className="daily-updates-header">
+                                                💬 Daily Updates
+                                              </div>
+                                              <div className="daily-updates-list">
+                                                {dailyUpdates.map((update) => (
+                                                  <div
+                                                    key={update.id}
+                                                    className="daily-update-card"
+                                                  >
+                                                    <div className="daily-update-header">
+                                                      <span className="daily-update-author">
+                                                        {update.username ||
+                                                          "Unknown"}
+                                                      </span>
+                                                      <span className="daily-update-date">
+                                                        {new Date(
+                                                          update.created_at
+                                                        ).toLocaleDateString(
+                                                          "en-US",
+                                                          {
+                                                            year: "numeric",
+                                                            month: "short",
+                                                            day: "numeric",
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                          }
+                                                        )}
+                                                      </span>
+                                                    </div>
+                                                    <div className="daily-update-comment">
+                                                      {update.comment}
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {loadingUpdates && (
+                                            <div className="loading-updates">
+                                              Loading updates...
+                                            </div>
+                                          )}
+                                          {!loadingUpdates &&
+                                            dailyUpdates.length === 0 && (
+                                              <div className="no-updates">
+                                                No daily updates available
+                                              </div>
+                                            )}
+                                          <div className="task-details-actions">
+                                            <button
+                                              onClick={() => {
+                                                setSelectedTask(null);
+                                                setDailyUpdates([]);
+                                              }}
+                                              className="close-details-button"
+                                            >
+                                              Close
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination for This Week */}
+                    {tasksThisWeek.length > itemsPerPage && (
+                      <div className="pagination-container">
+                        <div className="pagination-info">
+                          Showing {(currentPageThisWeek - 1) * itemsPerPage + 1} to{" "}
+                          {Math.min(
+                            currentPageThisWeek * itemsPerPage,
+                            tasksThisWeek.length
+                          )}{" "}
+                          of {tasksThisWeek.length} tasks
+                        </div>
+                        <div className="pagination-controls">
+                          <button
+                            onClick={() =>
+                              setCurrentPageThisWeek((prev) =>
+                                Math.max(1, prev - 1)
+                              )
+                            }
+                            disabled={currentPageThisWeek === 1}
+                            className={`pagination-button ${
+                              currentPageThisWeek === 1 ? "disabled" : ""
+                            }`}
+                          >
+                            Previous
+                          </button>
+                          <span className="pagination-page-info">
+                            Page {currentPageThisWeek} of{" "}
+                            {Math.ceil(tasksThisWeek.length / itemsPerPage)}
+                          </span>
+                          <button
+                            onClick={() =>
+                              setCurrentPageThisWeek((prev) =>
+                                Math.min(
+                                  Math.ceil(tasksThisWeek.length / itemsPerPage),
+                                  prev + 1
+                                )
+                              )
+                            }
+                            disabled={
+                              currentPageThisWeek >=
+                              Math.ceil(tasksThisWeek.length / itemsPerPage)
+                            }
+                            className={`pagination-button ${
+                              currentPageThisWeek >=
+                              Math.ceil(tasksThisWeek.length / itemsPerPage)
+                                ? "disabled"
+                                : ""
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="task-card task-card-compact">
+                    <div className="task-card-header">
+                      <div className="task-card-title-section">
+                        <h3 className="task-card-title">📅 Tasks Next Week</h3>
+                        {tasksNextWeek.length > 0 && (
+                          <span className="task-count-badge">
+                            {tasksNextWeek.length}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="task-table-container">
+                      <table className="task-table">
+                        <thead>
+                          <tr>
+                            <th>Task</th>
+                            <th>Assignee</th>
+                            <th className="status-column">Status</th>
+                            <th>Hours</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tasksNextWeek.length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="empty-task-message">
+                                <div className="empty-state-content">
+                                  <span className="empty-icon">📋</span>
+                                  <p>No tasks for next week</p>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          {tasksNextWeek
+                            .slice(
+                              (currentPageNextWeek - 1) * itemsPerPage,
+                              currentPageNextWeek * itemsPerPage
+                            )
+                            .map((task) => {
+                              const statusConfig =
+                                task.status === "Completed"
+                                  ? {
+                                      class: "status-completed",
+                                      color: "#10b981",
+                                      bg: "#d1fae5",
+                                    }
+                                  : task.status === "In Progress"
+                                  ? {
+                                      class: "status-in-progress",
+                                      color: "#06b6d4",
+                                      bg: "#cffafe",
+                                    }
+                                  : task.status === "Blocked"
+                                  ? {
+                                      class: "status-blocked",
+                                      color: "#ef4444",
+                                      bg: "#fee2e2",
+                                    }
+                                  : {
+                                      class: "status-todo",
+                                      color: "#6366f1",
+                                      bg: "#e0e7ff",
+                                    };
+                              const isExpanded =
+                                selectedTask &&
+                                selectedTask.source === "nextWeek" &&
+                                selectedTask.id === task.id;
+                              return (
+                                <React.Fragment key={`fragment-nw-${task.id}`}>
+                                  <tr
+                                    className={`task-row ${
+                                      isExpanded ? "expanded" : ""
+                                    }`}
+                                  >
+                                    <td>
+                                      <a
+                                        href="#"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          handleTaskSelection(task, "nextWeek");
+                                        }}
+                                        className="task-link"
+                                      >
+                                        {task.title}
+                                      </a>
+                                    </td>
+                                    <td className="task-assignee">
+                                      {task.assignee}
+                                    </td>
+                                    <td className="status-column">
+                                      <span
+                                        className="task-status-badge"
+                                        style={{
+                                          color: statusConfig.color,
+                                          backgroundColor: statusConfig.bg,
+                                        }}
+                                      >
+                                        {task.status}
+                                      </span>
+                                    </td>
+                                    <td className="task-hours">
+                                      {task.estimated} hrs
+                                    </td>
+                                  </tr>
+                                  {isExpanded && (
+                                    <tr
+                                      key={`details-nw-${task.id}`}
+                                      className="task-details-row"
+                                    >
+                                      <td colSpan={4}>
+                                        <div className="task-details-panel">
+                                          <div className="task-detail-item">
+                                            <span className="task-detail-label">
+                                              📆 Due Date:
+                                            </span>
+                                            <span className="task-detail-value">
+                                              {formatDueDate(
+                                                selectedTask?.id === task.id
+                                                  ? selectedTask?.due_date
+                                                  : task.due_date
+                                              )}
+                                            </span>
+                                          </div>
+                                          {dailyUpdates.length > 0 && (
+                                            <div className="daily-updates-section">
+                                              <div className="daily-updates-header">
+                                                💬 Daily Updates
+                                              </div>
+                                              <div className="daily-updates-list">
+                                                {dailyUpdates.map((update) => (
+                                                  <div
+                                                    key={update.id}
+                                                    className="daily-update-card"
+                                                  >
+                                                    <div className="daily-update-header">
+                                                      <span className="daily-update-author">
+                                                        {update.username ||
+                                                          "Unknown"}
+                                                      </span>
+                                                      <span className="daily-update-date">
+                                                        {new Date(
+                                                          update.created_at
+                                                        ).toLocaleDateString(
+                                                          "en-US",
+                                                          {
+                                                            year: "numeric",
+                                                            month: "short",
+                                                            day: "numeric",
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                          }
+                                                        )}
+                                                      </span>
+                                                    </div>
+                                                    <div className="daily-update-comment">
+                                                      {update.comment}
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                          {loadingUpdates && (
+                                            <div className="loading-updates">
+                                              Loading updates...
+                                            </div>
+                                          )}
+                                          {!loadingUpdates &&
+                                            dailyUpdates.length === 0 && (
+                                              <div className="no-updates">
+                                                No daily updates available
+                                              </div>
+                                            )}
+                                          <div className="task-details-actions">
+                                            <button
+                                              onClick={() => {
+                                                setSelectedTask(null);
+                                                setDailyUpdates([]);
+                                              }}
+                                              className="close-details-button"
+                                            >
+                                              Close
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </React.Fragment>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination for Next Week */}
+                    {tasksNextWeek.length > itemsPerPage && (
+                      <div className="pagination-container">
+                        <div className="pagination-info">
+                          Showing {(currentPageNextWeek - 1) * itemsPerPage + 1} to{" "}
+                          {Math.min(
+                            currentPageNextWeek * itemsPerPage,
+                            tasksNextWeek.length
+                          )}{" "}
+                          of {tasksNextWeek.length} tasks
+                        </div>
+                        <div className="pagination-controls">
+                          <button
+                            onClick={() =>
+                              setCurrentPageNextWeek((prev) =>
+                                Math.max(1, prev - 1)
+                              )
+                            }
+                            disabled={currentPageNextWeek === 1}
+                            className={`pagination-button ${
+                              currentPageNextWeek === 1 ? "disabled" : ""
+                            }`}
+                          >
+                            Previous
+                          </button>
+                          <span className="pagination-page-info">
+                            Page {currentPageNextWeek} of{" "}
+                            {Math.ceil(tasksNextWeek.length / itemsPerPage)}
+                          </span>
+                          <button
+                            onClick={() =>
+                              setCurrentPageNextWeek((prev) =>
+                                Math.min(
+                                  Math.ceil(tasksNextWeek.length / itemsPerPage),
+                                  prev + 1
+                                )
+                              )
+                            }
+                            disabled={
+                              currentPageNextWeek >=
+                              Math.ceil(tasksNextWeek.length / itemsPerPage)
+                            }
+                            className={`pagination-button ${
+                              currentPageNextWeek >=
+                              Math.ceil(tasksNextWeek.length / itemsPerPage)
+                                ? "disabled"
+                                : ""
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Tasks for selected date range (below Tasks This Week/Next Week) */}
             <div className="task-card">
               <div className="task-card-header">
                 <div className="task-card-title-section">
-                  <h3 className="task-card-title">📅 Tasks This Week</h3>
-                  {tasksThisWeek.length > 0 && (
+                  <h3 className="task-card-title">
+                    📅 Tasks for the selected date range
+                  </h3>
+                  {taskStats?.tasks !== undefined && (
                     <span className="task-count-badge">
-                      {tasksThisWeek.length}
+                      {taskStats?.tasks?.length}
                     </span>
                   )}
                 </div>
@@ -1354,42 +1917,43 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   <thead>
                     <tr>
                       <th>Task</th>
+                      <th>Project</th>
                       <th>Assignee</th>
                       <th className="status-column">Status</th>
                       <th>Hours</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {tasksThisWeek.length === 0 && (
+                    {(!taskStats?.tasks || taskStats.tasks.length === 0) && (
                       <tr>
-                        <td colSpan={4} className="empty-task-message">
+                        <td colSpan={5} className="empty-task-message">
                           <div className="empty-state-content">
                             <span className="empty-icon">📋</span>
-                            <p>No tasks for this week</p>
+                            <p>No tasks in this date range</p>
                           </div>
                         </td>
                       </tr>
                     )}
-                    {tasksThisWeek
-                      .slice(
-                        (currentPageThisWeek - 1) * itemsPerPage,
-                        currentPageThisWeek * itemsPerPage
+                    {taskStats?.tasks
+                      ?.slice(
+                        (currentPageTaskStats - 1) * itemsPerPage,
+                        currentPageTaskStats * itemsPerPage
                       )
-                      .map((task, index) => {
+                      .map((task) => {
                         const statusConfig =
-                          task.status === "Completed"
+                          task.status === "completed"
                             ? {
                                 class: "status-completed",
                                 color: "#10b981",
                                 bg: "#d1fae5",
                               }
-                            : task.status === "In Progress"
+                            : task.status === "in_progress"
                             ? {
                                 class: "status-in-progress",
                                 color: "#06b6d4",
                                 bg: "#cffafe",
                               }
-                            : task.status === "Blocked"
+                            : task.status === "blocked"
                             ? {
                                 class: "status-blocked",
                                 color: "#ef4444",
@@ -1404,8 +1968,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                           selectedTask &&
                           selectedTask.source === "thisWeek" &&
                           selectedTask.id === task.id;
+                        // Get project name from projects array using project_id
+                        const projectName =
+                          projects.find((p) => p.id === task.project_id)
+                            ?.name || `Project ${task.project_id}`;
                         return (
-                          <React.Fragment key={`fragment-${task.id}`}>
+                          <React.Fragment key={`fragment-task-${task.id}`}>
                             <tr
                               className={`task-row ${
                                 isExpanded ? "expanded" : ""
@@ -1416,14 +1984,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                   href="#"
                                   onClick={(e) => {
                                     e.preventDefault();
-                                    handleTaskSelection(task, "thisWeek");
+                                    handleTaskSelection(
+                                      {
+                                        id: task.id,
+                                        title: task.name,
+                                        assignee:
+                                          task.username ||
+                                          String(task.assignee_id),
+                                        status: task.status,
+                                        estimated: task.planned_hours,
+                                        due_date: task.due_date,
+                                      },
+                                      "thisWeek"
+                                    );
                                   }}
                                   className="task-link"
                                 >
-                                  {task.title}
+                                  {task?.name}
                                 </a>
                               </td>
-                              <td className="task-assignee">{task.assignee}</td>
+                              <td className="task-project">{projectName}</td>
+                              <td className="task-assignee">
+                                {task.username || `User ${task.assignee_id}`}
+                              </td>
                               <td className="status-column">
                                 <span
                                   className="task-status-badge"
@@ -1436,7 +2019,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                 </span>
                               </td>
                               <td className="task-hours">
-                                {task.estimated} hrs
+                                {(task.actual_hours !== 0 &&
+                                task.actual_hours !== null
+                                  ? task.actual_hours
+                                  : task.planned_hours) || 0}
+                                hrs
                               </td>
                             </tr>
                             {isExpanded && (
@@ -1444,7 +2031,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                 key={`details-${task.id}`}
                                 className="task-details-row"
                               >
-                                <td colSpan={4}>
+                                <td colSpan={5}>
                                   <div className="task-details-panel">
                                     <div className="task-detail-item">
                                       <span className="task-detail-label">
@@ -1471,7 +2058,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                             >
                                               <div className="daily-update-header">
                                                 <span className="daily-update-author">
-                                                  {update.username || "Unknown"}
+                                                  {update.username ||
+                                                    "Unknown"}
                                                 </span>
                                                 <span className="daily-update-date">
                                                   {new Date(
@@ -1529,49 +2117,57 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </table>
               </div>
 
-              {/* Pagination for This Week */}
-              {tasksThisWeek.length > itemsPerPage && (
+              {/* Pagination for Tasks */}
+              {taskStats?.tasks && taskStats.tasks.length > itemsPerPage && (
                 <div className="pagination-container">
                   <div className="pagination-info">
-                    Showing {(currentPageThisWeek - 1) * itemsPerPage + 1} to{" "}
+                    Showing {(currentPageTaskStats - 1) * itemsPerPage + 1} to{" "}
                     {Math.min(
-                      currentPageThisWeek * itemsPerPage,
-                      tasksThisWeek.length
+                      currentPageTaskStats * itemsPerPage,
+                      taskStats.tasks?.length || 0
                     )}{" "}
-                    of {tasksThisWeek.length} tasks
+                    of {taskStats.tasks?.length || 0} tasks
                   </div>
                   <div className="pagination-controls">
                     <button
                       onClick={() =>
-                        setCurrentPageThisWeek((prev) => Math.max(1, prev - 1))
+                        setCurrentPageTaskStats((prev) => Math.max(1, prev - 1))
                       }
-                      disabled={currentPageThisWeek === 1}
+                      disabled={currentPageTaskStats === 1}
                       className={`pagination-button ${
-                        currentPageThisWeek === 1 ? "disabled" : ""
+                        currentPageTaskStats === 1 ? "disabled" : ""
                       }`}
                     >
                       Previous
                     </button>
                     <span className="pagination-page-info">
-                      Page {currentPageThisWeek} of{" "}
-                      {Math.ceil(tasksThisWeek.length / itemsPerPage)}
+                      Page {currentPageTaskStats} of{" "}
+                      {Math.ceil(
+                        (taskStats.tasks?.length || 0) / itemsPerPage
+                      )}
                     </span>
                     <button
                       onClick={() =>
-                        setCurrentPageThisWeek((prev) =>
+                        setCurrentPageTaskStats((prev) =>
                           Math.min(
-                            Math.ceil(tasksThisWeek.length / itemsPerPage),
+                            Math.ceil(
+                              (taskStats.tasks?.length || 0) / itemsPerPage
+                            ),
                             prev + 1
                           )
                         )
                       }
                       disabled={
-                        currentPageThisWeek >=
-                        Math.ceil(tasksThisWeek.length / itemsPerPage)
+                        currentPageTaskStats >=
+                        Math.ceil(
+                          (taskStats.tasks?.length || 0) / itemsPerPage
+                        )
                       }
                       className={`pagination-button ${
-                        currentPageThisWeek >=
-                        Math.ceil(tasksThisWeek.length / itemsPerPage)
+                        currentPageTaskStats >=
+                        Math.ceil(
+                          (taskStats.tasks?.length || 0) / itemsPerPage
+                        )
                           ? "disabled"
                           : ""
                       }`}
@@ -1582,603 +2178,104 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </div>
               )}
             </div>
+          </div>
 
-            <div className="task-card">
-              <div className="task-card-header">
-                <div className="task-card-title-section">
-                  <h3 className="task-card-title">📆 Tasks Next Week</h3>
-                  {tasksNextWeek.length > 0 && (
-                    <span className="task-count-badge">
-                      {tasksNextWeek.length}
-                    </span>
+          {/* Right column charts - 2x2 grid */}
+          <div className="charts-section charts-right">
+            <div className="charts-grid">
+              {/* Productivity */}
+              <div className="chart-card chart-card-tall">
+                <div className="chart-card-header">
+                  <div className="chart-title-section">
+                    <h3 className="chart-title">⚡ Productivity</h3>
+                    <p className="chart-subtitle">
+                      Actual vs Planned hours (Productivity = Planned / Actual ×
+                      100)
+                    </p>
+                  </div>
+                </div>
+                <div className="chart-content-wrapper">
+                  {taskStats.productivityData &&
+                  taskStats.productivityData.length > 0 ? (
+                    <ProductivityChart data={taskStats.productivityData} />
+                  ) : (
+                    <div className="chart-empty-state">
+                      <span className="empty-chart-icon">📈</span>
+                      <p>No data available</p>
+                    </div>
                   )}
                 </div>
               </div>
-              <div className="task-table-container">
-                <table className="task-table">
-                  <thead>
-                    <tr>
-                      <th>Task</th>
-                      <th>Assignee</th>
-                      <th className="status-column">Status</th>
-                      <th>Hours</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tasksNextWeek.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="empty-task-message">
-                          <div className="empty-state-content">
-                            <span className="empty-icon">📋</span>
-                            <p>No tasks for next week</p>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                    {tasksNextWeek.map((task) => {
-                      const statusConfig =
-                        task.status === "Completed"
-                          ? {
-                              class: "status-completed",
-                              color: "#10b981",
-                              bg: "#d1fae5",
-                            }
-                          : task.status === "In Progress"
-                          ? {
-                              class: "status-in-progress",
-                              color: "#06b6d4",
-                              bg: "#cffafe",
-                            }
-                          : task.status === "Blocked"
-                          ? {
-                              class: "status-blocked",
-                              color: "#ef4444",
-                              bg: "#fee2e2",
-                            }
-                          : {
-                              class: "status-todo",
-                              color: "#6366f1",
-                              bg: "#e0e7ff",
-                            };
-                      const isExpanded =
-                        selectedTask &&
-                        selectedTask.source === "nextWeek" &&
-                        selectedTask.id === task.id;
-                      return (
-                        <React.Fragment key={`fragment-nw-${task.id}`}>
-                          <tr
-                            className={`task-row ${
-                              isExpanded ? "expanded" : ""
-                            }`}
-                          >
-                            <td>
-                              <a
-                                href="#"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  handleTaskSelection(task, "nextWeek");
-                                }}
-                                className="task-link"
-                              >
-                                {task.title}
-                              </a>
-                            </td>
-                            <td className="task-assignee">{task.assignee}</td>
-                            <td className="status-column">
-                              <span
-                                className="task-status-badge"
-                                style={{
-                                  color: statusConfig.color,
-                                  backgroundColor: statusConfig.bg,
-                                }}
-                              >
-                                {task.status}
-                              </span>
-                            </td>
-                            <td className="task-hours">{task.estimated} hrs</td>
-                          </tr>
-                          {isExpanded && (
-                            <tr
-                              key={`details-nw-${task.id}`}
-                              className="task-details-row"
-                            >
-                              <td colSpan={4}>
-                                <div className="task-details-panel">
-                                  <div className="task-detail-item">
-                                    <span className="task-detail-label">
-                                      📆 Due Date:
-                                    </span>
-                                    <span className="task-detail-value">
-                                      {formatDueDate(
-                                        selectedTask?.id === task.id
-                                          ? selectedTask?.due_date
-                                          : task.due_date
-                                      )}
-                                    </span>
-                                  </div>
-                                  {dailyUpdates.length > 0 && (
-                                    <div className="daily-updates-section">
-                                      <div className="daily-updates-header">
-                                        💬 Daily Updates
-                                      </div>
-                                      <div className="daily-updates-list">
-                                        {dailyUpdates.map((update) => (
-                                          <div
-                                            key={update.id}
-                                            className="daily-update-card"
-                                          >
-                                            <div className="daily-update-header">
-                                              <span className="daily-update-author">
-                                                {update.username || "Unknown"}
-                                              </span>
-                                              <span className="daily-update-date">
-                                                {new Date(
-                                                  update.created_at
-                                                ).toLocaleDateString("en-US", {
-                                                  year: "numeric",
-                                                  month: "short",
-                                                  day: "numeric",
-                                                  hour: "2-digit",
-                                                  minute: "2-digit",
-                                                })}
-                                              </span>
-                                            </div>
-                                            <div className="daily-update-comment">
-                                              {update.comment}
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                  {loadingUpdates && (
-                                    <div className="loading-updates">
-                                      Loading updates...
-                                    </div>
-                                  )}
-                                  {!loadingUpdates &&
-                                    dailyUpdates.length === 0 && (
-                                      <div className="no-updates">
-                                        No daily updates available
-                                      </div>
-                                    )}
-                                  <div className="task-details-actions">
-                                    <button
-                                      onClick={() => {
-                                        setSelectedTask(null);
-                                        setDailyUpdates([]);
-                                      }}
-                                      className="close-details-button"
-                                    >
-                                      Close
-                                    </button>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
+
+              {/* Utilization (swapped with Team Availability) */}
+              <div className="chart-card">
+                <div className="chart-card-header">
+                  <div className="chart-title-section">
+                    <h3 className="chart-title">📊 Utilization</h3>
+                    <p className="chart-subtitle">
+                      Team utilization percentage over time
+                    </p>
+                  </div>
+                </div>
+                <div className="chart-content-wrapper">
+                  {taskStats.utilizationData &&
+                  taskStats.utilizationData.length > 0 ? (
+                    <UtilizationChart data={taskStats.utilizationData} />
+                  ) : (
+                    <div className="chart-empty-state">
+                      <span className="empty-chart-icon">📈</span>
+                      <p>No data available</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Pagination for Next Week */}
-              {tasksNextWeek.length > itemsPerPage && (
-                <div className="pagination-container">
-                  <div className="pagination-info">
-                    Showing {(currentPageNextWeek - 1) * itemsPerPage + 1} to{" "}
-                    {Math.min(
-                      currentPageNextWeek * itemsPerPage,
-                      tasksNextWeek.length
-                    )}{" "}
-                    of {tasksNextWeek.length} tasks
+              {/* Task Status Distribution */}
+              <div className="chart-card chart-card-tall">
+                <div className="chart-card-header">
+                  <div className="chart-title-section">
+                    <h3 className="chart-title">🎯 Task Status Distribution</h3>
+                    <p className="chart-subtitle">Overview of task statuses</p>
                   </div>
-                  <div className="pagination-controls">
-                    <button
-                      onClick={() =>
-                        setCurrentPageNextWeek((prev) => Math.max(1, prev - 1))
-                      }
-                      disabled={currentPageNextWeek === 1}
-                      className={`pagination-button ${
-                        currentPageNextWeek === 1 ? "disabled" : ""
+                </div>
+                <div className="chart-content-wrapper">
+                  {totalTasks === 0 ? (
+                    <div className="chart-empty-state">
+                      <span className="empty-chart-icon">📊</span>
+                      <p>No tasks available</p>
+                    </div>
+                  ) : (
+                    <TaskStatusChart data={taskStatusData} />
+                  )}
+                </div>
+              </div>
+
+              {/* Team Availability (swapped with Utilization) */}
+              <div className="chart-card">
+                <div className="chart-card-header">
+                  <div className="chart-title-section">
+                    <h3 className="chart-title">👥 Team Availability</h3>
+                    <p className="chart-subtitle">
+                      Total available hours per week
+                    </p>
+                  </div>
+                </div>
+                <div className="chart-content-wrapper">
+                  {!taskStats.availabilityData ||
+                  taskStats.availabilityData.length === 0 ? (
+                    <div className="chart-empty-state">
+                      <span className="empty-chart-icon">📈</span>
+                      <p>No data available</p>
+                    </div>
+                  ) : (
+                    <AvailabilityChart
+                      key={`availability-${filters.employeeId || "all"}-${
+                        filters.projectId || "all"
                       }`}
-                    >
-                      Previous
-                    </button>
-                    <span className="pagination-page-info">
-                      Page {currentPageNextWeek} of{" "}
-                      {Math.ceil(tasksNextWeek.length / itemsPerPage)}
-                    </span>
-                    <button
-                      onClick={() =>
-                        setCurrentPageNextWeek((prev) =>
-                          Math.min(
-                            Math.ceil(tasksNextWeek.length / itemsPerPage),
-                            prev + 1
-                          )
-                        )
-                      }
-                      disabled={
-                        currentPageNextWeek >=
-                        Math.ceil(tasksNextWeek.length / itemsPerPage)
-                      }
-                      className={`pagination-button ${
-                        currentPageNextWeek >=
-                        Math.ceil(tasksNextWeek.length / itemsPerPage)
-                          ? "disabled"
-                          : ""
-                      }`}
-                    >
-                      Next
-                    </button>
-                  </div>
+                      data={taskStats.availabilityData}
+                    />
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="task-card">
-          <div className="task-card-header">
-            <div className="task-card-title-section">
-              <h3 className="task-card-title">
-                📅 Tasks for the selected date range
-              </h3>
-              {taskStats?.tasks !== undefined && (
-                <span className="task-count-badge">
-                  {taskStats?.tasks?.length}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="task-table-container">
-            <table className="task-table">
-              <thead>
-                <tr>
-                  <th>Task</th>
-                  <th>Project</th>
-                  <th>Assignee</th>
-                  <th className="status-column">Status</th>
-                  <th>Hours</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(!taskStats?.tasks || taskStats.tasks.length === 0) && (
-                  <tr>
-                    <td colSpan={5} className="empty-task-message">
-                      <div className="empty-state-content">
-                        <span className="empty-icon">📋</span>
-                        <p>No tasks in this date range</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-                {taskStats?.tasks
-                  ?.slice(
-                    (currentPageTaskStats - 1) * itemsPerPage,
-                    currentPageTaskStats * itemsPerPage
-                  )
-                  .map((task) => {
-                    const statusConfig =
-                      task.status === "completed"
-                        ? {
-                            class: "status-completed",
-                            color: "#10b981",
-                            bg: "#d1fae5",
-                          }
-                        : task.status === "in_progress"
-                        ? {
-                            class: "status-in-progress",
-                            color: "#06b6d4",
-                            bg: "#cffafe",
-                          }
-                        : task.status === "blocked"
-                        ? {
-                            class: "status-blocked",
-                            color: "#ef4444",
-                            bg: "#fee2e2",
-                          }
-                        : {
-                            class: "status-todo",
-                            color: "#6366f1",
-                            bg: "#e0e7ff",
-                          };
-                    const isExpanded =
-                      selectedTask &&
-                      selectedTask.source === "thisWeek" &&
-                      selectedTask.id === task.id;
-                    // Get project name from projects array using project_id
-                    const projectName =
-                      projects.find((p) => p.id === task.project_id)?.name ||
-                      `Project ${task.project_id}`;
-                    return (
-                      <React.Fragment key={`fragment-task-${task.id}`}>
-                        <tr
-                          className={`task-row ${isExpanded ? "expanded" : ""}`}
-                        >
-                          <td>
-                            <a
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleTaskSelection(
-                                  {
-                                    id: task.id,
-                                    title: task.name,
-                                    assignee:
-                                      task.username || String(task.assignee_id),
-                                    status: task.status,
-                                    estimated: task.planned_hours,
-                                    due_date: task.due_date,
-                                  },
-                                  "thisWeek"
-                                );
-                              }}
-                              className="task-link"
-                            >
-                              {task?.name}
-                            </a>
-                          </td>
-                          <td className="task-project">{projectName}</td>
-                          <td className="task-assignee">
-                            {task.username || `User ${task.assignee_id}`}
-                          </td>
-                          <td className="status-column">
-                            <span
-                              className="task-status-badge"
-                              style={{
-                                color: statusConfig.color,
-                                backgroundColor: statusConfig.bg,
-                              }}
-                            >
-                              {task.status}
-                            </span>
-                          </td>
-                          <td className="task-hours">
-                            {(task.actual_hours !== 0 &&
-                            task.actual_hours !== null
-                              ? task.actual_hours
-                              : task.planned_hours) || 0}
-                            hrs
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr
-                            key={`details-${task.id}`}
-                            className="task-details-row"
-                          >
-                            <td colSpan={5}>
-                              <div className="task-details-panel">
-                                <div className="task-detail-item">
-                                  <span className="task-detail-label">
-                                    📆 Due Date:
-                                  </span>
-                                  <span className="task-detail-value">
-                                    {formatDueDate(
-                                      selectedTask?.id === task.id
-                                        ? selectedTask?.due_date
-                                        : task.due_date
-                                    )}
-                                  </span>
-                                </div>
-                                {dailyUpdates.length > 0 && (
-                                  <div className="daily-updates-section">
-                                    <div className="daily-updates-header">
-                                      💬 Daily Updates
-                                    </div>
-                                    <div className="daily-updates-list">
-                                      {dailyUpdates.map((update) => (
-                                        <div
-                                          key={update.id}
-                                          className="daily-update-card"
-                                        >
-                                          <div className="daily-update-header">
-                                            <span className="daily-update-author">
-                                              {update.username || "Unknown"}
-                                            </span>
-                                            <span className="daily-update-date">
-                                              {new Date(
-                                                update.created_at
-                                              ).toLocaleDateString("en-US", {
-                                                year: "numeric",
-                                                month: "short",
-                                                day: "numeric",
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                              })}
-                                            </span>
-                                          </div>
-                                          <div className="daily-update-comment">
-                                            {update.comment}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                                {loadingUpdates && (
-                                  <div className="loading-updates">
-                                    Loading updates...
-                                  </div>
-                                )}
-                                {!loadingUpdates &&
-                                  dailyUpdates.length === 0 && (
-                                    <div className="no-updates">
-                                      No daily updates available
-                                    </div>
-                                  )}
-                                <div className="task-details-actions">
-                                  <button
-                                    onClick={() => {
-                                      setSelectedTask(null);
-                                      setDailyUpdates([]);
-                                    }}
-                                    className="close-details-button"
-                                  >
-                                    Close
-                                  </button>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination for Tasks */}
-          {taskStats?.tasks && taskStats.tasks.length > itemsPerPage && (
-            <div className="pagination-container">
-              <div className="pagination-info">
-                Showing {(currentPageTaskStats - 1) * itemsPerPage + 1} to{" "}
-                {Math.min(
-                  currentPageTaskStats * itemsPerPage,
-                  taskStats.tasks?.length || 0
-                )}{" "}
-                of {taskStats.tasks?.length || 0} tasks
-              </div>
-              <div className="pagination-controls">
-                <button
-                  onClick={() =>
-                    setCurrentPageTaskStats((prev) => Math.max(1, prev - 1))
-                  }
-                  disabled={currentPageTaskStats === 1}
-                  className={`pagination-button ${
-                    currentPageTaskStats === 1 ? "disabled" : ""
-                  }`}
-                >
-                  Previous
-                </button>
-                <span className="pagination-page-info">
-                  Page {currentPageTaskStats} of{" "}
-                  {Math.ceil((taskStats.tasks?.length || 0) / itemsPerPage)}
-                </span>
-                <button
-                  onClick={() =>
-                    setCurrentPageTaskStats((prev) =>
-                      Math.min(
-                        Math.ceil(
-                          (taskStats.tasks?.length || 0) / itemsPerPage
-                        ),
-                        prev + 1
-                      )
-                    )
-                  }
-                  disabled={
-                    currentPageTaskStats >=
-                    Math.ceil((taskStats.tasks?.length || 0) / itemsPerPage)
-                  }
-                  className={`pagination-button ${
-                    currentPageTaskStats >=
-                    Math.ceil((taskStats.tasks?.length || 0) / itemsPerPage)
-                      ? "disabled"
-                      : ""
-                  }`}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-        {/* Charts Grid */}
-        <div className="charts-section">
-          <div className="charts-grid">
-            {/* Productivity Chart */}
-            <div className="chart-card">
-              <div className="chart-card-header">
-                <div className="chart-title-section">
-                  <h3 className="chart-title">⚡ Productivity</h3>
-                  <p className="chart-subtitle">
-                    Actual vs Planned hours (Productivity = Planned / Actual ×
-                    100)
-                  </p>
-                </div>
-              </div>
-              <div className="chart-content-wrapper">
-                {taskStats.productivityData &&
-                taskStats.productivityData.length > 0 ? (
-                  <ProductivityChart data={taskStats.productivityData} />
-                ) : (
-                  <div className="chart-empty-state">
-                    <span className="empty-chart-icon">📈</span>
-                    <p>No data available</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Team Availability */}
-            <div className="chart-card">
-              <div className="chart-card-header">
-                <div className="chart-title-section">
-                  <h3 className="chart-title">👥 Team Availability</h3>
-                  <p className="chart-subtitle">
-                    Total available hours per week
-                  </p>
-                </div>
-              </div>
-              <div className="chart-content-wrapper">
-                {!taskStats.availabilityData ||
-                taskStats.availabilityData.length === 0 ? (
-                  <div className="chart-empty-state">
-                    <span className="empty-chart-icon">📈</span>
-                    <p>No data available</p>
-                  </div>
-                ) : (
-                  <AvailabilityChart
-                    key={`availability-${filters.employeeId || "all"}-${
-                      filters.projectId || "all"
-                    }`}
-                    data={taskStats.availabilityData}
-                  />
-                )}
-              </div>
-            </div>
-            {/* Utilization Chart */}
-            <div className="chart-card">
-              <div className="chart-card-header">
-                <div className="chart-title-section">
-                  <h3 className="chart-title">📊 Utilization</h3>
-                  <p className="chart-subtitle">
-                    Team utilization percentage over time
-                  </p>
-                </div>
-              </div>
-              <div className="chart-content-wrapper">
-                {taskStats.utilizationData &&
-                taskStats.utilizationData.length > 0 ? (
-                  <UtilizationChart data={taskStats.utilizationData} />
-                ) : (
-                  <div className="chart-empty-state">
-                    <span className="empty-chart-icon">📈</span>
-                    <p>No data available</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Task Status Distribution */}
-            <div className="chart-card">
-              <div className="chart-card-header">
-                <div className="chart-title-section">
-                  <h3 className="chart-title">🎯 Task Status Distribution</h3>
-                  <p className="chart-subtitle">Overview of task statuses</p>
-                </div>
-              </div>
-              <div className="chart-content-wrapper">
-                {totalTasks === 0 ? (
-                  <div className="chart-empty-state">
-                    <span className="empty-chart-icon">📊</span>
-                    <p>No tasks available</p>
-                  </div>
-                ) : (
-                  <TaskStatusChart data={taskStatusData} />
-                )}
               </div>
             </div>
           </div>

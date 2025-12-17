@@ -200,7 +200,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   return (
     <div className="flex flex-wrap gap-4">
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-muted-foreground">
+        <label className="white">
           Projects:
         </label>
         <CustomMultiSelect
@@ -214,7 +214,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
       {/* Hide employee filter for employee role */}
       {userRole !== "employee" && (
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-muted-foreground">
+          <label className="white">
             Team Members:
           </label>
           <CustomMultiSelect
@@ -228,7 +228,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
 
       {/* Date Range Picker - Available for all roles (employee, manager, superadmin) */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-muted-foreground">
+        <label className="white">
           Date Range:
         </label>
         <div className="flex items-center gap-2">

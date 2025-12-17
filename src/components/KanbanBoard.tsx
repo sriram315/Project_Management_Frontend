@@ -64,10 +64,11 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   });
 
   const columns = [
-    { id: "todo", title: "To Do", color: "#6c757d" },
-    { id: "in_progress", title: "In Progress", color: "#007bff" },
-    { id: "blocked", title: "Blocked", color: "#dc3545" },
-    { id: "completed", title: "Completed", color: "#28a745" },
+    // Modern gradient colors for all columns
+    { id: "todo", title: "To Do", color: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }, // purple gradient
+    { id: "in_progress", title: "In Progress", color: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }, // blue gradient
+    { id: "blocked", title: "Blocked", color: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" }, // red gradient
+    { id: "completed", title: "Completed", color: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }, // green gradient
   ];
 
   const getTasksByStatus = (status: string) => {
@@ -308,7 +309,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
           >
             <div
               className="kanban-column-header"
-              style={{ backgroundColor: column.color }}
+              style={{ background: column.color }}
             >
               <h3>{column.title}</h3>
               <span className="task-count">{columnTasks.length}</span>

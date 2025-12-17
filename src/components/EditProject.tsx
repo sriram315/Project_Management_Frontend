@@ -171,12 +171,13 @@ const EditProject: React.FC<EditProjectProps> = ({ project, onProjectUpdated, on
 
   return (
     <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: '600px' }}>
-        <div className="modal-header" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', margin: '-2rem -2rem 1.5rem -2rem', padding: '1.5rem 2rem', borderRadius: '12px 12px 0 0' }}>
+      <div className="modal" style={{ maxWidth: '600px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 0 }}>
+        <div className="modal-header" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '1.5rem 2rem', borderRadius: '12px 12px 0 0', position: 'sticky', top: 0, zIndex: 10, flexShrink: 0 }}>
           <h2 style={{ margin: 0, color: 'white' }}>Edit Project</h2>
           <button className="close-btn" onClick={onClose} style={{ color: 'white' }}>×</button>
         </div>
         
+        <div style={{ padding: '1.5rem 2rem 2rem 2rem', overflowY: 'auto', flex: 1, minHeight: 0 }}>
         <form onSubmit={handleSubmit} className="user-form">
           <div className="form-group">
             <label htmlFor="name">Project Name <span style={{ color: '#ef4444' }}>*</span></label>
@@ -312,6 +313,7 @@ const EditProject: React.FC<EditProjectProps> = ({ project, onProjectUpdated, on
             onClose={hideToast}
           />
         )}
+        </div>
       </div>
     </div>
   );

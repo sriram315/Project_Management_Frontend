@@ -662,20 +662,20 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
       <div className="page-header" style={{ marginBottom: "2rem" }}>
         <div>
           <h1
-            className="text-foreground"
             style={{
               fontSize: "2rem",
               fontWeight: "700",
               marginBottom: "0.5rem",
+              color: "white",
             }}
           >
             Users Management
           </h1>
           <p
-            className="text-muted-foreground"
             style={{
               fontSize: "0.95rem",
               marginTop: "0.25rem",
+              color: "rgba(255, 255, 255, 0.9)",
             }}
           >
             Manage and organize your team members
@@ -801,8 +801,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
               style={{
                 background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                 color: "white",
-                margin: "-2rem -2rem 1.5rem -2rem",
-                padding: "1.5rem 2rem",
+                margin: 0,
                 borderRadius: "12px 12px 0 0",
               }}
             >
@@ -826,11 +825,12 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                 ×
               </button>
             </div>
-            <form
-              key="add-user-form"
-              onSubmit={handleAddUser}
-              className="user-form"
-            >
+            <div className="modal-body">
+              <form
+                key="add-user-form"
+                onSubmit={handleAddUser}
+                className="user-form"
+              >
               <div className="form-group">
                 <label>
                   Username: <span style={{ color: "#ef4444" }}>*</span>
@@ -1077,6 +1077,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

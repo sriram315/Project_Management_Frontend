@@ -572,8 +572,7 @@ const AddTask: React.FC<AddTaskProps> = ({
           style={{
             background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
             color: "white",
-            margin: "-2rem -2rem 1.5rem -2rem",
-            padding: "1.5rem 2rem",
+            margin: 0,
             borderRadius: "12px 12px 0 0",
           }}
         >
@@ -589,7 +588,8 @@ const AddTask: React.FC<AddTaskProps> = ({
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="user-form">
+        <div className="modal-body">
+          <form onSubmit={handleSubmit} className="user-form">
           {error && <div className="error-message">{error}</div>}
 
           <div className="form-group">
@@ -930,6 +930,7 @@ const AddTask: React.FC<AddTaskProps> = ({
             onClose={hideToast}
           />
         )}
+        </div>
       </div>
 
       {/* Workload Warning Modal */}
