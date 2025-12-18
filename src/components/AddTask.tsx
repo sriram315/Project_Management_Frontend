@@ -312,33 +312,21 @@ const AddTask: React.FC<AddTaskProps> = ({
       errors.planned_hours = "Estimated hours seems too high (max 1000)";
     }
 
-    // Start date validation (optional but if provided, cannot be before Monday of current week)
-    if (formData.start_date) {
+    // Start date validation (optional but if provided, must be before or equal to due date)
+    if (formData.start_date && formData.due_date) {
       const startDate = new Date(formData.start_date);
-      const mondayOfWeek = new Date();
-      mondayOfWeek.setHours(0, 0, 0, 0);
-      // Get Monday of the current week
-      const dayOfWeek = mondayOfWeek.getDay();
-      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      mondayOfWeek.setDate(mondayOfWeek.getDate() - daysToMonday);
-
-      if (startDate < mondayOfWeek) {
-        errors.start_date = "Start date cannot be before Monday of this week";
+      const dueDate = new Date(formData.due_date);
+      if (startDate > dueDate) {
+        errors.start_date = "Start date must be before or equal to due date";
       }
     }
 
-    // Due date validation (mandatory and cannot be past or weekend)
+    // Due date validation (mandatory and cannot be weekend)
     if (!formData.due_date) {
       errors.due_date = "Due date is required";
     } else {
       const dueDate = new Date(formData.due_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
       const dayOfWeek = dueDate.getDay(); // 0 = Sunday, 6 = Saturday
-
-      if (dueDate < today) {
-        errors.due_date = "Due date cannot be in the past";
-      }
 
       // Prevent selecting weekends (Saturday or Sunday)
       if (dayOfWeek === 0 || dayOfWeek === 6) {
@@ -821,18 +809,6 @@ const AddTask: React.FC<AddTaskProps> = ({
                 name="start_date"
                 value={formData.start_date}
                 onChange={handleInputChange}
-                min={(function () {
-                  const d = new Date();
-                  // Get Monday of the current week
-                  // getDay() returns 0 for Sunday, 1 for Monday, etc.
-                  const dayOfWeek = d.getDay();
-                  const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-                  d.setDate(d.getDate() - daysToMonday);
-                  const y = d.getFullYear();
-                  const m = String(d.getMonth() + 1).padStart(2, "0");
-                  const day = String(d.getDate()).padStart(2, "0");
-                  return `${y}-${m}-${day}`;
-                })()}
                 max={formData.due_date || undefined}
                 style={{
                   borderColor: formErrors.start_date ? "#ef4444" : "#e1e8ed",
@@ -862,16 +838,7 @@ const AddTask: React.FC<AddTaskProps> = ({
                 name="due_date"
                 value={formData.due_date}
                 onChange={handleInputChange}
-                min={
-                  formData.start_date ||
-                  (function () {
-                    const d = new Date();
-                    const y = d.getFullYear();
-                    const m = String(d.getMonth() + 1).padStart(2, "0");
-                    const day = String(d.getDate()).padStart(2, "0");
-                    return `${y}-${m}-${day}`;
-                  })()
-                }
+                min={formData.start_date || undefined}
                 style={{
                   borderColor: formErrors.due_date ? "#ef4444" : "#e1e8ed",
                 }}
