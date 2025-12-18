@@ -81,7 +81,8 @@ const WorkloadWarningModal: React.FC<WorkloadWarningModalProps> = ({
           </button>
         </div>
 
-        <div className="workload-warning-content">
+        <div className="modal-body" style={{ overflowY: "auto", maxHeight: "calc(90vh - 180px)" }}>
+          <div className="workload-warning-content">
           <div className="warning-summary">
             <h3>⚠️ What's the Problem?</h3>
             <ul className="warning-list">
@@ -191,6 +192,7 @@ const WorkloadWarningModal: React.FC<WorkloadWarningModalProps> = ({
             <p style={{ marginTop: "0.5rem", marginBottom: 0 }}>
               {getSimpleExplanation()}
             </p>
+          </div>
           </div>
         </div>
 
