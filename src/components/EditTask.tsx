@@ -404,33 +404,21 @@ const EditTask: React.FC<EditTaskProps> = ({
       errors.planned_hours = "Estimated hours seems too high (max 1000)";
     }
 
-    // Start date validation (optional but if provided, cannot be past and must be before due date)
-    if (formData.start_date) {
+    // Start date validation (optional but if provided, must be before or equal to due date)
+    if (formData.start_date && formData.due_date) {
       const startDate = new Date(formData.start_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (startDate < today) {
-        errors.start_date = "Start date cannot be in the past";
-      }
-
-      // If due date is provided, ensure start date is before or equal to due date
-      if (formData.due_date) {
-        const dueDate = new Date(formData.due_date);
-        if (startDate > dueDate) {
-          errors.start_date = "Start date must be before or equal to due date";
-        }
+      const dueDate = new Date(formData.due_date);
+      if (startDate > dueDate) {
+        errors.start_date = "Start date must be before or equal to due date";
       }
     }
 
-    // Due date validation (optional but if provided should be future date)
-    if (formData.due_date) {
+    // Due date validation (optional but if provided, must be after or equal to start date)
+    if (formData.due_date && formData.start_date) {
       const dueDate = new Date(formData.due_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (dueDate < today) {
-        errors.due_date = "Due date should not be in the past";
+      const startDate = new Date(formData.start_date);
+      if (dueDate < startDate) {
+        errors.due_date = "Due date must be after or equal to start date";
       }
     }
 
