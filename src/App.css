@@ -19,17 +19,20 @@ body {
   display: flex;
   min-height: 100vh;
 }
+
 .sidebar-content {
   flex: 1;
-  margin-left: 190px;
+  margin-left: 64px;
   transition: margin-left 0.25s ease;
   background: radial-gradient(circle at 15% 15%, #f8f9ff 0, #f1f4ff 45%, #edf1fa 100%);
 }
+
 @media (max-width: 900px) {
   .sidebar-content {
     margin-left: 64px;
   }
 }
+
 @media (max-width: 600px) {
   .sidebar-content {
     margin-left: 0;
@@ -42,7 +45,7 @@ body {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 190px;
+  width: 64px;
   background: linear-gradient(180deg, #1e2f4f 0%, #22355a 60%, #253c6a 100%);
   box-shadow: 2px 0 16px rgba(12, 28, 64, 0.28);
   display: flex;
@@ -50,44 +53,93 @@ body {
   z-index: 100;
   padding-top: 2rem;
   border-right: 1px solid #e5e7eb;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  white-space: nowrap;
 }
+
+.sidebar-nav:hover {
+  width: 200px;
+}
+
 .sidebar-brand {
   font-size: 1.3rem;
   font-weight: 700;
-  padding: 0 1.5rem 1.5rem 1.5rem;
+  padding: 0 0.5rem 1.5rem 0.5rem;
   color: #f8fafc;
   letter-spacing: -0.5px;
+  overflow: hidden;
+  text-overflow: clip;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  /* Center logo when collapsed */
+  transition: justify-content 0.2s ease, padding 0.2s ease;
 }
+
+.sidebar-nav:hover .sidebar-brand {
+  justify-content: flex-start;
+  padding: 0 1.5rem 1.5rem 1.5rem;
+}
+
+.sidebar-brand-icon {
+  flex-shrink: 0;
+  color: #667eea;
+  /* Brand Color */
+}
+
+.sidebar-brand-text {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  transition: opacity 0.2s ease, width 0.2s ease;
+  white-space: nowrap;
+}
+
+.sidebar-nav:hover .sidebar-brand-text {
+  opacity: 1;
+  width: auto;
+}
+
 .sidebar-links {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding-left: 1.25rem;
-  padding-right: 1.25rem;
+  padding-left: 0.75rem;
+  /* Reduced to center icons better */
+  padding-right: 0.75rem;
 }
 
 .sidebar-user {
   position: relative;
-  margin: 0 1.1rem 0.75rem 1.1rem;
+  margin: 0 0.5rem 0.75rem 0.5rem;
 }
 
 .sidebar-user-trigger {
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  justify-content: center;
+  /* Center avatar/icon when collapsed */
+  background: transparent;
+  border: none;
   color: #e8ecf5;
   border-radius: 12px;
-  padding: 0.6rem 0.75rem;
+  padding: 0.6rem;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, justify-content 0.2s;
+  overflow: hidden;
+}
+
+.sidebar-nav:hover .sidebar-user-trigger {
+  justify-content: flex-start;
+  padding: 0.6rem 0.75rem;
+  gap: 0.75rem;
 }
 
 .sidebar-user-trigger:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .sidebar-user-meta {
@@ -95,6 +147,16 @@ body {
   flex-direction: column;
   align-items: flex-start;
   gap: 0.15rem;
+  opacity: 0;
+  width: 0;
+  transition: opacity 0.2s ease, width 0.2s ease;
+  overflow: hidden;
+}
+
+.sidebar-nav:hover .sidebar-user-meta {
+  opacity: 1;
+  width: auto;
+  margin-right: auto;
 }
 
 .sidebar-user-name {
@@ -120,6 +182,7 @@ body {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
 
 .sidebar-user-menu {
@@ -146,6 +209,23 @@ body {
   transition: background 0.15s ease, color 0.15s ease;
 }
 
+.sidebar-user-chevron {
+  opacity: 0;
+  width: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  margin-left: auto;
+  color: #9ca3af;
+}
+
+.sidebar-nav:hover .sidebar-user-chevron {
+  opacity: 1;
+  width: auto;
+}
+
+.sidebar-user-chevron.open {
+  transform: rotate(180deg);
+}
+
 .sidebar-user-menu-item:hover {
   background: #f3f4f6;
 }
@@ -153,24 +233,35 @@ body {
 .sidebar-user-menu-item.danger {
   color: #dc2626;
 }
+
 .sidebar-link {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.7rem 0.9rem;
+  gap: 0.75rem;
+  padding: 0.7rem 0.6rem;
+  /* Adjusted for centered icon */
   border-radius: 12px;
   color: #e8ecf5;
   font-weight: 600;
   text-decoration: none;
   font-size: 0.98rem;
   transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  justify-content: center;
+  /* Center icon when collapsed */
 }
+
+.sidebar-nav:hover .sidebar-link {
+  justify-content: flex-start;
+  padding: 0.7rem 0.9rem;
+}
+
 .sidebar-link:hover,
 .sidebar-link.active {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
+
 .sidebar-link-icon {
   width: 18px;
   height: 18px;
@@ -178,7 +269,22 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 1.05rem;
+  flex-shrink: 0;
 }
+
+.sidebar-link span:not(.sidebar-link-icon) {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar-nav:hover .sidebar-link span:not(.sidebar-link-icon) {
+  opacity: 1;
+  width: auto;
+}
+
+
 
 @media (max-width: 900px) {
   .sidebar-nav {
@@ -186,16 +292,19 @@ body {
     padding-top: 1rem;
     align-items: center;
   }
+
   .sidebar-brand {
     font-size: 1.1rem;
     padding: 0 0 1rem 0;
     text-align: center;
   }
+
   .sidebar-links {
     padding: 0.25rem;
     gap: 0.25rem;
     width: 100%;
   }
+
   .sidebar-link {
     padding: 0.65rem 0.2rem;
     font-size: 0.95rem;
@@ -216,9 +325,11 @@ body {
     padding: 0.5rem 0.5rem;
     justify-content: space-evenly;
   }
+
   .sidebar-brand {
     display: none;
   }
+
   .sidebar-links {
     flex-direction: row;
     align-items: center;
@@ -226,6 +337,7 @@ body {
     width: 100%;
     padding: 0;
   }
+
   .sidebar-link {
     margin: 0;
     border-radius: 8px;
@@ -300,7 +412,8 @@ select::-webkit-scrollbar-thumb:hover {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
-  z-index: 1000; /* Ensure navbar stays on top */
+  z-index: 1000;
+  /* Ensure navbar stays on top */
 }
 
 .nav-brand a {
@@ -314,6 +427,7 @@ select::-webkit-scrollbar-thumb:hover {
   display: flex;
   gap: 2rem;
 }
+
 .nav-links a {
   color: #34495e;
   text-decoration: none;
@@ -344,48 +458,148 @@ select::-webkit-scrollbar-thumb:hover {
   cursor: pointer;
 }
 
+/* Full width layout for unauthenticated pages */
+.full-width-layout {
+  flex: 1;
+  width: 100%;
+}
+
 /* Login Page Styles */
-.login-container {
+.login-wrapper {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background-color: #f3f4f6;
+}
+
+.login-animation-section {
+  width: 75%;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 1rem;
+  position: relative;
+  overflow: hidden;
 }
 
-.login-form {
-  background-color: white;
-  padding: 3rem 2.5rem;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  width: 100%;
-  max-width: 450px;
-  animation: slideUp 0.4s ease-out;
+.login-lottie {
+  width: 70%;
+  max-width: 600px;
+  max-height: 70%;
+  margin-right: 4rem;
+  /* Spacing from the right side */
+  margin-bottom: 2rem;
+  /* Move it a little to the top */
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
+.login-form-container {
+  width: 25%;
+  min-width: 400px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.05);
+  position: relative;
+  z-index: 20;
+}
+
+@media (max-width: 1024px) {
+  .login-animation-section {
+    width: 60%;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .login-form-container {
+    width: 40%;
   }
 }
 
-.login-form h2 {
+@media (max-width: 768px) {
+  .login-wrapper {
+    flex-direction: column;
+  }
+
+  .login-animation-section {
+    display: none;
+  }
+
+  .login-form-container {
+    width: 100%;
+    min-width: auto;
+    padding: 1.5rem;
+  }
+}
+
+/* Legacy styles removed or repurposed */
+
+
+
+
+.login-header {
   text-align: center;
   margin-bottom: 2.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.login-header h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.025em;
+  background: linear-gradient(135deg, #1f2937 0%, #4b5563 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: -0.5px;
 }
+
+
+/* Management Page Utilities */
+.management-page {
+  padding: 1.5rem;
+}
+
+.management-page-header {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  /* Indigo to Violet gradient */
+  padding: 1.5rem 2rem;
+  border-radius: 16px;
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.management-page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: white;
+}
+
+/* Ensure white text persists */
+[data-theme='dark'] .management-page-title,
+.bg-dark .management-page-title,
+.users-page .management-page-title {
+  color: white;
+}
+
+.management-page-subtitle {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 0;
+}
+
+.management-header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
 
 .form-group {
   margin-bottom: 1.5rem;
@@ -393,57 +607,139 @@ select::-webkit-scrollbar-thumb:hover {
 
 .form-group label {
   display: block;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   color: #374151;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  margin-left: 2px;
+}
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 14px;
+  color: #9ca3af;
+  pointer-events: none;
+  transition: color 0.3s ease;
 }
 
 .form-group input {
   width: 100%;
-  padding: 1rem;
+  padding: 0.85rem 1rem 0.85rem 1rem;
   border: 2px solid #e5e7eb;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 1rem;
-  transition: all 0.3s ease;
   background-color: #f9fafb;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #1f2937;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  background-color: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-  transform: translateY(-1px);
+  border-color: #6366f1;
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
 }
 
-.form-group input::placeholder {
+.form-group input:focus+.input-icon,
+.form-group input:focus~.input-icon {
+  color: #6366f1;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
   color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.password-toggle:hover {
+  color: #4b5563;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+  margin-top: -0.5rem;
+}
+
+.forgot-password-link {
+  background: none;
+  border: none;
+  color: #6366f1;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  padding: 0;
+}
+
+.forgot-password-link:hover {
+  color: #4f46e5;
+  text-decoration: underline;
 }
 
 .login-button {
   width: 100%;
   padding: 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 1.05rem;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 1.5rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.3), 0 2px 4px -1px rgba(99, 102, 241, 0.15);
+  margin-top: 0.5rem;
 }
 
 .login-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4), 0 4px 6px -2px rgba(99, 102, 241, 0.2);
+  filter: brightness(1.05);
 }
 
 .login-button:active {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.login-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.back-to-login-btn {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.9rem;
+  background: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.back-to-login-btn:hover {
+  background: #e5e7eb;
+  color: #1f2937;
 }
 
 /* Demo Login Styles */
@@ -520,28 +816,29 @@ select::-webkit-scrollbar-thumb:hover {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.5rem;
   margin-bottom: 2rem;
 }
 
 .metrics-card {
   background-color: white;
-  padding: 1.5rem;
+  padding: 1.25rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .metrics-card h3 {
   color: #34495e;
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem;
+  font-size: 1rem;
 }
 
 .metric-value {
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: bold;
   color: #2c3e50;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.3rem;
 }
 
 .metric-label {
@@ -674,7 +971,8 @@ select::-webkit-scrollbar-thumb:hover {
 /* Users Page Styles */
 .users-page {
   padding: 1rem;
-  padding-top: calc(1rem + 20px); /* Account for sticky navbar */
+  padding-top: calc(0.5rem + 10px);
+  /* Account for sticky navbar */
   background-color: #f8f9fa;
   min-height: 100vh;
 }
@@ -1634,6 +1932,7 @@ select::-webkit-scrollbar-thumb:hover {
   text-align: center;
   font-size: 0.9rem;
 }
+
 @media (max-width: 768px) {
   .dashboard {
     padding: 1rem;
@@ -2260,7 +2559,8 @@ select::-webkit-scrollbar-thumb:hover {
 /* Project Management Styles */
 .page-container {
   padding: 2rem;
-  padding-top: calc(2rem + 70px); /* Account for sticky navbar */
+  padding-top: calc(1rem + 50px);
+  /* Account for sticky navbar */
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -2268,7 +2568,8 @@ select::-webkit-scrollbar-thumb:hover {
 /* Full-width, scrollable dashboard page */
 .dashboard-page {
   padding: 1.25rem;
-  padding-top: calc(1.25rem + 16px); /* Account for sticky navbar */
+  padding-top: calc(0.5rem + 10px);
+  /* Account for sticky navbar */
   width: 100%;
   max-width: none;
   margin: 0 auto;
@@ -2320,8 +2621,8 @@ select::-webkit-scrollbar-thumb:hover {
 .dashboard-header-section {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 14px;
-  padding: 1.25rem 1.5rem;
-  margin-bottom: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.5rem;
   border: none;
   box-shadow: 0 10px 24px rgba(102, 126, 234, 0.35);
   color: white;
@@ -2331,7 +2632,7 @@ select::-webkit-scrollbar-thumb:hover {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
@@ -2341,10 +2642,10 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .dashboard-title {
-  font-size: 2.25rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: #ffffff;
-  margin: 0 0 0.35rem 0;
+  margin: 0 0 0.25rem 0;
   letter-spacing: -0.5px;
 }
 
@@ -2401,7 +2702,7 @@ select::-webkit-scrollbar-thumb:hover {
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.6rem;
+  gap: 0.5rem;
   margin-bottom: 0.75rem;
 }
 
@@ -2426,7 +2727,7 @@ select::-webkit-scrollbar-thumb:hover {
 .metric-card {
   background: white;
   border-radius: 10px;
-  padding: 0.9rem;
+  padding: 0.75rem;
   border: 1px solid #dce3ef;
   box-shadow: none;
   transition: all 0.2s ease;
@@ -2468,8 +2769,8 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .metric-icon-wrapper {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -2479,8 +2780,8 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .metric-icon {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   color: #ffffff;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
@@ -2491,16 +2792,16 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .metric-label {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #6b7280;
   font-weight: 500;
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.35rem 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .metric-value {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #1f2937;
   margin: 0;
@@ -2509,15 +2810,15 @@ select::-webkit-scrollbar-thumb:hover {
 
 /* Tasks Section */
 .tasks-section {
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .dashboard-main-grid {
   display: grid;
   grid-template-columns: 1.05fr 1fr;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: start;
-  margin-bottom: 1rem;
+  margin-bottom: 0.25rem;
 }
 
 .tasks-grid {
@@ -2532,6 +2833,8 @@ select::-webkit-scrollbar-thumb:hover {
   border: 1px solid #dce3ef;
   padding: 0.85rem 1rem;
   box-shadow: 0 6px 12px -6px rgba(15, 23, 42, 0.12);
+  /* Ensure consistent height for the tasks tabs container */
+  min-height: 450px;
 }
 
 .tasks-nav {
@@ -2612,16 +2915,20 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .task-trend-chart .chart-content {
-  height: 240px;
+  height: 180px;
 }
 
 .task-card {
   background: white;
   border-radius: 10px;
-  padding: 0.9rem;
+  padding: 0.75rem;
   border: 1px solid #dce3ef;
   box-shadow: none;
   transition: all 0.2s ease;
+  /* Keep task cards visually consistent even when there are few rows */
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
 }
 
 .task-card:hover {
@@ -2642,7 +2949,7 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .task-card-title {
-  font-size: 1.15rem;
+  font-size: 1rem;
   font-weight: 500;
   color: #1f2937;
   margin: 0;
@@ -2660,6 +2967,10 @@ select::-webkit-scrollbar-thumb:hover {
 .task-table-container {
   overflow-x: auto;
   border-radius: 8px;
+  /* Reserve vertical space so the table area and footer stay in place
+     even when there are fewer than one page of tasks */
+  min-height: 220px;
+  flex: 1;
 }
 
 .task-table {
@@ -2672,21 +2983,23 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .task-table th {
-  padding: 0.65rem;
+  padding: 0.5rem;
   text-align: left;
   font-weight: 600;
   color: #374151;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 2px solid #e5e7eb;
 }
 
 .task-table td {
-  padding: 0.65rem;
+  padding: 0.5rem;
   border-bottom: 1px solid #f3f4f6;
   color: #4b5563;
+  font-size: 0.9rem;
 }
+
 .task-table th.status-column,
 .task-table td.status-column {
   text-align: center;
@@ -2976,7 +3289,7 @@ select::-webkit-scrollbar-thumb:hover {
 .chart-card {
   background: white;
   border-radius: 10px;
-  padding: 0.7rem 0.85rem;
+  padding: 0.75rem;
   border: 1px solid #dce3ef;
   box-shadow: none;
   transition: all 0.2s ease;
@@ -2984,7 +3297,11 @@ select::-webkit-scrollbar-thumb:hover {
 
 /* Taller outer box for specific charts (e.g., Productivity, Task Status) */
 .chart-card-tall {
-  min-height: 491px;
+  min-height: 440px;
+}
+
+.chart-card-medium {
+  min-height: 375px;
 }
 
 .chart-card:hover {
@@ -3005,7 +3322,7 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .chart-title {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
   color: #1f2937;
   margin: 0;
@@ -3097,17 +3414,20 @@ select::-webkit-scrollbar-thumb:hover {
 @media (max-width: 768px) {
   .dashboard-page {
     padding: 1rem;
-    padding-top: calc(1rem + 80px); /* Account for taller navbar on mobile */
+    padding-top: calc(1rem + 80px);
+    /* Account for taller navbar on mobile */
   }
 
   .users-page {
     padding: 1rem;
-    padding-top: calc(1rem + 80px); /* Account for taller navbar on mobile */
+    padding-top: calc(1rem + 80px);
+    /* Account for taller navbar on mobile */
   }
 
   .page-container {
     padding: 1rem;
-    padding-top: calc(1rem + 80px); /* Account for taller navbar on mobile */
+    padding-top: calc(1rem + 80px);
+    /* Account for taller navbar on mobile */
   }
 
   .dashboard-title {
@@ -3497,7 +3817,7 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 /* Modern Dashboard Styles */
-.space-y-6 > * + * {
+.space-y-6>*+* {
   margin-top: 1.5rem;
 }
 
@@ -3620,9 +3940,11 @@ select::-webkit-scrollbar-thumb:hover {
 .text-blue-600 {
   color: #2563eb;
 }
+
 .text-cyan-600 {
   color: #0891b2;
 }
+
 .text-red-600 {
   color: #dc2626;
 }
@@ -3638,6 +3960,7 @@ select::-webkit-scrollbar-thumb:hover {
 .bg-gray-50 {
   background-color: #f9fafb;
 }
+
 .hover\:bg-gray-100:hover {
   background-color: #f3f4f6;
 }
@@ -3691,6 +4014,7 @@ select::-webkit-scrollbar-thumb:hover {
 .shadow-sm {
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
+
 .transition-colors {
   transition: background-color 0.2s ease;
 }
@@ -3698,6 +4022,7 @@ select::-webkit-scrollbar-thumb:hover {
 .p-3 {
   padding: 0.75rem;
 }
+
 .p-4 {
   padding: 1rem;
 }
@@ -3769,13 +4094,16 @@ select::-webkit-scrollbar-thumb:hover {
 .bg-cyan-500 {
   background-color: #06b6d4;
 }
+
 .bg-gray-300 {
   background-color: #d1d5db;
   color: #111827;
 }
+
 .bg-green-500 {
   background-color: #22c55e;
 }
+
 .bg-red-500 {
   background-color: #ef4444;
 }
@@ -3808,7 +4136,8 @@ select::-webkit-scrollbar-thumb:hover {
 
 /* Scrollable dropdown */
 .scrollable-dropdown {
-  max-height: 200px; /* adjust as needed */
+  max-height: 200px;
+  /* adjust as needed */
   overflow-y: auto;
 }
 

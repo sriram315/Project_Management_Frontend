@@ -14,6 +14,7 @@
     "@types/react-dom": "^19.2.2",
     "axios": "^1.13.0",
     "chart.js": "^4.5.1",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.548.0",
     "react": "^19.2.0",
     "react-chartjs-2": "^5.3.1",

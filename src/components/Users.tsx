@@ -78,9 +78,8 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
         params.append("userId", String(currentUser.id));
         params.append("userRole", currentUser.role);
       }
-      const url = `${API_BASE_URL}/users${
-        params.toString() ? `?${params.toString()}` : ""
-      }`;
+      const url = `${API_BASE_URL}/users${params.toString() ? `?${params.toString()}` : ""
+        }`;
       const response = await axios.get(url);
       setUsers(response.data);
     } catch (error) {
@@ -453,8 +452,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
         if (values.length < 3) {
           failedCount++;
           errors.push(
-            `Line ${
-              i + 1
+            `Line ${i + 1
             }: Invalid format - expected at least 3 columns (Username, Email, Role)`
           );
           continue;
@@ -484,8 +482,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
           if (!userData.username || userData.username.length < 3) {
             failedCount++;
             errors.push(
-              `Line ${i + 1}: Invalid username "${
-                userData.username
+              `Line ${i + 1}: Invalid username "${userData.username
               }" (min 3 characters)`
             );
             continue;
@@ -495,8 +492,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
           if (!/^[a-zA-Z0-9_.-]+$/.test(userData.username)) {
             failedCount++;
             errors.push(
-              `Line ${i + 1}: Username "${
-                userData.username
+              `Line ${i + 1}: Username "${userData.username
               }" contains invalid characters`
             );
             continue;
@@ -517,8 +513,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
           if (!validRoles.includes(userData.role)) {
             failedCount++;
             errors.push(
-              `Line ${i + 1}: Invalid role "${
-                userData.role
+              `Line ${i + 1}: Invalid role "${userData.role
               }" (must be: manager, team_lead, or employee)`
             );
             continue;
@@ -531,8 +526,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
           ) {
             failedCount++;
             errors.push(
-              `Line ${i + 1}: Invalid hours "${
-                userData.available_hours_per_week
+              `Line ${i + 1}: Invalid hours "${userData.available_hours_per_week
               }" (must be 1-80)`
             );
             continue;
@@ -559,8 +553,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
               // Handle specific error types
               if (type === "duplicate_username") {
                 errors.push(
-                  `Line ${i + 1}: Username "${
-                    userData.username
+                  `Line ${i + 1}: Username "${userData.username
                   }" already exists`
                 );
               } else if (type === "duplicate_email") {
@@ -658,33 +651,17 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
   );
 
   return (
-    <div className="users-page">
-      <div className="page-header" style={{ marginBottom: "2rem" }}>
+    <div className="users-page management-page">
+      <div className="management-page-header">
         <div>
-          <h1
-            style={{
-              fontSize: "2rem",
-              fontWeight: "700",
-              marginBottom: "0.5rem",
-              color: "white",
-            }}
-          >
+          <h1 className="management-page-title">
             Users Management
           </h1>
-          <p
-            style={{
-              fontSize: "0.95rem",
-              marginTop: "0.25rem",
-              color: "rgba(255, 255, 255, 0.9)",
-            }}
-          >
+          <p className="management-page-subtitle">
             Manage and organize your team members
           </p>
         </div>
-        <div
-          className="header-actions"
-          style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}
-        >
+        <div className="header-actions management-header-actions">
           <input
             type="text"
             placeholder="Search users by name, email..."
@@ -831,252 +808,252 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                 onSubmit={handleAddUser}
                 className="user-form"
               >
-              <div className="form-group">
-                <label>
-                  Username: <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newUser.username}
-                  onChange={(e) => {
-                    setNewUser({ ...newUser, username: e.target.value });
-                    // Clear username error when user starts typing
-                    if (formErrors.username) {
-                      setFormErrors({ ...formErrors, username: "" });
-                    }
-                  }}
-                  style={{
-                    borderColor: formErrors.username ? "#ef4444" : "#e1e8ed",
-                  }}
-                  placeholder="Enter username"
-                />
-                {formErrors.username && (
-                  <small
+                <div className="form-group">
+                  <label>
+                    Username: <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newUser.username}
+                    onChange={(e) => {
+                      setNewUser({ ...newUser, username: e.target.value });
+                      // Clear username error when user starts typing
+                      if (formErrors.username) {
+                        setFormErrors({ ...formErrors, username: "" });
+                      }
+                    }}
                     style={{
-                      color: "#ef4444",
-                      fontSize: "0.85rem",
-                      marginTop: "0.25rem",
-                      display: "block",
+                      borderColor: formErrors.username ? "#ef4444" : "#e1e8ed",
+                    }}
+                    placeholder="Enter username"
+                  />
+                  {formErrors.username && (
+                    <small
+                      style={{
+                        color: "#ef4444",
+                        fontSize: "0.85rem",
+                        marginTop: "0.25rem",
+                        display: "block",
+                      }}
+                    >
+                      {formErrors.username}
+                    </small>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>
+                    Password: <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={newUser.password}
+                      onChange={(e) =>
+                        setNewUser({ ...newUser, password: e.target.value })
+                      }
+                      style={{
+                        borderColor: formErrors.password ? "#ef4444" : "#e1e8ed",
+                        paddingRight: "2.5rem",
+                        width: "100%",
+                      }}
+                      placeholder="8-15 chars, 1 upper, 1 lower, 1 special"
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: "absolute",
+                        right: "0.5rem",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "0.25rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#666",
+                        fontSize: "1.1rem",
+                        width: "1.5rem",
+                        height: "1.5rem",
+                      }}
+                      title={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                      ) : (
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  {formErrors.password && (
+                    <small
+                      style={{
+                        color: "#ef4444",
+                        fontSize: "0.85rem",
+                        marginTop: "0.25rem",
+                        display: "block",
+                      }}
+                    >
+                      {formErrors.password}
+                    </small>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>
+                    Email: <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={newUser.email}
+                    onChange={(e) => {
+                      setNewUser({ ...newUser, email: e.target.value });
+                      // Clear email error when user starts typing
+                      if (formErrors.email) {
+                        setFormErrors({ ...formErrors, email: "" });
+                      }
+                    }}
+                    style={{
+                      borderColor: formErrors.email ? "#ef4444" : "#e1e8ed",
+                    }}
+                    placeholder="user@example.com"
+                    autoComplete="off"
+                  />
+                  {formErrors.email && (
+                    <small
+                      style={{
+                        color: "#ef4444",
+                        fontSize: "0.85rem",
+                        marginTop: "0.25rem",
+                        display: "block",
+                      }}
+                    >
+                      {formErrors.email}
+                    </small>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>
+                    Role: <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <select
+                    value={newUser.role}
+                    onChange={(e) =>
+                      setNewUser({ ...newUser, role: e.target.value })
+                    }
+                    style={{
+                      borderColor: formErrors.role ? "#ef4444" : "#e1e8ed",
                     }}
                   >
-                    {formErrors.username}
-                  </small>
-                )}
-              </div>
-              <div className="form-group">
-                <label>
-                  Password: <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <div style={{ position: "relative" }}>
+                    <option value="">Select Role</option>
+                    <option value="manager">Manager</option>
+                    <option value="team_lead">Team Lead</option>
+                    <option value="employee">Team Member</option>
+                  </select>
+                  {formErrors.role && (
+                    <small
+                      style={{
+                        color: "#ef4444",
+                        fontSize: "0.85rem",
+                        marginTop: "0.25rem",
+                        display: "block",
+                      }}
+                    >
+                      {formErrors.role}
+                    </small>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>
+                    Available Hours per Week:{" "}
+                    <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
                   <input
-                    type={showPassword ? "text" : "password"}
-                    value={newUser.password}
+                    type="number"
+                    min="1"
+                    max="80"
+                    value={newUser.available_hours_per_week}
                     onChange={(e) =>
-                      setNewUser({ ...newUser, password: e.target.value })
+                      setNewUser({
+                        ...newUser,
+                        available_hours_per_week: parseInt(e.target.value) || 40,
+                      })
                     }
                     style={{
-                      borderColor: formErrors.password ? "#ef4444" : "#e1e8ed",
-                      paddingRight: "2.5rem",
-                      width: "100%",
+                      borderColor: formErrors.available_hours_per_week
+                        ? "#ef4444"
+                        : "#e1e8ed",
                     }}
-                    placeholder="8-15 chars, 1 upper, 1 lower, 1 special"
-                    autoComplete="new-password"
+                    placeholder="40"
                   />
+                  {formErrors.available_hours_per_week && (
+                    <small
+                      style={{
+                        color: "#ef4444",
+                        fontSize: "0.85rem",
+                        marginTop: "0.25rem",
+                        display: "block",
+                      }}
+                    >
+                      {formErrors.available_hours_per_week}
+                    </small>
+                  )}
+                  <small className="form-help">
+                    Default weekly working hours for this user (1-80 hours)
+                  </small>
+                </div>
+                <div className="form-actions">
+                  <button type="submit" className="btn-enterprise btn-primary">
+                    <span className="btn-icon">✅</span>
+                    Add User
+                  </button>
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      position: "absolute",
-                      right: "0.5rem",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: "0.25rem",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#666",
-                      fontSize: "1.1rem",
-                      width: "1.5rem",
-                      height: "1.5rem",
+                    onClick={() => {
+                      setNewUser({
+                        username: "",
+                        password: "",
+                        role: "",
+                        email: "",
+                        available_hours_per_week: 40,
+                      });
+                      setFormErrors({});
+                      setShowPassword(false);
+                      setShowAddForm(false);
                     }}
-                    title={showPassword ? "Hide password" : "Show password"}
+                    className="btn-enterprise btn-secondary"
                   >
-                    {showPassword ? (
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                      </svg>
-                    ) : (
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                      </svg>
-                    )}
+                    <span className="btn-icon">❌</span>
+                    Cancel
                   </button>
                 </div>
-                {formErrors.password && (
-                  <small
-                    style={{
-                      color: "#ef4444",
-                      fontSize: "0.85rem",
-                      marginTop: "0.25rem",
-                      display: "block",
-                    }}
-                  >
-                    {formErrors.password}
-                  </small>
-                )}
-              </div>
-              <div className="form-group">
-                <label>
-                  Email: <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="email"
-                  value={newUser.email}
-                  onChange={(e) => {
-                    setNewUser({ ...newUser, email: e.target.value });
-                    // Clear email error when user starts typing
-                    if (formErrors.email) {
-                      setFormErrors({ ...formErrors, email: "" });
-                    }
-                  }}
-                  style={{
-                    borderColor: formErrors.email ? "#ef4444" : "#e1e8ed",
-                  }}
-                  placeholder="user@example.com"
-                  autoComplete="off"
-                />
-                {formErrors.email && (
-                  <small
-                    style={{
-                      color: "#ef4444",
-                      fontSize: "0.85rem",
-                      marginTop: "0.25rem",
-                      display: "block",
-                    }}
-                  >
-                    {formErrors.email}
-                  </small>
-                )}
-              </div>
-              <div className="form-group">
-                <label>
-                  Role: <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <select
-                  value={newUser.role}
-                  onChange={(e) =>
-                    setNewUser({ ...newUser, role: e.target.value })
-                  }
-                  style={{
-                    borderColor: formErrors.role ? "#ef4444" : "#e1e8ed",
-                  }}
-                >
-                  <option value="">Select Role</option>
-                  <option value="manager">Manager</option>
-                  <option value="team_lead">Team Lead</option>
-                  <option value="employee">Team Member</option>
-                </select>
-                {formErrors.role && (
-                  <small
-                    style={{
-                      color: "#ef4444",
-                      fontSize: "0.85rem",
-                      marginTop: "0.25rem",
-                      display: "block",
-                    }}
-                  >
-                    {formErrors.role}
-                  </small>
-                )}
-              </div>
-              <div className="form-group">
-                <label>
-                  Available Hours per Week:{" "}
-                  <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="80"
-                  value={newUser.available_hours_per_week}
-                  onChange={(e) =>
-                    setNewUser({
-                      ...newUser,
-                      available_hours_per_week: parseInt(e.target.value) || 40,
-                    })
-                  }
-                  style={{
-                    borderColor: formErrors.available_hours_per_week
-                      ? "#ef4444"
-                      : "#e1e8ed",
-                  }}
-                  placeholder="40"
-                />
-                {formErrors.available_hours_per_week && (
-                  <small
-                    style={{
-                      color: "#ef4444",
-                      fontSize: "0.85rem",
-                      marginTop: "0.25rem",
-                      display: "block",
-                    }}
-                  >
-                    {formErrors.available_hours_per_week}
-                  </small>
-                )}
-                <small className="form-help">
-                  Default weekly working hours for this user (1-80 hours)
-                </small>
-              </div>
-              <div className="form-actions">
-                <button type="submit" className="btn-enterprise btn-primary">
-                  <span className="btn-icon">✅</span>
-                  Add User
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewUser({
-                      username: "",
-                      password: "",
-                      role: "",
-                      email: "",
-                      available_hours_per_week: 40,
-                    });
-                    setFormErrors({});
-                    setShowPassword(false);
-                    setShowAddForm(false);
-                  }}
-                  className="btn-enterprise btn-secondary"
-                >
-                  <span className="btn-icon">❌</span>
-                  Cancel
-                </button>
-              </div>
-            </form>
+              </form>
             </div>
           </div>
         </div>
@@ -1280,27 +1257,27 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                           user.role === "manager"
                             ? "#d1fae5"
                             : user.role === "team_lead"
-                            ? "#fef3c7"
-                            : user.role === "super_admin"
-                            ? "#ede9fe"
-                            : "#dbeafe",
+                              ? "#fef3c7"
+                              : user.role === "super_admin"
+                                ? "#ede9fe"
+                                : "#dbeafe",
                         color:
                           user.role === "manager"
                             ? "#065f46"
                             : user.role === "team_lead"
-                            ? "#92400e"
-                            : user.role === "super_admin"
-                            ? "#5b21b6"
-                            : "#1e40af",
+                              ? "#92400e"
+                              : user.role === "super_admin"
+                                ? "#5b21b6"
+                                : "#1e40af",
                       }}
                     >
                       {user.role === "manager"
                         ? "Manager"
                         : user.role === "team_lead"
-                        ? "Team Lead"
-                        : user.role === "super_admin"
-                        ? "Super Admin"
-                        : "Team Member"}
+                          ? "Team Lead"
+                          : user.role === "super_admin"
+                            ? "Super Admin"
+                            : "Team Member"}
                     </span>
                   </td>
                   <td style={{ padding: "1rem" }}>
@@ -1326,7 +1303,7 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                       }}
                     >
                       {currentUser?.role === "super_admin" &&
-                      user.role !== "super_admin" ? (
+                        user.role !== "super_admin" ? (
                         <>
                           <button
                             onClick={() => handleEditUser(user)}
@@ -1454,8 +1431,8 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                           <EyeIcon style={{ width: "1rem", height: "1rem" }} />
                         </button>
                       ) : (currentUser?.role === "manager" &&
-                          (user.role === "employee" ||
-                            user.role === "team_lead")) ||
+                        (user.role === "employee" ||
+                          user.role === "team_lead")) ||
                         (currentUser?.role === "team_lead" &&
                           user.role === "employee") ? (
                         <button
@@ -1996,14 +1973,14 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                                       project.status === "active"
                                         ? "#d1fae5"
                                         : project.status === "completed"
-                                        ? "#dbeafe"
-                                        : "#f3f4f6",
+                                          ? "#dbeafe"
+                                          : "#f3f4f6",
                                     color:
                                       project.status === "active"
                                         ? "#065f46"
                                         : project.status === "completed"
-                                        ? "#1e40af"
-                                        : "#6b7280",
+                                          ? "#1e40af"
+                                          : "#6b7280",
                                   }}
                                 >
                                   {project.status}
@@ -2167,18 +2144,18 @@ const Users: React.FC<UsersProps> = ({ user: currentUser }) => {
                                       task.status === "completed"
                                         ? "#d1fae5"
                                         : task.status === "in_progress"
-                                        ? "#dbeafe"
-                                        : task.status === "blocked"
-                                        ? "#fee2e2"
-                                        : "#f3f4f6",
+                                          ? "#dbeafe"
+                                          : task.status === "blocked"
+                                            ? "#fee2e2"
+                                            : "#f3f4f6",
                                     color:
                                       task.status === "completed"
                                         ? "#065f46"
                                         : task.status === "in_progress"
-                                        ? "#1e40af"
-                                        : task.status === "blocked"
-                                        ? "#991b1b"
-                                        : "#6b7280",
+                                          ? "#1e40af"
+                                          : task.status === "blocked"
+                                            ? "#991b1b"
+                                            : "#6b7280",
                                   }}
                                 >
                                   {task.status.replace("_", " ")}

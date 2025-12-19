@@ -272,44 +272,67 @@ const EditTask: React.FC<EditTaskProps> = ({
     fetchDailyUpdates();
   }, [task.id]);
 
- const handleInputChange = (
-  e: React.ChangeEvent<
-    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-  >
-) => {
-  const { name, value } = e.target;
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    const { name, value } = e.target;
 
-  // Handle start_date → auto-set due_date to Friday of the same week
-  if (name === "start_date" && value) {
-    const startDate = new Date(value);
+    // Handle start_date → auto-set due_date to Friday of the same week
+    if (name === "start_date" && value) {
+      const startDate = new Date(value);
 
-    if (!isNaN(startDate.getTime())) {
-      const day = startDate.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+      if (!isNaN(startDate.getTime())) {
+        const day = startDate.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
 
-      // Correct formula to find Friday (weekday 5)
-      let daysToAdd = 5 - day;
+        // Correct formula to find Friday (weekday 5)
+        let daysToAdd = 5 - day;
 
-      // If Saturday → previous Friday
-      if (day === 6) {
-        daysToAdd = -1;
+        // If Saturday → previous Friday
+        if (day === 6) {
+          daysToAdd = -1;
+        }
+
+        const fridayDate = new Date(startDate);
+        fridayDate.setDate(startDate.getDate() + daysToAdd);
+
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+          due_date: formatDateLocal(fridayDate),
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
       }
 
-      const fridayDate = new Date(startDate);
-      fridayDate.setDate(startDate.getDate() + daysToAdd);
+      // Clear error for this field
+      if (formErrors[name]) {
+        setFormErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors[name];
+          return newErrors;
+        });
+      }
 
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-        due_date: formatDateLocal(fridayDate),
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      return;
     }
 
-    // Clear error for this field
+    // Normal handling for other fields
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name === "planned_hours" ||
+          name === "assignee_id" ||
+          name === "project_id"
+          ? parseInt(value) || 0
+          : value,
+    }));
+
+    // Clear error for this field when typing
     if (formErrors[name]) {
       setFormErrors((prev) => {
         const newErrors = { ...prev };
@@ -317,30 +340,7 @@ const EditTask: React.FC<EditTaskProps> = ({
         return newErrors;
       });
     }
-
-    return;
-  }
-
-  // Normal handling for other fields
-  setFormData((prev) => ({
-    ...prev,
-    [name]:
-      name === "planned_hours" ||
-      name === "assignee_id" ||
-      name === "project_id"
-        ? parseInt(value) || 0
-        : value,
-  }));
-
-  // Clear error for this field when typing
-  if (formErrors[name]) {
-    setFormErrors((prev) => {
-      const newErrors = { ...prev };
-      delete newErrors[name];
-      return newErrors;
-    });
-  }
-};
+  };
 
   const handleSelectChange = (name: string) => (value: string) => {
     setFormData((prev) => ({
@@ -459,8 +459,8 @@ const EditTask: React.FC<EditTaskProps> = ({
         // Calculate available hours percentage after adding the new task
         const { availableHours, totalHours, utilizationPercentage } = validationResult.workload;
         const totalCapacity = totalHours + availableHours; // Total weekly capacity
-        const availableHoursPercentage = totalCapacity > 0 
-          ? (availableHours / totalCapacity) * 100 
+        const availableHoursPercentage = totalCapacity > 0
+          ? (availableHours / totalCapacity) * 100
           : 0;
 
         // Calculate available hours BEFORE adding the new task
@@ -562,7 +562,7 @@ const EditTask: React.FC<EditTaskProps> = ({
           status: formData.status,
           description: formData.description,
         };
-        
+
         // Include start_date and due_date if they are provided
         if (formData.start_date) {
           employeeUpdateData.start_date = formData.start_date;
@@ -570,7 +570,7 @@ const EditTask: React.FC<EditTaskProps> = ({
         if (formData.due_date) {
           employeeUpdateData.due_date = formData.due_date;
         }
-        
+
         await taskAPI.update(task.id, employeeUpdateData);
       } else {
         const taskData: any = {
@@ -788,28 +788,276 @@ const EditTask: React.FC<EditTaskProps> = ({
         </div>
 
         <div style={{ padding: "1.5rem 2rem 2rem 2rem", overflowY: "auto", flex: 1, minHeight: 0 }}>
-        <form onSubmit={handleSubmit} className="user-form">
-          {error && <div className="error-message">{error}</div>}
+          <form onSubmit={handleSubmit} className="user-form">
+            {error && <div className="error-message">{error}</div>}
 
-          {/* Show all fields for managers/team leads/superadmin */}
-          {!isEmployee && (
-            <>
+            {/* Show all fields for managers/team leads/superadmin */}
+            {!isEmployee && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="name">
+                    Task Name <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    style={{
+                      borderColor: formErrors.name ? "#ef4444" : "#e1e8ed",
+                    }}
+                    placeholder="Enter task name"
+                  />
+                  {formErrors.name && (
+                    <small
+                      style={{
+                        color: "#ef4444",
+                        fontSize: "0.85rem",
+                        marginTop: "0.25rem",
+                        display: "block",
+                      }}
+                    >
+                      {formErrors.name}
+                    </small>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="form-group">
+              <label htmlFor="description">Description</label>
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                placeholder="Enter task description"
+                rows={3}
+              />
+            </div>
+            {!isEmployee && (
+              <>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="project_id">
+                      Project <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <div
+                      style={{
+                        border: formErrors.project_id
+                          ? "1px solid #ef4444"
+                          : "1px solid #e1e8ed",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      <CustomSelect
+                        value={formData.project_id}
+                        onChange={handleSelectChange("project_id")}
+                        options={[
+                          { value: 0, label: "Select Project" },
+                          ...projects.map((project) => ({
+                            value: project.id,
+                            label: project.name,
+                          })),
+                        ]}
+                        placeholder="Select Project"
+                        className="custom-select-full-width"
+                      />
+                    </div>
+                    {formErrors.project_id && (
+                      <small
+                        style={{
+                          color: "#ef4444",
+                          fontSize: "0.85rem",
+                          marginTop: "0.25rem",
+                          display: "block",
+                        }}
+                      >
+                        {formErrors.project_id}
+                      </small>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="assignee_id">
+                      Assignee <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <div
+                      style={{
+                        border: formErrors.assignee_id
+                          ? "1px solid #ef4444"
+                          : "1px solid #e1e8ed",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      <CustomSelect
+                        value={formData.assignee_id}
+                        onChange={handleSelectChange("assignee_id")}
+                        options={[
+                          {
+                            value: 0,
+                            label:
+                              formData.project_id > 0
+                                ? "Select Assignee from Project Team"
+                                : "Select Project First",
+                          },
+                          ...(formData.project_id > 0
+                            ? filteredAssignees
+                            : []
+                          ).map((member) => ({
+                            value: member.id,
+                            label: member.name,
+                          })),
+                        ]}
+                        placeholder={
+                          formData.project_id > 0
+                            ? "Select Assignee from Project Team"
+                            : "Select Project First"
+                        }
+                        className="custom-select-full-width"
+                      />
+                    </div>
+                    {formErrors.assignee_id && (
+                      <small
+                        style={{
+                          color: "#ef4444",
+                          fontSize: "0.85rem",
+                          marginTop: "0.25rem",
+                          display: "block",
+                        }}
+                      >
+                        {formErrors.assignee_id}
+                      </small>
+                    )}
+                    {formData.project_id > 0 &&
+                      filteredAssignees.length === 0 && (
+                        <small
+                          style={{
+                            color: "#f59e0b",
+                            fontSize: "0.85rem",
+                            marginTop: "0.25rem",
+                            display: "block",
+                          }}
+                        >
+                          ⚠️ No team members assigned to this project. Please
+                          assign members to the project first.
+                        </small>
+                      )}
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="priority">
+                      Priority <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <select
+                      id="priority"
+                      name="priority"
+                      value={formData.priority}
+                      onChange={handleInputChange}
+                    >
+                      <option value="p1">P1 - Critical</option>
+                      <option value="p2">P2 - High</option>
+                      <option value="p3">P3 - Medium</option>
+                      <option value="p4">P4 - Low</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="task_type">
+                      Task Type <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <select
+                      id="task_type"
+                      name="task_type"
+                      value={formData.task_type}
+                      onChange={handleInputChange}
+                    >
+                      <option value="development">Development</option>
+                      <option value="testing">Testing</option>
+                      <option value="design">Design</option>
+                      <option value="documentation">Documentation</option>
+                      <option value="review">Review</option>
+                      <option value="meeting">Meeting</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="planned_hours">
+                      Estimated Hours <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <input
+                      type="number"
+                      id="planned_hours"
+                      name="planned_hours"
+                      value={formData.planned_hours}
+                      onChange={handleInputChange}
+                      style={{
+                        borderColor: formErrors.planned_hours
+                          ? "#ef4444"
+                          : "#e1e8ed",
+                      }}
+                      min="0"
+                      placeholder="Enter estimated hours"
+                    />
+                    {formErrors.planned_hours && (
+                      <small
+                        style={{
+                          color: "#ef4444",
+                          fontSize: "0.85rem",
+                          marginTop: "0.25rem",
+                          display: "block",
+                        }}
+                      >
+                        {formErrors.planned_hours}
+                      </small>
+                    )}
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="attachments">Attachments</label>
+                  <input
+                    type="text"
+                    id="attachments"
+                    name="attachments"
+                    value={formData.attachments}
+                    onChange={handleInputChange}
+                    placeholder="Enter attachment URLs or file names"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Date fields - shown for all users (employees, managers, team leads, superadmin) */}
+            <div className="form-row">
               <div className="form-group">
-                <label htmlFor="name">
-                  Task Name <span style={{ color: "#ef4444" }}>*</span>
-                </label>
+                <label htmlFor="start_date">Start Date</label>
                 <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
+                  type="date"
+                  id="start_date"
+                  name="start_date"
+                  value={formData.start_date}
                   onChange={handleInputChange}
+                  // min={(function () {
+                  //   const d = new Date();
+                  //   const y = d.getFullYear();
+                  //   const m = String(d.getMonth() + 1).padStart(2, "0");
+                  //   const day = String(d.getDate()).padStart(2, "0");
+                  //   return `${y}-${m}-${day}`;
+                  // })()}
                   style={{
-                    borderColor: formErrors.name ? "#ef4444" : "#e1e8ed",
+                    borderColor: formErrors.start_date
+                      ? "#ef4444"
+                      : "#e1e8ed",
                   }}
-                  placeholder="Enter task name"
                 />
-                {formErrors.name && (
+                {formErrors.start_date && (
                   <small
                     style={{
                       color: "#ef4444",
@@ -818,246 +1066,83 @@ const EditTask: React.FC<EditTaskProps> = ({
                       display: "block",
                     }}
                   >
-                    {formErrors.name}
+                    {formErrors.start_date}
                   </small>
                 )}
               </div>
-            </>
-          )}
-
-          <div className="form-group">
-            <label htmlFor="description">Description</label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              placeholder="Enter task description"
-              rows={3}
-            />
-          </div>
-          {!isEmployee && (
-            <>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="project_id">
-                    Project <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <div
-                    style={{
-                      border: formErrors.project_id
-                        ? "1px solid #ef4444"
-                        : "1px solid #e1e8ed",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    <CustomSelect
-                      value={formData.project_id}
-                      onChange={handleSelectChange("project_id")}
-                      options={[
-                        { value: 0, label: "Select Project" },
-                        ...projects.map((project) => ({
-                          value: project.id,
-                          label: project.name,
-                        })),
-                      ]}
-                      placeholder="Select Project"
-                      className="custom-select-full-width"
-                    />
-                  </div>
-                  {formErrors.project_id && (
-                    <small
-                      style={{
-                        color: "#ef4444",
-                        fontSize: "0.85rem",
-                        marginTop: "0.25rem",
-                        display: "block",
-                      }}
-                    >
-                      {formErrors.project_id}
-                    </small>
-                  )}
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="assignee_id">
-                    Assignee <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <div
-                    style={{
-                      border: formErrors.assignee_id
-                        ? "1px solid #ef4444"
-                        : "1px solid #e1e8ed",
-                      borderRadius: "4px",
-                    }}
-                  >
-                    <CustomSelect
-                      value={formData.assignee_id}
-                      onChange={handleSelectChange("assignee_id")}
-                      options={[
-                        {
-                          value: 0,
-                          label:
-                            formData.project_id > 0
-                              ? "Select Assignee from Project Team"
-                              : "Select Project First",
-                        },
-                        ...(formData.project_id > 0
-                          ? filteredAssignees
-                          : []
-                        ).map((member) => ({
-                          value: member.id,
-                          label: member.name,
-                        })),
-                      ]}
-                      placeholder={
-                        formData.project_id > 0
-                          ? "Select Assignee from Project Team"
-                          : "Select Project First"
-                      }
-                      className="custom-select-full-width"
-                    />
-                  </div>
-                  {formErrors.assignee_id && (
-                    <small
-                      style={{
-                        color: "#ef4444",
-                        fontSize: "0.85rem",
-                        marginTop: "0.25rem",
-                        display: "block",
-                      }}
-                    >
-                      {formErrors.assignee_id}
-                    </small>
-                  )}
-                  {formData.project_id > 0 &&
-                    filteredAssignees.length === 0 && (
-                      <small
-                        style={{
-                          color: "#f59e0b",
-                          fontSize: "0.85rem",
-                          marginTop: "0.25rem",
-                          display: "block",
-                        }}
-                      >
-                        ⚠️ No team members assigned to this project. Please
-                        assign members to the project first.
-                      </small>
-                    )}
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="priority">
-                    Priority <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <select
-                    id="priority"
-                    name="priority"
-                    value={formData.priority}
-                    onChange={handleInputChange}
-                  >
-                    <option value="p1">P1 - Critical</option>
-                    <option value="p2">P2 - High</option>
-                    <option value="p3">P3 - Medium</option>
-                    <option value="p4">P4 - Low</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="task_type">
-                    Task Type <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <select
-                    id="task_type"
-                    name="task_type"
-                    value={formData.task_type}
-                    onChange={handleInputChange}
-                  >
-                    <option value="development">Development</option>
-                    <option value="testing">Testing</option>
-                    <option value="design">Design</option>
-                    <option value="documentation">Documentation</option>
-                    <option value="review">Review</option>
-                    <option value="meeting">Meeting</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="planned_hours">
-                    Estimated Hours <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    id="planned_hours"
-                    name="planned_hours"
-                    value={formData.planned_hours}
-                    onChange={handleInputChange}
-                    style={{
-                      borderColor: formErrors.planned_hours
-                        ? "#ef4444"
-                        : "#e1e8ed",
-                    }}
-                    min="0"
-                    placeholder="Enter estimated hours"
-                  />
-                  {formErrors.planned_hours && (
-                    <small
-                      style={{
-                        color: "#ef4444",
-                        fontSize: "0.85rem",
-                        marginTop: "0.25rem",
-                        display: "block",
-                      }}
-                    >
-                      {formErrors.planned_hours}
-                    </small>
-                  )}
-                </div>
-              </div>
 
               <div className="form-group">
-                <label htmlFor="attachments">Attachments</label>
+                <label htmlFor="due_date">Due Date</label>
                 <input
-                  type="text"
-                  id="attachments"
-                  name="attachments"
-                  value={formData.attachments}
+                  type="date"
+                  id="due_date"
+                  name="due_date"
+                  value={formData.due_date}
                   onChange={handleInputChange}
-                  placeholder="Enter attachment URLs or file names"
+                  // Prevent due date before start date when start is set
+                  min={formData.start_date || undefined}
+                  style={{
+                    borderColor: formErrors.due_date ? "#ef4444" : "#e1e8ed",
+                  }}
                 />
+
+                {formErrors.due_date && (
+                  <small
+                    style={{
+                      color: "#ef4444",
+                      fontSize: "0.85rem",
+                      marginTop: "0.25rem",
+                      display: "block",
+                    }}
+                  >
+                    {formErrors.due_date}
+                  </small>
+                )}
               </div>
-            </>
-          )}
+            </div>
 
-          {/* Date fields - shown for all users (employees, managers, team leads, superadmin) */}
-          <div className="form-row">
+            {/* Status field - shown for all users */}
             <div className="form-group">
-              <label htmlFor="start_date">Start Date</label>
-              <input
-                type="date"
-                id="start_date"
-                name="start_date"
-                value={formData.start_date}
+              <label htmlFor="status">Status</label>
+              <select
+                id="status"
+                name="status"
+                value={formData.status}
                 onChange={handleInputChange}
-                // min={(function () {
-                //   const d = new Date();
-                //   const y = d.getFullYear();
-                //   const m = String(d.getMonth() + 1).padStart(2, "0");
-                //   const day = String(d.getDate()).padStart(2, "0");
-                //   return `${y}-${m}-${day}`;
-                // })()}
+              >
+                <option value="todo">To Do</option>
+                <option value="in_progress">In Progress</option>
+                <option value="blocked">Blocked</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="update-comment">
+                Daily Update
+                {isEmployee && <span style={{ color: "#ef4444" }}>*</span>}
+              </label>
+              <textarea
+                id="update-comment"
+                value={updateComment}
+                onChange={(e) => {
+                  setUpdateComment(e.target.value);
+                  // Clear error when user types
+                  if (formErrors.updateComment) {
+                    setFormErrors((prev) => {
+                      const newErrors = { ...prev };
+                      delete newErrors.updateComment;
+                      return newErrors;
+                    });
+                  }
+                }}
+                placeholder="Enter your task update here"
+                rows={3}
                 style={{
-                  borderColor: formErrors.start_date
-                    ? "#ef4444"
-                    : "#e1e8ed",
+                  borderColor: formErrors.updateComment ? "#ef4444" : "#e1e8ed",
                 }}
               />
-              {formErrors.start_date && (
+              {formErrors.updateComment && (
                 <small
                   style={{
                     color: "#ef4444",
@@ -1066,277 +1151,193 @@ const EditTask: React.FC<EditTaskProps> = ({
                     display: "block",
                   }}
                 >
-                  {formErrors.start_date}
+                  {formErrors.updateComment}
                 </small>
               )}
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="due_date">Due Date</label>
-              <input
-                type="date"
-                id="due_date"
-                name="due_date"
-                value={formData.due_date}
-                onChange={handleInputChange}
-                // Prevent due date before start date when start is set
-                min={formData.start_date || undefined}
-                style={{
-                  borderColor: formErrors.due_date ? "#ef4444" : "#e1e8ed",
-                }}
-              />
-
-              {formErrors.due_date && (
-                <small
-                  style={{
-                    color: "#ef4444",
-                    fontSize: "0.85rem",
-                    marginTop: "0.25rem",
-                    display: "block",
-                  }}
-                >
-                  {formErrors.due_date}
-                </small>
-              )}
-            </div>
-          </div>
-
-          {/* Status field - shown for all users */}
-          <div className="form-group">
-            <label htmlFor="status">Status</label>
-            <select
-              id="status"
-              name="status"
-              value={formData.status}
-              onChange={handleInputChange}
-            >
-              <option value="todo">To Do</option>
-              <option value="in_progress">In Progress</option>
-              <option value="blocked">Blocked</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="update-comment">
-              Daily Update
-              {isEmployee && <span style={{ color: "#ef4444" }}>*</span>}
-            </label>
-            <textarea
-              id="update-comment"
-              value={updateComment}
-              onChange={(e) => {
-                setUpdateComment(e.target.value);
-                // Clear error when user types
-                if (formErrors.updateComment) {
-                  setFormErrors((prev) => {
-                    const newErrors = { ...prev };
-                    delete newErrors.updateComment;
-                    return newErrors;
-                  });
-                }
-              }}
-              placeholder="Enter your task update here"
-              rows={3}
-              style={{
-                borderColor: formErrors.updateComment ? "#ef4444" : "#e1e8ed",
-              }}
-            />
-            {formErrors.updateComment && (
               <small
+                className="text-muted-foreground"
                 style={{
-                  color: "#ef4444",
                   fontSize: "0.85rem",
                   marginTop: "0.25rem",
                   display: "block",
                 }}
               >
-                {formErrors.updateComment}
+                Add a daily update comment that will be saved to the task history
+                when you update the task.
               </small>
-            )}
-            <small
-              className="text-muted-foreground"
+            </div>
+
+            {/* Daily Updates Section */}
+            <div
+              className="form-group"
               style={{
-                fontSize: "0.85rem",
-                marginTop: "0.25rem",
-                display: "block",
+                marginTop: "2rem",
+                paddingTop: "2rem",
+                borderTop: "2px solid #e1e8ed",
               }}
             >
-              Add a daily update comment that will be saved to the task history
-              when you update the task.
-            </small>
-          </div>
+              <h3
+                className="text-foreground"
+                style={{ marginBottom: "1rem", fontSize: "1.2rem" }}
+              >
+                Update History
+              </h3>
+              <p
+                className="text-muted-foreground"
+                style={{ marginBottom: "1rem", fontSize: "0.9rem" }}
+              >
+                Previous daily updates with date and time.
+              </p>
 
-          {/* Daily Updates Section */}
-          <div
-            className="form-group"
-            style={{
-              marginTop: "2rem",
-              paddingTop: "2rem",
-              borderTop: "2px solid #e1e8ed",
-            }}
-          >
-            <h3
-              className="text-foreground"
-              style={{ marginBottom: "1rem", fontSize: "1.2rem" }}
-            >
-              Update History
-            </h3>
-            <p
-              className="text-muted-foreground"
-              style={{ marginBottom: "1rem", fontSize: "0.9rem" }}
-            >
-              Previous daily updates with date and time.
-            </p>
-
-            {/* Display Existing Daily Updates */}
-            <div style={{ marginTop: "1rem" }}>
-              {loadingUpdates ? (
-                <div
-                  className="text-muted-foreground"
-                  style={{ padding: "1rem", textAlign: "center" }}
-                >
-                  Loading updates...
-                </div>
-              ) : dailyUpdates.length === 0 ? (
-                <div
-                  className="text-muted-foreground bg-gray-50"
-                  style={{
-                    padding: "1.5rem",
-                    textAlign: "center",
-                    borderRadius: "4px",
-                    border: "1px dashed #e1e8ed",
-                  }}
-                >
-                  No daily updates yet. Be the first to add an update!
-                </div>
-              ) : (
-                <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-                  {dailyUpdates.map((update) => (
-                    <div
-                      key={update.id}
-                      style={{
-                        padding: "1rem",
-                        marginBottom: "0.75rem",
-                        backgroundColor: "#f8f9fa",
-                        borderRadius: "6px",
-                        border: "1px solid #e1e8ed",
-                      }}
-                    >
+              {/* Display Existing Daily Updates */}
+              <div style={{ marginTop: "1rem" }}>
+                {loadingUpdates ? (
+                  <div
+                    className="text-muted-foreground"
+                    style={{ padding: "1rem", textAlign: "center" }}
+                  >
+                    Loading updates...
+                  </div>
+                ) : dailyUpdates.length === 0 ? (
+                  <div
+                    className="text-muted-foreground bg-gray-50"
+                    style={{
+                      padding: "1.5rem",
+                      textAlign: "center",
+                      borderRadius: "4px",
+                      border: "1px dashed #e1e8ed",
+                    }}
+                  >
+                    No daily updates yet. Be the first to add an update!
+                  </div>
+                ) : (
+                  <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+                    {dailyUpdates.map((update) => (
                       <div
+                        key={update.id}
                         style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
-                          marginBottom: "0.5rem",
+                          padding: "1rem",
+                          marginBottom: "0.75rem",
+                          backgroundColor: "#f8f9fa",
+                          borderRadius: "6px",
+                          border: "1px solid #e1e8ed",
                         }}
                       >
-                        <div style={{ flex: 1 }}>
-                          <strong
-                            className="text-foreground"
-                            style={{ fontSize: "0.95rem" }}
-                          >
-                            {update.user_name ||
-                              update.username ||
-                              "Unknown User"}
-                          </strong>
-                          {update.email && (
-                            <span
-                              className="text-muted-foreground"
-                              style={{
-                                fontSize: "0.85rem",
-                                marginLeft: "0.5rem",
-                              }}
-                            >
-                              ({update.email})
-                            </span>
-                          )}
-                        </div>
                         <div
                           style={{
                             display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            marginBottom: "0.5rem",
                           }}
                         >
-                          <span
+                          <div style={{ flex: 1 }}>
+                            <strong
+                              className="text-foreground"
+                              style={{ fontSize: "0.95rem" }}
+                            >
+                              {update.user_name ||
+                                update.username ||
+                                "Unknown User"}
+                            </strong>
+                            {update.email && (
+                              <span
+                                className="text-muted-foreground"
+                                style={{
+                                  fontSize: "0.85rem",
+                                  marginLeft: "0.5rem",
+                                }}
+                              >
+                                ({update.email})
+                              </span>
+                            )}
+                          </div>
+                          <div
                             style={{
-                              // color handled by text-muted-foreground class
-                              fontSize: "0.85rem",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {formatDateTime(update.created_at)}
-                          </span>
-                          <button
-                            onClick={() => handleDeleteDailyUpdate(update.id)}
-                            disabled={deletingUpdateId === update.id}
-                            style={{
-                              background: "none",
-                              border: "none",
-                              cursor:
-                                deletingUpdateId === update.id
-                                  ? "not-allowed"
-                                  : "pointer",
-                              padding: "0.25rem",
                               display: "flex",
                               alignItems: "center",
-                              justifyContent: "center",
-                              opacity: deletingUpdateId === update.id ? 0.5 : 1,
-                              color: "#ef4444",
-                              fontSize: "1rem",
+                              gap: "0.5rem",
                             }}
-                            title="Delete this update"
                           >
-                            {deletingUpdateId === update.id ? "⏳" : "🗑️"}
-                          </button>
+                            <span
+                              style={{
+                                // color handled by text-muted-foreground class
+                                fontSize: "0.85rem",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {formatDateTime(update.created_at)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDailyUpdate(update.id)}
+                              disabled={deletingUpdateId === update.id}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor:
+                                  deletingUpdateId === update.id
+                                    ? "not-allowed"
+                                    : "pointer",
+                                padding: "0.25rem",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                opacity: deletingUpdateId === update.id ? 0.5 : 1,
+                                color: "#ef4444",
+                                fontSize: "1rem",
+                              }}
+                              title="Delete this update"
+                            >
+                              {deletingUpdateId === update.id ? "⏳" : "🗑️"}
+                            </button>
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            color: "#444",
+                            fontSize: "0.9rem",
+                            lineHeight: "1.5",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {update.comment}
                         </div>
                       </div>
-                      <div
-                        style={{
-                          color: "#444",
-                          fontSize: "0.9rem",
-                          lineHeight: "1.5",
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {update.comment}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="form-actions">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-enterprise btn-secondary"
-            >
-              <span className="btn-icon">❌</span>
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn-enterprise btn-primary"
-              disabled={loading}
-            >
-              <span className="btn-icon">✅</span>
-              {loading ? "Updating..." : "Update Task"}
-            </button>
-          </div>
-        </form>
+            <div className="form-actions">
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-enterprise btn-secondary"
+              >
+                <span className="btn-icon">❌</span>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-enterprise btn-primary"
+                disabled={loading}
+              >
+                <span className="btn-icon">✅</span>
+                {loading ? "Updating..." : "Update Task"}
+              </button>
+            </div>
+          </form>
 
-        {toast.isVisible && (
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            onClose={hideToast}
-          />
-        )}
+          {toast.isVisible && (
+            <Toast
+              message={toast.message}
+              type={toast.type}
+              onClose={hideToast}
+            />
+          )}
         </div>
       </div>
 

@@ -329,8 +329,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               prev.employeeId !== undefined
                 ? prev.employeeId
                 : user?.role === "employee"
-                ? user.id
-                : undefined,
+                  ? user.id
+                  : undefined,
             startDate: prev.startDate || formatDateLocal(monday),
             endDate: prev.endDate || formatDateLocal(friday),
           };
@@ -699,19 +699,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       const adjustedData =
         noEmployeesForSelectedProject && activeFilters.projectId !== undefined
           ? {
-              ...res.data,
-              taskStats: { total: 0, completed: 0, blocked: 0, pending: 0, in_progress: 0 },
-              tasks: [],
-              productivityData: [],
-              utilizationData: [],
-              availabilityData: [],
-              final: {
-                ...(res.data?.final || {}),
-                available_hours: 0,
-                productivity: 0,
-                utilization: 0,
-              },
-            }
+            ...res.data,
+            taskStats: { total: 0, completed: 0, blocked: 0, pending: 0, in_progress: 0 },
+            tasks: [],
+            productivityData: [],
+            utilizationData: [],
+            availabilityData: [],
+            final: {
+              ...(res.data?.final || {}),
+              available_hours: 0,
+              productivity: 0,
+              utilization: 0,
+            },
+          }
           : res.data;
 
       setTaskStats(adjustedData);
@@ -795,8 +795,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 validEmployeeIds.length === 0
                   ? undefined
                   : validEmployeeIds.length === 1
-                  ? validEmployeeIds[0]
-                  : validEmployeeIds,
+                    ? validEmployeeIds[0]
+                    : validEmployeeIds,
             }));
           }
         }
@@ -816,13 +816,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       const arrA = Array.isArray(a)
         ? [...a].sort((x, y) => Number(x) - Number(y))
         : a === undefined
-        ? []
-        : [a];
+          ? []
+          : [a];
       const arrB = Array.isArray(b)
         ? [...b].sort((x, y) => Number(x) - Number(y))
         : b === undefined
-        ? []
-        : [b];
+          ? []
+          : [b];
       if (arrA.length !== arrB.length) return false;
       for (let i = 0; i < arrA.length; i++)
         if (arrA[i] !== arrB[i]) return false;
@@ -925,13 +925,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         projectId: Array.isArray(updatedFilters.projectId)
           ? updatedFilters.projectId
           : updatedFilters.projectId !== undefined
-          ? Number(updatedFilters.projectId)
-          : undefined,
+            ? Number(updatedFilters.projectId)
+            : undefined,
         employeeId: Array.isArray(updatedFilters.employeeId)
           ? updatedFilters.employeeId
           : updatedFilters.employeeId !== undefined
-          ? Number(updatedFilters.employeeId)
-          : undefined,
+            ? Number(updatedFilters.employeeId)
+            : undefined,
         // Explicitly exclude startDate and endDate from being saved
       };
       localStorage.setItem(storageKey, JSON.stringify(normalizedForStorage));
@@ -996,7 +996,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
     return null;
   };
-  
+
   const productivity = calculateProductivity();
 
   // Calculate utilization: use overall metrics from backend if available, otherwise calculate from weekly data
@@ -1068,79 +1068,79 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     trend: string;
     trendColor: string;
   }> = [
-    {
-      label: "Total Tasks",
-      // value: displayOrHyphen(totalTasks),
-      value: taskStats?.taskStats?.total || 0,
-      icon: ClipboardDocumentListIcon,
-      color: "bg-indigo-500",
-      trend: "+12% vs last week",
-      trendColor: "text-green-600",
-    },
-    {
-      label: "Completed",
-      // value: displayOrHyphen(completedTasks),
-      value: taskStats?.taskStats?.completed || 0,
-      icon: CheckCircleIcon,
-      color: "bg-indigo-500",
-      trend: "+3 this week",
-      trendColor: "text-green-600",
-    },
-    {
-      label: "Blocked",
-      // value: displayOrHyphen(blockedTasks),
-      value: taskStats?.taskStats?.blocked || 0,
-      icon: ExclamationTriangleIcon,
-      color: "bg-indigo-500",
-      trend: "needs attention",
-      trendColor: "text-red-600",
-    },
-    {
-      label: "Pending",
-      // value: displayOrHyphen(totalTasks - completedTasks),
-      value: taskStats?.taskStats?.pending || 0,
-      icon: ClockIcon,
-      color: "bg-indigo-500",
-      trend: "+3 this week",
-      trendColor: "text-green-600",
-    },
-    {
-      label: "Productivity",
-      // value:
-      //   typeof productivity === "number" && !isNaN(productivity)
-      //     ? `${productivity}%`
-      //     : "0%",
-      value: `${taskStats?.final?.productivity || 0}%`,
-      icon: RocketLaunchIcon,
-      color: "bg-indigo-500",
-      trend: "+5% improvement",
-      trendColor: "text-green-600",
-    },
-    {
-      label: "Utilization",
-      // value:
-      //   typeof utilization === "number" && !isNaN(utilization)
-      //     ? `${utilization}%`
-      //     : "0%",
-      value: `${taskStats?.final?.utilization || 0}%`,
-      icon: PresentationChartLineIcon,
-      color: "bg-indigo-500",
-      trend: "+2% this week",
-      trendColor: "text-green-600",
-    },
-    {
-      label: "Available Hours",
-      // value:
-      //   typeof availableHours === "number" && !isNaN(availableHours)
-      //     ? availableHours
-      //     : displayOrHyphen(availableHours),
-      value: taskStats?.final?.available_hours || 0,
-      icon: StopCircleIcon,
-      color: "bg-indigo-500",
-      trend: "per week",
-      trendColor: "text-gray-600",
-    },
-  ];
+      {
+        label: "Total Tasks",
+        // value: displayOrHyphen(totalTasks),
+        value: taskStats?.taskStats?.total || 0,
+        icon: ClipboardDocumentListIcon,
+        color: "bg-indigo-500",
+        trend: "+12% vs last week",
+        trendColor: "text-green-600",
+      },
+      {
+        label: "Completed",
+        // value: displayOrHyphen(completedTasks),
+        value: taskStats?.taskStats?.completed || 0,
+        icon: CheckCircleIcon,
+        color: "bg-indigo-500",
+        trend: "+3 this week",
+        trendColor: "text-green-600",
+      },
+      {
+        label: "Blocked",
+        // value: displayOrHyphen(blockedTasks),
+        value: taskStats?.taskStats?.blocked || 0,
+        icon: ExclamationTriangleIcon,
+        color: "bg-indigo-500",
+        trend: "needs attention",
+        trendColor: "text-red-600",
+      },
+      {
+        label: "Pending",
+        // value: displayOrHyphen(totalTasks - completedTasks),
+        value: taskStats?.taskStats?.pending || 0,
+        icon: ClockIcon,
+        color: "bg-indigo-500",
+        trend: "+3 this week",
+        trendColor: "text-green-600",
+      },
+      {
+        label: "Productivity",
+        // value:
+        //   typeof productivity === "number" && !isNaN(productivity)
+        //     ? `${productivity}%`
+        //     : "0%",
+        value: `${taskStats?.final?.productivity || 0}%`,
+        icon: RocketLaunchIcon,
+        color: "bg-indigo-500",
+        trend: "+5% improvement",
+        trendColor: "text-green-600",
+      },
+      {
+        label: "Utilization",
+        // value:
+        //   typeof utilization === "number" && !isNaN(utilization)
+        //     ? `${utilization}%`
+        //     : "0%",
+        value: `${taskStats?.final?.utilization || 0}%`,
+        icon: PresentationChartLineIcon,
+        color: "bg-indigo-500",
+        trend: "+2% this week",
+        trendColor: "text-green-600",
+      },
+      {
+        label: "Available Hours",
+        // value:
+        //   typeof availableHours === "number" && !isNaN(availableHours)
+        //     ? availableHours
+        //     : displayOrHyphen(availableHours),
+        value: taskStats?.final?.available_hours || 0,
+        icon: StopCircleIcon,
+        color: "bg-indigo-500",
+        trend: "per week",
+        trendColor: "text-gray-600",
+      },
+    ];
 
   // Use base stats only (Budget card removed)
   const stats = baseStats;
@@ -1371,9 +1371,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <div className="tasks-panel">
                 <div className="tasks-nav">
                   <button
-                    className={`tasks-tab ${
-                      activeTaskView === "thisWeek" ? "active" : ""
-                    }`}
+                    className={`tasks-tab ${activeTaskView === "thisWeek" ? "active" : ""
+                      }`}
                     onClick={() => {
                       setActiveTaskView("thisWeek");
                       setCurrentPageThisWeek(1);
@@ -1382,9 +1381,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     Tasks This Week
                   </button>
                   <button
-                    className={`tasks-tab ${
-                      activeTaskView === "nextWeek" ? "active" : ""
-                    }`}
+                    className={`tasks-tab ${activeTaskView === "nextWeek" ? "active" : ""
+                      }`}
                     onClick={() => {
                       setActiveTaskView("nextWeek");
                       setCurrentPageNextWeek(1);
@@ -1436,27 +1434,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                               const statusConfig =
                                 task.status === "Completed"
                                   ? {
-                                      class: "status-completed",
-                                      color: "#10b981",
-                                      bg: "#d1fae5",
-                                    }
+                                    class: "status-completed",
+                                    color: "#10b981",
+                                    bg: "#d1fae5",
+                                  }
                                   : task.status === "In Progress"
-                                  ? {
+                                    ? {
                                       class: "status-in-progress",
                                       color: "#06b6d4",
                                       bg: "#cffafe",
                                     }
-                                  : task.status === "Blocked"
-                                  ? {
-                                      class: "status-blocked",
-                                      color: "#ef4444",
-                                      bg: "#fee2e2",
-                                    }
-                                  : {
-                                      class: "status-todo",
-                                      color: "#6366f1",
-                                      bg: "#e0e7ff",
-                                    };
+                                    : task.status === "Blocked"
+                                      ? {
+                                        class: "status-blocked",
+                                        color: "#ef4444",
+                                        bg: "#fee2e2",
+                                      }
+                                      : {
+                                        class: "status-todo",
+                                        color: "#6366f1",
+                                        bg: "#e0e7ff",
+                                      };
                               const isExpanded =
                                 selectedTask &&
                                 selectedTask.source === "thisWeek" &&
@@ -1464,9 +1462,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                               return (
                                 <React.Fragment key={`fragment-${task.id}`}>
                                   <tr
-                                    className={`task-row ${
-                                      isExpanded ? "expanded" : ""
-                                    }`}
+                                    className={`task-row ${isExpanded ? "expanded" : ""
+                                      }`}
                                   >
                                     <td>
                                       <a
@@ -1608,9 +1605,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                               )
                             }
                             disabled={currentPageThisWeek === 1}
-                            className={`pagination-button ${
-                              currentPageThisWeek === 1 ? "disabled" : ""
-                            }`}
+                            className={`pagination-button ${currentPageThisWeek === 1 ? "disabled" : ""
+                              }`}
                           >
                             Previous
                           </button>
@@ -1631,12 +1627,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                               currentPageThisWeek >=
                               Math.ceil(tasksThisWeek.length / itemsPerPage)
                             }
-                            className={`pagination-button ${
-                              currentPageThisWeek >=
-                              Math.ceil(tasksThisWeek.length / itemsPerPage)
+                            className={`pagination-button ${currentPageThisWeek >=
+                                Math.ceil(tasksThisWeek.length / itemsPerPage)
                                 ? "disabled"
                                 : ""
-                            }`}
+                              }`}
                           >
                             Next
                           </button>
@@ -1686,27 +1681,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                               const statusConfig =
                                 task.status === "Completed"
                                   ? {
-                                      class: "status-completed",
-                                      color: "#10b981",
-                                      bg: "#d1fae5",
-                                    }
+                                    class: "status-completed",
+                                    color: "#10b981",
+                                    bg: "#d1fae5",
+                                  }
                                   : task.status === "In Progress"
-                                  ? {
+                                    ? {
                                       class: "status-in-progress",
                                       color: "#06b6d4",
                                       bg: "#cffafe",
                                     }
-                                  : task.status === "Blocked"
-                                  ? {
-                                      class: "status-blocked",
-                                      color: "#ef4444",
-                                      bg: "#fee2e2",
-                                    }
-                                  : {
-                                      class: "status-todo",
-                                      color: "#6366f1",
-                                      bg: "#e0e7ff",
-                                    };
+                                    : task.status === "Blocked"
+                                      ? {
+                                        class: "status-blocked",
+                                        color: "#ef4444",
+                                        bg: "#fee2e2",
+                                      }
+                                      : {
+                                        class: "status-todo",
+                                        color: "#6366f1",
+                                        bg: "#e0e7ff",
+                                      };
                               const isExpanded =
                                 selectedTask &&
                                 selectedTask.source === "nextWeek" &&
@@ -1714,9 +1709,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                               return (
                                 <React.Fragment key={`fragment-nw-${task.id}`}>
                                   <tr
-                                    className={`task-row ${
-                                      isExpanded ? "expanded" : ""
-                                    }`}
+                                    className={`task-row ${isExpanded ? "expanded" : ""
+                                      }`}
                                   >
                                     <td>
                                       <a
@@ -1858,9 +1852,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                               )
                             }
                             disabled={currentPageNextWeek === 1}
-                            className={`pagination-button ${
-                              currentPageNextWeek === 1 ? "disabled" : ""
-                            }`}
+                            className={`pagination-button ${currentPageNextWeek === 1 ? "disabled" : ""
+                              }`}
                           >
                             Previous
                           </button>
@@ -1881,12 +1874,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                               currentPageNextWeek >=
                               Math.ceil(tasksNextWeek.length / itemsPerPage)
                             }
-                            className={`pagination-button ${
-                              currentPageNextWeek >=
-                              Math.ceil(tasksNextWeek.length / itemsPerPage)
+                            className={`pagination-button ${currentPageNextWeek >=
+                                Math.ceil(tasksNextWeek.length / itemsPerPage)
                                 ? "disabled"
                                 : ""
-                            }`}
+                              }`}
                           >
                             Next
                           </button>
@@ -1943,27 +1935,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         const statusConfig =
                           task.status === "completed"
                             ? {
-                                class: "status-completed",
-                                color: "#10b981",
-                                bg: "#d1fae5",
-                              }
+                              class: "status-completed",
+                              color: "#10b981",
+                              bg: "#d1fae5",
+                            }
                             : task.status === "in_progress"
-                            ? {
+                              ? {
                                 class: "status-in-progress",
                                 color: "#06b6d4",
                                 bg: "#cffafe",
                               }
-                            : task.status === "blocked"
-                            ? {
-                                class: "status-blocked",
-                                color: "#ef4444",
-                                bg: "#fee2e2",
-                              }
-                            : {
-                                class: "status-todo",
-                                color: "#6366f1",
-                                bg: "#e0e7ff",
-                              };
+                              : task.status === "blocked"
+                                ? {
+                                  class: "status-blocked",
+                                  color: "#ef4444",
+                                  bg: "#fee2e2",
+                                }
+                                : {
+                                  class: "status-todo",
+                                  color: "#6366f1",
+                                  bg: "#e0e7ff",
+                                };
                         const isExpanded =
                           selectedTask &&
                           selectedTask.source === "thisWeek" &&
@@ -1975,9 +1967,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         return (
                           <React.Fragment key={`fragment-task-${task.id}`}>
                             <tr
-                              className={`task-row ${
-                                isExpanded ? "expanded" : ""
-                              }`}
+                              className={`task-row ${isExpanded ? "expanded" : ""
+                                }`}
                             >
                               <td>
                                 <a
@@ -2020,7 +2011,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                               </td>
                               <td className="task-hours">
                                 {(task.actual_hours !== 0 &&
-                                task.actual_hours !== null
+                                  task.actual_hours !== null
                                   ? task.actual_hours
                                   : task.planned_hours) || 0}
                                 hrs
@@ -2134,9 +2125,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                         setCurrentPageTaskStats((prev) => Math.max(1, prev - 1))
                       }
                       disabled={currentPageTaskStats === 1}
-                      className={`pagination-button ${
-                        currentPageTaskStats === 1 ? "disabled" : ""
-                      }`}
+                      className={`pagination-button ${currentPageTaskStats === 1 ? "disabled" : ""
+                        }`}
                     >
                       Previous
                     </button>
@@ -2163,14 +2153,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                           (taskStats.tasks?.length || 0) / itemsPerPage
                         )
                       }
-                      className={`pagination-button ${
-                        currentPageTaskStats >=
-                        Math.ceil(
-                          (taskStats.tasks?.length || 0) / itemsPerPage
-                        )
+                      className={`pagination-button ${currentPageTaskStats >=
+                          Math.ceil(
+                            (taskStats.tasks?.length || 0) / itemsPerPage
+                          )
                           ? "disabled"
                           : ""
-                      }`}
+                        }`}
                     >
                       Next
                     </button>
@@ -2196,7 +2185,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </div>
                 <div className="chart-content-wrapper">
                   {taskStats.productivityData &&
-                  taskStats.productivityData.length > 0 ? (
+                    taskStats.productivityData.length > 0 ? (
                     <ProductivityChart data={taskStats.productivityData} />
                   ) : (
                     <div className="chart-empty-state">
@@ -2219,7 +2208,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </div>
                 <div className="chart-content-wrapper">
                   {taskStats.utilizationData &&
-                  taskStats.utilizationData.length > 0 ? (
+                    taskStats.utilizationData.length > 0 ? (
                     <UtilizationChart data={taskStats.utilizationData} />
                   ) : (
                     <div className="chart-empty-state">
@@ -2231,7 +2220,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               </div>
 
               {/* Task Status Distribution */}
-              <div className="chart-card chart-card-tall">
+              <div className="chart-card chart-card-medium">
                 <div className="chart-card-header">
                   <div className="chart-title-section">
                     <h3 className="chart-title">🎯 Task Status Distribution</h3>
@@ -2251,7 +2240,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               </div>
 
               {/* Team Availability (swapped with Utilization) */}
-              <div className="chart-card">
+              <div className="chart-card chart-card-medium">
                 <div className="chart-card-header">
                   <div className="chart-title-section">
                     <h3 className="chart-title">👥 Team Availability</h3>
@@ -2262,16 +2251,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                 </div>
                 <div className="chart-content-wrapper">
                   {!taskStats.availabilityData ||
-                  taskStats.availabilityData.length === 0 ? (
+                    taskStats.availabilityData.length === 0 ? (
                     <div className="chart-empty-state">
                       <span className="empty-chart-icon">📈</span>
                       <p>No data available</p>
                     </div>
                   ) : (
                     <AvailabilityChart
-                      key={`availability-${filters.employeeId || "all"}-${
-                        filters.projectId || "all"
-                      }`}
+                      key={`availability-${filters.employeeId || "all"}-${filters.projectId || "all"
+                        }`}
                       data={taskStats.availabilityData}
                     />
                   )}

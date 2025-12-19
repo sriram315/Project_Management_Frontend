@@ -106,12 +106,13 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
       if (normalized) {
         // Allow any date selection for start date
         newStartDate = normalized;
-        
-        // Always set the end date to Friday of the selected week
-        // This ensures consistent behavior for both previous and future weeks
+
+        // Restore auto-Friday logic for Start Date selection:
+        // Automatically default the end date to Friday of the selected week for convenience.
+        // User can still manually change the end date afterwards if they want.
         const start = new Date(newStartDate);
         newEndDate = getFriday(start);
-        
+
         // If the selected date is Saturday, show the next Friday
         if (start.getDay() === 6) {
           start.setDate(start.getDate() + 6);
@@ -122,16 +123,15 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
       }
     } else if (field === "endDate") {
       if (normalized) {
-        const selectedDate = new Date(normalized);
-        // Automatically set to Friday of the selected week
-        newEndDate = getFriday(selectedDate);
+        // Allow any date selection for end date
+        newEndDate = normalized;
 
-        // If end date is before start date, adjust start date to the Monday of that week
+        // If end date is before start date, adjust start date to the selected end date (or just warn?)
+        // Standard behavior: if end < start, reset start or error. 
+        // Let's ensure start date is not after end date.
         if (newStartDate && new Date(newEndDate) < new Date(newStartDate)) {
-          const end = new Date(newEndDate);
-          // Get Monday of the same week (4 days before Friday)
-          end.setDate(end.getDate() - 4);
-          newStartDate = formatDateLocal(end);
+          // Option 1: Set start date to match end date (single day selection)
+          newStartDate = newEndDate;
         }
       } else {
         newEndDate = undefined;
@@ -159,7 +159,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
   // Compute constraints: end date cannot be before start date
   const startDateForInput = formatForInput(filters.startDate);
   const endDateForInput = formatForInput(filters.endDate);
-  
+
   // Calculate max date (10 years from now) to allow future date selection
   // This functionality works for all roles: employee, manager, and superadmin
   const getMaxDate = (): string => {
@@ -167,7 +167,7 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
     maxDate.setFullYear(maxDate.getFullYear() + 10);
     return formatDateLocal(maxDate);
   };
-  
+
   const maxDateForInput = getMaxDate();
 
   // Prepare project options for CustomMultiSelect (no "all" option, empty array = all)

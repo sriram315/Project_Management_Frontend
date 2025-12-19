@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { authAPI } from "../services/api";
 import Toast from "./Toast";
 import { useToast } from "../hooks/useToast";
+import { Mail, Lock, Eye, EyeOff, User } from "lucide-react";
+import Lottie from "lottie-react";
+import loginAnimation from "./Login.json";
 
 interface LoginProps {
   onLogin: (userData: any) => void;
@@ -10,7 +13,6 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [showForgot, setShowForgot] = useState(false);
   const [forgotIdentifier, setForgotIdentifier] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,7 +26,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       onLogin(response);
     } catch (err: any) {
       const msg = err?.message || "Login failed";
-      setError(msg);
       showToast(msg, "error");
     }
   };
@@ -49,128 +50,147 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="login-container">
+    <div className="login-wrapper">
       {toast.isVisible && (
         <Toast message={toast.message} type={toast.type} onClose={hideToast} />
       )}
-      {!showForgot ? (
-        <form onSubmit={handleSubmit} className="login-form">
-          <h2>Project management tool</h2>
-          {/* {error && <div className="error-message">{error}</div>} */}
-          <div className="form-group">
-            <label>Email:</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter email"
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Password:</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                required
-                style={{ paddingRight: '40px' }}
-              />
+
+      <div className="login-animation-section">
+        <Lottie animationData={loginAnimation} loop={true} className="login-lottie" />
+      </div>
+
+      <div className="login-form-container">
+        {!showForgot ? (
+          <form onSubmit={handleSubmit} className="login-form">
+            <div className="login-header">
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '1rem'
+              }}>
+                <div
+                  style={{
+                    width: "50px",
+                    height: "50px",
+                    borderRadius: "50%",
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    color: "white",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: "800",
+                    fontSize: "24px",
+                    boxShadow: "0 4px 15px rgba(102, 126, 234, 0.5)",
+                    border: "3px solid rgba(255, 255, 255, 0.2)",
+                    textShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                  }}
+                >
+                  N
+                </div>
+                <span style={{
+                  fontSize: '1.8rem',
+                  fontWeight: '800',
+                  color: '#1f2937',
+                  background: 'linear-gradient(135deg, #1f2937 0%, #4b5563 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  letterSpacing: '-0.5px'
+                }}>NexTrack</span>
+              </div>
+              <p>Please enter your details to sign in</p>
+            </div>
+
+            <div className="form-group">
+              <label>Email Address</label>
+              <div className="input-with-icon">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Password</label>
+              <div className="input-with-icon">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="password-toggle"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-actions">
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#6b7280',
-                  width: '32px',
-                  height: '32px',
+                onClick={() => {
+                  setShowForgot(true);
+                  setForgotIdentifier("");
                 }}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="forgot-password-link"
               >
-                {showPassword ? (
-                  // Hidden eye icon - eye with diagonal slash
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                  </svg>
-                ) : (
-                  // Visible eye icon - open eye
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                )}
+                Forgot password?
               </button>
             </div>
-          </div>
-          <button type="submit" className="login-button">
-            Login
-          </button>
-          <div style={{ marginTop: "12px", textAlign: "right" }}>
-            <button
-              type="button"
-              onClick={() => {
-                setShowForgot(true);
-                setForgotIdentifier("");
-              }}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#2563eb",
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
-            >
-              Forgot password?
+
+            <button type="submit" className="login-button">
+              Sign In
             </button>
-          </div>
-        </form>
-      ) : (
-        <form onSubmit={handleForgotPassword} className="login-form">
-          <h2>Reset your password</h2>
-          <p style={{ color: "#666", fontSize: "14px", marginBottom: "20px" }}>
-            Enter your email or username. A new password will be generated and sent to your registered email address.
-          </p>
-          <div className="form-group">
-            <label>Email or Username:</label>
-            <input
-              type="text"
-              value={forgotIdentifier}
-              onChange={(e) => setForgotIdentifier(e.target.value)}
-              placeholder="Enter email or username"
-              required
-            />
-          </div>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          </form>
+        ) : (
+          <form onSubmit={handleForgotPassword} className="login-form">
+            <div className="login-header">
+              <h2>Reset Password</h2>
+              <p>We'll send you a new password to your email</p>
+            </div>
+
+            <div className="form-group">
+              <label>Email or Username</label>
+              <div className="input-with-icon">
+                <User className="input-icon" size={20} />
+                <input
+                  type="text"
+                  value={forgotIdentifier}
+                  onChange={(e) => setForgotIdentifier(e.target.value)}
+                  placeholder="Enter email or username"
+                  required
+                />
+              </div>
+            </div>
+
             <button type="submit" className="login-button" disabled={isSubmitting}>
               {isSubmitting ? "Sending..." : "Reset Password"}
             </button>
+
             <button
               type="button"
               onClick={() => {
                 setShowForgot(false);
                 setForgotIdentifier("");
               }}
-              className="login-button"
-              style={{ backgroundColor: "#6b7280" }}
+              className="back-to-login-btn"
             >
               Back to Login
             </button>
-          </div>
-        </form>
-      )}
+          </form>
+        )}
+      </div>
     </div>
   );
 };

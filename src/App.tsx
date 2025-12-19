@@ -27,13 +27,13 @@ function App() {
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     const savedAuth = localStorage.getItem('isAuthenticated');
-    
+
     if (savedUser && savedAuth === 'true') {
       try {
         const userData = JSON.parse(savedUser);
         setUser(userData);
         setIsAuthenticated(true);
-        
+
         // Initialize user-specific dark theme
         const savedTheme = localStorage.getItem(`dark-theme-${userData.id}`);
         const isDark = savedTheme === 'true';
@@ -50,7 +50,7 @@ function App() {
         localStorage.removeItem('isAuthenticated');
       }
     }
-    
+
     setIsLoading(false);
   }, []);
 
@@ -60,7 +60,7 @@ function App() {
     // Save to localStorage
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('isAuthenticated', 'true');
-    
+
     // Initialize user-specific dark theme
     const savedTheme = localStorage.getItem(`dark-theme-${userData.id}`);
     const isDark = savedTheme === 'true';
@@ -80,11 +80,11 @@ function App() {
     }
     // Also clear the old global dashboard-filters key if it exists
     localStorage.removeItem('dashboard-filters');
-    
+
     // Remove dark theme on logout
     document.documentElement.removeAttribute('data-theme');
     document.body.removeAttribute('data-theme');
-    
+
     setIsAuthenticated(false);
     setUser(null);
     // Clear localStorage
@@ -119,10 +119,10 @@ function App() {
   if (isLoading) {
     return (
       <div className="App">
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
           height: '100vh',
           fontSize: '1.2rem',
           color: '#666'
@@ -137,100 +137,100 @@ function App() {
     <Router>
       <div className="App sidebar-layout">
         {isAuthenticated && <Sidebar user={user} onLogout={handleLogout} />}
-        <main className="sidebar-content">
-        <Routes>
-          <Route 
-            path="/login" 
-            element={
-              !isAuthenticated ? (
-                <Login onLogin={handleLogin} />
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/dashboard" 
-            element={
-              isAuthenticated ? (
-                <Dashboard user={user} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/users" 
-            element={
-              isAuthenticated && user && canAccessUsers(user.role) ? (
-                <Users user={user} />
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/project-assignments" 
-            element={
-              isAuthenticated && user && canAccessSuperAdminPages(user.role) ? (
-                <ProjectAssignments user={user} />
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/projects" 
-            element={
-              isAuthenticated && user && canAccessProjects(user.role) ? (
-                <Projects user={user} />
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/tasks" 
-            element={
-              isAuthenticated && user && canAccessTasks(user.role) ? (
-                <Tasks user={user} />
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/settings" 
-            element={
-              isAuthenticated && user ? (
-                <ProfileSettings user={user} onUserUpdated={(u) => setUser(u as any)} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/team-management/:projectId" 
-            element={
-              isAuthenticated && user && canAccessProjects(user.role) ? (
-                <TeamManagement user={user} />
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
-            } 
-          />
-          <Route 
-            path="/project-details/:projectId" 
-            element={
-              isAuthenticated && user && user.role === 'employee' ? (
-                <ProjectDetails />
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
-            } 
-          />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
+        <main className={isAuthenticated ? "sidebar-content" : "full-width-layout"}>
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                !isAuthenticated ? (
+                  <Login onLogin={handleLogin} />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                isAuthenticated ? (
+                  <Dashboard user={user} />
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+            <Route
+              path="/users"
+              element={
+                isAuthenticated && user && canAccessUsers(user.role) ? (
+                  <Users user={user} />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              }
+            />
+            <Route
+              path="/project-assignments"
+              element={
+                isAuthenticated && user && canAccessSuperAdminPages(user.role) ? (
+                  <ProjectAssignments user={user} />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              }
+            />
+            <Route
+              path="/projects"
+              element={
+                isAuthenticated && user && canAccessProjects(user.role) ? (
+                  <Projects user={user} />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                isAuthenticated && user && canAccessTasks(user.role) ? (
+                  <Tasks user={user} />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                isAuthenticated && user ? (
+                  <ProfileSettings user={user} onUserUpdated={(u) => setUser(u as any)} />
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+            <Route
+              path="/team-management/:projectId"
+              element={
+                isAuthenticated && user && canAccessProjects(user.role) ? (
+                  <TeamManagement user={user} />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              }
+            />
+            <Route
+              path="/project-details/:projectId"
+              element={
+                isAuthenticated && user && user.role === 'employee' ? (
+                  <ProjectDetails />
+                ) : (
+                  <Navigate to="/dashboard" replace />
+                )
+              }
+            />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
         </main>
       </div>
     </Router>

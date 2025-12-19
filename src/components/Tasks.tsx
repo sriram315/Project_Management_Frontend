@@ -36,14 +36,14 @@ const getCurrentWorkWeek = () => {
   const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
   const monday = new Date(now);
   monday.setDate(now.getDate() - (currentDay === 0 ? 6 : currentDay - 1)); // Adjust to Monday
-  
+
   // Calculate Friday of the current week
   const friday = new Date(monday);
   friday.setDate(monday.getDate() + 4); // Add 4 days to get to Friday
-  
+
   // Format as YYYY-MM-DD for date inputs
   const formatDate = (date: Date) => date.toISOString().split('T')[0];
-  
+
   return {
     monday: formatDate(monday),
     friday: formatDate(friday)
@@ -309,7 +309,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
     if (!filters.startDate && !filters.dueDate) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       // Calculate 3 weeks from today
       const threeWeeksFromNow = new Date(today);
       threeWeeksFromNow.setDate(today.getDate() + 21); // 3 weeks = 21 days
@@ -324,7 +324,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
             return true;
           }
         }
-        
+
         // Also check start_date if due_date is not available or outside range
         const taskStartDate = (task as any).start_date;
         if (taskStartDate) {
@@ -334,7 +334,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
             return true;
           }
         }
-        
+
         // If task has no dates or dates are outside range, exclude it
         return false;
       });
@@ -518,17 +518,17 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
   }
 
   return (
-    <div className="users-page">
-      <div className="page-header">
+    <div className="users-page management-page">
+      <div className="management-page-header">
         <div>
-          <h1 style={{ color: "white" }}>
+          <h1 className="management-page-title">
             {user?.role === "employee" ? "My Tasks" : "Task Management"}
           </h1>
-          <p style={{ fontSize: "0.9rem", marginTop: "0.25rem", opacity: 0.9, color: "rgba(255, 255, 255, 0.9)" }}>
+          <p className="management-page-subtitle">
             Manage and track all your tasks in one place
           </p>
         </div>
-        <div className="header-actions">
+        <div className="header-actions management-header-actions">
           <input
             type="text"
             placeholder="Search tasks by name, description..."
@@ -685,7 +685,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
             <input
               type="date"
               id="start-date-filter"
-                value={pendingFilters.startDate}
+              value={pendingFilters.startDate}
               onChange={(e) => handleFilterChange("startDate", e.target.value)}
               style={{
                 padding: "0.75rem",
@@ -703,7 +703,7 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
             <input
               type="date"
               id="due-date-filter"
-                value={pendingFilters.dueDate}
+              value={pendingFilters.dueDate}
               onChange={(e) => handleFilterChange("dueDate", e.target.value)}
               style={{
                 padding: "0.75rem",
@@ -719,75 +719,75 @@ const Tasks: React.FC<TasksProps> = ({ user }) => {
           <div className="filter-group">
             <label style={{ opacity: 0 }}>Actions</label>
             <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button
-  onClick={handleApplyFilters}
-  style={{
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "0.5rem",
-    padding: "0.75rem 1.5rem",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontSize: "0.9rem",
-    fontWeight: "600",
-    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    height: "42px",
-    width: "160px",
-    boxSizing: "border-box",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    boxShadow: "0 4px 12px rgba(102, 126, 234, 0.3)",
-  }}
-  onMouseEnter={(e) => {
-    e.currentTarget.style.transform = "translateY(-2px)";
-    e.currentTarget.style.boxShadow = "0 6px 20px rgba(102, 126, 234, 0.4)";
-  }}
-  onMouseLeave={(e) => {
-    e.currentTarget.style.transform = "translateY(0)";
-    e.currentTarget.style.boxShadow = "0 4px 12px rgba(102, 126, 234, 0.3)";
-  }}
->
-  Apply
-</button>
+              <button
+                onClick={handleApplyFilters}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  padding: "0.75rem 1.5rem",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "10px",
+                  cursor: "pointer",
+                  fontSize: "0.9rem",
+                  fontWeight: "600",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  height: "42px",
+                  width: "160px",
+                  boxSizing: "border-box",
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  boxShadow: "0 4px 12px rgba(102, 126, 234, 0.3)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(102, 126, 234, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(102, 126, 234, 0.3)";
+                }}
+              >
+                Apply
+              </button>
 
-<button
-  onClick={clearFilters}
-  style={{
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "0.5rem",
-    padding: "0.75rem 1.5rem",
-    color: "#475569",
-    border: "2px solid #e2e8f0",
-    borderRadius: "10px",
-    cursor: "pointer",
-    fontSize: "0.9rem",
-    fontWeight: "600",
-    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    height: "42px",
-    width: "160px",
-    boxSizing: "border-box",
-    backgroundColor: "white",
-  }}
-  onMouseEnter={(e) => {
-    e.currentTarget.style.borderColor = "#cbd5e1";
-    e.currentTarget.style.backgroundColor = "#f8fafc";
-    e.currentTarget.style.transform = "translateY(-2px)";
-    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.08)";
-  }}
-  onMouseLeave={(e) => {
-    e.currentTarget.style.borderColor = "#e2e8f0";
-    e.currentTarget.style.backgroundColor = "white";
-    e.currentTarget.style.transform = "translateY(0)";
-    e.currentTarget.style.boxShadow = "none";
-  }}
->
-  <FilterX size={18} />
-  Clear
-</button>
+              <button
+                onClick={clearFilters}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  padding: "0.75rem 1.5rem",
+                  color: "#475569",
+                  border: "2px solid #e2e8f0",
+                  borderRadius: "10px",
+                  cursor: "pointer",
+                  fontSize: "0.9rem",
+                  fontWeight: "600",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                  height: "42px",
+                  width: "160px",
+                  boxSizing: "border-box",
+                  backgroundColor: "white",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#cbd5e1";
+                  e.currentTarget.style.backgroundColor = "#f8fafc";
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.08)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "#e2e8f0";
+                  e.currentTarget.style.backgroundColor = "white";
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                <FilterX size={18} />
+                Clear
+              </button>
 
             </div>
           </div>

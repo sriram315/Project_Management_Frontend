@@ -57,7 +57,7 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
     projectId: null,
     projectName: "",
   });
-  
+
   // Assignment-related state (only for superadmin)
   const [activeTab, setActiveTab] = useState<"projects" | "assignments">("projects");
   const [managersTeamLeads, setManagersTeamLeads] = useState<ManagerTeamLead[]>([]);
@@ -77,7 +77,7 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
       fetchAssignmentsData();
     }
   }, [user]);
-  
+
   const fetchAssignmentsData = async () => {
     try {
       const [managersData, assignmentsData] = await Promise.all([
@@ -198,7 +198,7 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
       state: { projectName },
     });
   };
-  
+
   // Assignment handlers (only for superadmin)
   const handleAssign = async () => {
     if (!selectedProject || !selectedManager) {
@@ -308,36 +308,20 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
   }
 
   return (
-    <div className="users-page">
-      <div className="page-header" style={{ marginBottom: "2rem" }}>
+    <div className="users-page management-page">
+      <div className="management-page-header">
         <div>
-          <h1
-            style={{
-              fontSize: "2rem",
-              fontWeight: "700",
-              marginBottom: "0.5rem",
-              color: "white",
-            }}
-          >
+          <h1 className="management-page-title">
             {user?.role === "employee" ? "My Projects" : "Project Management"}
           </h1>
-          <p
-            style={{
-              color: "rgba(255, 255, 255, 0.9)",
-              fontSize: "0.95rem",
-              marginTop: "0.25rem",
-            }}
-          >
-            {user?.role === "super_admin" 
+          <p className="management-page-subtitle">
+            {user?.role === "super_admin"
               ? "Manage projects and assign them to managers and team leads"
               : "Manage and track all your projects in one place"}
           </p>
         </div>
         {projects.length > 0 && (
-          <div
-            className="header-actions"
-            style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}
-          >
+          <div className="header-actions management-header-actions">
             {activeTab === "projects" && (
               <input
                 type="text"
@@ -403,7 +387,7 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
           </div>
         )}
       </div>
-      
+
       {/* Tabs for Superadmin */}
       {user?.role === "super_admin" && (
         <div
@@ -467,8 +451,8 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
                 {searchTerm
                   ? "No projects match your search criteria."
                   : user?.role === "employee"
-                  ? "You are not assigned to any projects yet."
-                  : "Get started by creating your first project."}
+                    ? "You are not assigned to any projects yet."
+                    : "Get started by creating your first project."}
               </p>
               {user?.role !== "employee" && !searchTerm && (
                 <button
@@ -633,14 +617,14 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
                                   project.status === "active"
                                     ? "#d1fae5"
                                     : project.status === "completed"
-                                    ? "#dbeafe"
-                                    : "#fef3c7",
+                                      ? "#dbeafe"
+                                      : "#fef3c7",
                                 color:
                                   project.status === "active"
                                     ? "#065f46"
                                     : project.status === "completed"
-                                    ? "#1e40af"
-                                    : "#92400e",
+                                      ? "#1e40af"
+                                      : "#92400e",
                               }}
                             >
                               {project.status}
@@ -702,14 +686,14 @@ const Projects: React.FC<ProjectsProps> = ({ user }) => {
                                     project.status === "active"
                                       ? "#d1fae5"
                                       : project.status === "completed"
-                                      ? "#dbeafe"
-                                      : "#fef3c7",
+                                        ? "#dbeafe"
+                                        : "#fef3c7",
                                   color:
                                     project.status === "active"
                                       ? "#065f46"
                                       : project.status === "completed"
-                                      ? "#1e40af"
-                                      : "#92400e",
+                                        ? "#1e40af"
+                                        : "#92400e",
                                 }}
                               >
                                 {project.status}
