@@ -187,12 +187,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({ task, onClose }) =>
               <div className="form-group">
                 <label style={{ color: "#6b7280", fontSize: "0.875rem", fontWeight: 500 }}>Project</label>
                 <div style={{ fontSize: "0.95rem", color: "#111827", marginTop: "0.25rem" }}>
-                   {/* We might not have project name directly in task object sometimes, depending on the API response, but usually it's there or we can show ID */}
-                   {/* In Dashboard, the task object might have project name if joined, let's check. 
-                       Actually Dashboard tasks usually have project_id. The name might not be easily available without looking up projects.
-                       For now, let's assume we display what we have or generic if missing.
-                   */}
-                   Project #{fullTask.project_id}
+                   {fullTask.project_name || `Project #${fullTask.project_id}`}
                 </div>
               </div>
 
