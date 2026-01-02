@@ -11,6 +11,8 @@ import UtilizationChart from "./charts/UtilizationChart";
 import ProductivityChart from "./charts/ProductivityChart";
 import AvailabilityChart from "./charts/AvailabilityChart";
 import TaskStatusChart from "./charts/TaskStatusChart";
+import TaskDetailsModal from "./TaskDetailsModal"; // Import the modal
+import { Task } from "../types"; // Import Task type
 import {
   ClipboardDocumentListIcon,
   CheckCircleIcon,
@@ -139,6 +141,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       statusColor: string;
       estimated: number;
       logged: number;
+      planned_hours: number;
+      actual_hours: number;
       due_date?: string | null;
     }>
   >([]);
@@ -151,6 +155,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       statusColor: string;
       estimated: number;
       logged: number;
+      planned_hours: number;
+      actual_hours: number;
       due_date?: string | null;
     }>
   >([]);
@@ -162,27 +168,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [currentPageNextWeek, setCurrentPageNextWeek] = useState(1);
   const [currentPageTaskStats, setCurrentPageTaskStats] = useState(1);
   const itemsPerPage = 5;
-  const [selectedTask, setSelectedTask] = useState<{
-    id: number;
-    title: string;
-    assignee: string;
-    status: string;
-    estimated: number;
-    due_date?: string | null;
-    source: "thisWeek" | "nextWeek";
-  } | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [taskStats, setTaskStats] = useState<TaskStats>({});
-  const [dailyUpdates, setDailyUpdates] = useState<
-    Array<{
-      id: number;
-      task_id: number;
-      user_id: number;
-      comment: string;
-      created_at: string;
-      username?: string;
-    }>
-  >([]);
-  const [loadingUpdates, setLoadingUpdates] = useState(false);
   const [activeTaskView, setActiveTaskView] = useState<
     "thisWeek" | "nextWeek"
   >("thisWeek");
@@ -206,68 +193,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     });
   };
 
-  const loadDailyUpdates = async (taskId: number) => {
-    setLoadingUpdates(true);
-    try {
-      const updates = await taskAPI.getDailyUpdates(taskId);
-      setDailyUpdates(updates);
-    } catch (error) {
-      console.error("Error fetching daily updates:", error);
-      setDailyUpdates([]);
-    } finally {
-      setLoadingUpdates(false);
-    }
+  const handleTaskSelection = (task: Task) => {
+    setSelectedTask(task);
   };
 
-  const loadTaskDetails = async (taskId: number) => {
-    try {
-      const details = await taskAPI.getById(taskId);
-      setSelectedTask((prev) => {
-        if (!prev || prev.id !== taskId) return prev;
-        return {
-          ...prev,
-          due_date: details?.due_date || prev.due_date || null,
-        };
-      });
-    } catch (error) {
-      console.error("Error fetching task details:", error);
-    }
-  };
-
-  const handleTaskSelection = async (
-    task: {
-      id: number;
-      title: string;
-      assignee: string;
-      status: string;
-      estimated: number;
-      due_date?: string | null;
-    },
-    source: "thisWeek" | "nextWeek"
-  ) => {
-    const isExpanded =
-      selectedTask &&
-      selectedTask.source === source &&
-      selectedTask.id === task.id;
-    if (isExpanded) {
-      setSelectedTask(null);
-      setDailyUpdates([]);
-      return;
-    }
-
-    setSelectedTask({
-      id: task.id,
-      title: task.title,
-      assignee: task.assignee,
-      status: task.status,
-      estimated: task.estimated,
-      due_date: task.due_date || null,
-      source,
-    });
-
-    loadDailyUpdates(task.id);
-    loadTaskDetails(task.id);
-  };
 
   const fetchInitialData = async () => {
     try {
@@ -486,6 +415,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       const nextWeekTasks = tasksTimeline.nextWeek || [];
       setTasksThisWeek(thisWeekTasks);
       setTasksNextWeek(nextWeekTasks);
+      console.log(thisWeekTasks);
+      console.log(nextWeekTasks);
+      
 
       // Reset pagination when data changes
       setCurrentPageThisWeek(1);
@@ -1455,22 +1387,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                         color: "#6366f1",
                                         bg: "#e0e7ff",
                                       };
-                              const isExpanded =
-                                selectedTask &&
-                                selectedTask.source === "thisWeek" &&
-                                selectedTask.id === task.id;
                               return (
                                 <React.Fragment key={`fragment-${task.id}`}>
-                                  <tr
-                                    className={`task-row ${isExpanded ? "expanded" : ""
-                                      }`}
-                                  >
+                                  <tr className="task-row">
                                     <td>
                                       <a
                                         href="#"
                                         onClick={(e) => {
                                           e.preventDefault();
-                                          handleTaskSelection(task, "thisWeek");
+                                          handleTaskSelection(task as any);
                                         }}
                                         className="task-link"
                                       >
@@ -1492,93 +1417,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                       </span>
                                     </td>
                                     <td className="task-hours">
-                                      {task.estimated} hrs
+                                      {task.planned_hours || 0} hrs
                                     </td>
                                   </tr>
-                                  {isExpanded && (
-                                    <tr
-                                      key={`details-${task.id}`}
-                                      className="task-details-row"
-                                    >
-                                      <td colSpan={4}>
-                                        <div className="task-details-panel">
-                                          <div className="task-detail-item">
-                                            <span className="task-detail-label">
-                                              📆 Due Date:
-                                            </span>
-                                            <span className="task-detail-value">
-                                              {formatDueDate(
-                                                selectedTask?.id === task.id
-                                                  ? selectedTask?.due_date
-                                                  : task.due_date
-                                              )}
-                                            </span>
-                                          </div>
-                                          {dailyUpdates.length > 0 && (
-                                            <div className="daily-updates-section">
-                                              <div className="daily-updates-header">
-                                                💬 Daily Updates
-                                              </div>
-                                              <div className="daily-updates-list">
-                                                {dailyUpdates.map((update) => (
-                                                  <div
-                                                    key={update.id}
-                                                    className="daily-update-card"
-                                                  >
-                                                    <div className="daily-update-header">
-                                                      <span className="daily-update-author">
-                                                        {update.username ||
-                                                          "Unknown"}
-                                                      </span>
-                                                      <span className="daily-update-date">
-                                                        {new Date(
-                                                          update.created_at
-                                                        ).toLocaleDateString(
-                                                          "en-US",
-                                                          {
-                                                            year: "numeric",
-                                                            month: "short",
-                                                            day: "numeric",
-                                                            hour: "2-digit",
-                                                            minute: "2-digit",
-                                                          }
-                                                        )}
-                                                      </span>
-                                                    </div>
-                                                    <div className="daily-update-comment">
-                                                      {update.comment}
-                                                    </div>
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            </div>
-                                          )}
-                                          {loadingUpdates && (
-                                            <div className="loading-updates">
-                                              Loading updates...
-                                            </div>
-                                          )}
-                                          {!loadingUpdates &&
-                                            dailyUpdates.length === 0 && (
-                                              <div className="no-updates">
-                                                No daily updates available
-                                              </div>
-                                            )}
-                                          <div className="task-details-actions">
-                                            <button
-                                              onClick={() => {
-                                                setSelectedTask(null);
-                                                setDailyUpdates([]);
-                                              }}
-                                              className="close-details-button"
-                                            >
-                                              Close
-                                            </button>
-                                          </div>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  )}
                                 </React.Fragment>
                               );
                             })}
@@ -1702,22 +1543,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                         color: "#6366f1",
                                         bg: "#e0e7ff",
                                       };
-                              const isExpanded =
-                                selectedTask &&
-                                selectedTask.source === "nextWeek" &&
-                                selectedTask.id === task.id;
                               return (
                                 <React.Fragment key={`fragment-nw-${task.id}`}>
-                                  <tr
-                                    className={`task-row ${isExpanded ? "expanded" : ""
-                                      }`}
-                                  >
+                                  <tr className="task-row">
                                     <td>
                                       <a
                                         href="#"
                                         onClick={(e) => {
                                           e.preventDefault();
-                                          handleTaskSelection(task, "nextWeek");
+                                          handleTaskSelection(task as any);
                                         }}
                                         className="task-link"
                                       >
@@ -1739,93 +1573,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                       </span>
                                     </td>
                                     <td className="task-hours">
-                                      {task.estimated} hrs
+                                      {task.planned_hours || 0} hrs
                                     </td>
                                   </tr>
-                                  {isExpanded && (
-                                    <tr
-                                      key={`details-nw-${task.id}`}
-                                      className="task-details-row"
-                                    >
-                                      <td colSpan={4}>
-                                        <div className="task-details-panel">
-                                          <div className="task-detail-item">
-                                            <span className="task-detail-label">
-                                              📆 Due Date:
-                                            </span>
-                                            <span className="task-detail-value">
-                                              {formatDueDate(
-                                                selectedTask?.id === task.id
-                                                  ? selectedTask?.due_date
-                                                  : task.due_date
-                                              )}
-                                            </span>
-                                          </div>
-                                          {dailyUpdates.length > 0 && (
-                                            <div className="daily-updates-section">
-                                              <div className="daily-updates-header">
-                                                💬 Daily Updates
-                                              </div>
-                                              <div className="daily-updates-list">
-                                                {dailyUpdates.map((update) => (
-                                                  <div
-                                                    key={update.id}
-                                                    className="daily-update-card"
-                                                  >
-                                                    <div className="daily-update-header">
-                                                      <span className="daily-update-author">
-                                                        {update.username ||
-                                                          "Unknown"}
-                                                      </span>
-                                                      <span className="daily-update-date">
-                                                        {new Date(
-                                                          update.created_at
-                                                        ).toLocaleDateString(
-                                                          "en-US",
-                                                          {
-                                                            year: "numeric",
-                                                            month: "short",
-                                                            day: "numeric",
-                                                            hour: "2-digit",
-                                                            minute: "2-digit",
-                                                          }
-                                                        )}
-                                                      </span>
-                                                    </div>
-                                                    <div className="daily-update-comment">
-                                                      {update.comment}
-                                                    </div>
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            </div>
-                                          )}
-                                          {loadingUpdates && (
-                                            <div className="loading-updates">
-                                              Loading updates...
-                                            </div>
-                                          )}
-                                          {!loadingUpdates &&
-                                            dailyUpdates.length === 0 && (
-                                              <div className="no-updates">
-                                                No daily updates available
-                                              </div>
-                                            )}
-                                          <div className="task-details-actions">
-                                            <button
-                                              onClick={() => {
-                                                setSelectedTask(null);
-                                                setDailyUpdates([]);
-                                              }}
-                                              className="close-details-button"
-                                            >
-                                              Close
-                                            </button>
-                                          </div>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  )}
                                 </React.Fragment>
                               );
                             })}
@@ -1956,47 +1706,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                   color: "#6366f1",
                                   bg: "#e0e7ff",
                                 };
-                        const isExpanded =
-                          selectedTask &&
-                          selectedTask.source === "thisWeek" &&
-                          selectedTask.id === task.id;
+                        
                         // Get project name from projects array using project_id
                         const projectName =
                           projects.find((p) => p.id === task.project_id)
                             ?.name || `Project ${task.project_id}`;
                         return (
                           <React.Fragment key={`fragment-task-${task.id}`}>
-                            <tr
-                              className={`task-row ${isExpanded ? "expanded" : ""
-                                }`}
-                            >
+                            <tr className="task-row">
                               <td>
                                 <a
                                   href="#"
                                   onClick={(e) => {
                                     e.preventDefault();
-                                    handleTaskSelection(
-                                      {
-                                        id: task.id,
-                                        title: task.name,
-                                        assignee:
-                                          task.username ||
-                                          String(task.assignee_id),
-                                        status: task.status,
-                                        estimated: task.planned_hours,
-                                        due_date: task.due_date,
-                                      },
-                                      "thisWeek"
-                                    );
+                                    handleTaskSelection(task as any);
                                   }}
                                   className="task-link"
                                 >
-                                  {task?.name}
+                                  {task.name}
                                 </a>
                               </td>
                               <td className="task-project">{projectName}</td>
                               <td className="task-assignee">
-                                {task.username || `User ${task.assignee_id}`}
+                                {task.username || `User ${task.assignee_id || ''}`}
                               </td>
                               <td className="status-column">
                                 <span
@@ -2017,90 +1749,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                 hrs
                               </td>
                             </tr>
-                            {isExpanded && (
-                              <tr
-                                key={`details-${task.id}`}
-                                className="task-details-row"
-                              >
-                                <td colSpan={5}>
-                                  <div className="task-details-panel">
-                                    <div className="task-detail-item">
-                                      <span className="task-detail-label">
-                                        📆 Due Date:
-                                      </span>
-                                      <span className="task-detail-value">
-                                        {formatDueDate(
-                                          selectedTask?.id === task.id
-                                            ? selectedTask?.due_date
-                                            : task.due_date
-                                        )}
-                                      </span>
-                                    </div>
-                                    {dailyUpdates.length > 0 && (
-                                      <div className="daily-updates-section">
-                                        <div className="daily-updates-header">
-                                          💬 Daily Updates
-                                        </div>
-                                        <div className="daily-updates-list">
-                                          {dailyUpdates.map((update) => (
-                                            <div
-                                              key={update.id}
-                                              className="daily-update-card"
-                                            >
-                                              <div className="daily-update-header">
-                                                <span className="daily-update-author">
-                                                  {update.username ||
-                                                    "Unknown"}
-                                                </span>
-                                                <span className="daily-update-date">
-                                                  {new Date(
-                                                    update.created_at
-                                                  ).toLocaleDateString(
-                                                    "en-US",
-                                                    {
-                                                      year: "numeric",
-                                                      month: "short",
-                                                      day: "numeric",
-                                                      hour: "2-digit",
-                                                      minute: "2-digit",
-                                                    }
-                                                  )}
-                                                </span>
-                                              </div>
-                                              <div className="daily-update-comment">
-                                                {update.comment}
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                    {loadingUpdates && (
-                                      <div className="loading-updates">
-                                        Loading updates...
-                                      </div>
-                                    )}
-                                    {!loadingUpdates &&
-                                      dailyUpdates.length === 0 && (
-                                        <div className="no-updates">
-                                          No daily updates available
-                                        </div>
-                                      )}
-                                    <div className="task-details-actions">
-                                      <button
-                                        onClick={() => {
-                                          setSelectedTask(null);
-                                          setDailyUpdates([]);
-                                        }}
-                                        className="close-details-button"
-                                      >
-                                        Close
-                                      </button>
-                                    </div>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
                           </React.Fragment>
                         );
                       })}
@@ -2269,6 +1917,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
         </div>
       </div>
+      {/* Task Details Modal */}
+      {selectedTask && (
+        <TaskDetailsModal
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+        />
+      )}
     </div>
   );
 };
