@@ -360,11 +360,11 @@ const EditTask: React.FC<EditTaskProps> = ({
   const validateForm = () => {
     const errors: { [key: string]: string } = {};
 
-    // For employees, only validate status and update comment
+    // For employees, validate update comment only if status is completed
     if (isEmployee) {
-      // Update comment validation
-      if (!updateComment.trim()) {
-        errors.updateComment = "Update comment is required";
+      // Update comment validation - only required when status is completed
+      if (formData.status === "completed" && !updateComment.trim()) {
+        errors.updateComment = "Daily update is required when marking task as completed";
       }
       setFormErrors(errors);
       return Object.keys(errors).length === 0;
@@ -512,9 +512,9 @@ const EditTask: React.FC<EditTaskProps> = ({
 
   const updateTask = async () => {
     try {
-      // For employees, update status and description (and daily update will be added separately)
+      // For employees, update name, status and description (and daily update will be added separately)
       let updateData: any = isEmployee
-        ? { status: formData.status, description: formData.description }
+        ? { name: formData.name, status: formData.status, description: formData.description }
         : formData;
 
       // Remove start_date if it's empty to avoid backend errors
@@ -791,39 +791,35 @@ const EditTask: React.FC<EditTaskProps> = ({
           <form onSubmit={handleSubmit} className="user-form">
             {error && <div className="error-message">{error}</div>}
 
-            {/* Show all fields for managers/team leads/superadmin */}
-            {!isEmployee && (
-              <>
-                <div className="form-group">
-                  <label htmlFor="name">
-                    Task Name <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    style={{
-                      borderColor: formErrors.name ? "#ef4444" : "#e1e8ed",
-                    }}
-                    placeholder="Enter task name"
-                  />
-                  {formErrors.name && (
-                    <small
-                      style={{
-                        color: "#ef4444",
-                        fontSize: "0.85rem",
-                        marginTop: "0.25rem",
-                        display: "block",
-                      }}
-                    >
-                      {formErrors.name}
-                    </small>
-                  )}
-                </div>
-              </>
-            )}
+            {/* Task Name - visible to all users */}
+            <div className="form-group">
+              <label htmlFor="name">
+                Task Name <span style={{ color: "#ef4444" }}>*</span>
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                style={{
+                  borderColor: formErrors.name ? "#ef4444" : "#e1e8ed",
+                }}
+                placeholder="Enter task name"
+              />
+              {formErrors.name && (
+                <small
+                  style={{
+                    color: "#ef4444",
+                    fontSize: "0.85rem",
+                    marginTop: "0.25rem",
+                    display: "block",
+                  }}
+                >
+                  {formErrors.name}
+                </small>
+              )}
+            </div>
 
             <div className="form-group">
               <label htmlFor="description">Description</label>
@@ -1120,7 +1116,7 @@ const EditTask: React.FC<EditTaskProps> = ({
             <div className="form-group">
               <label htmlFor="update-comment">
                 Daily Update
-                {isEmployee && <span style={{ color: "#ef4444" }}>*</span>}
+                {formData.status === "completed" && <span style={{ color: "#ef4444" }}>*</span>}
               </label>
               <textarea
                 id="update-comment"

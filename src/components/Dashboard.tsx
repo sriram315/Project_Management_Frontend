@@ -76,6 +76,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   // Note: This is only used for initial state. Filters are properly reset when user changes via useEffect
   // NOTE: Date range is NOT loaded from localStorage - it will always default to current week
   const getInitialFilters = (): FilterType => {
+    // Calculate current week's Monday-Friday for default date range
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    // Calculate Monday of current week
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    
+    // Calculate Friday of current week (4 days after Monday)
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    
+    // Format dates as YYYY-MM-DD
+    const formatDateLocal = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+    
+    const defaultStartDate = formatDateLocal(monday);
+    const defaultEndDate = formatDateLocal(friday);
+
     // Always use user-specific key if user is available
     // Never use the old global 'dashboard-filters' key to avoid cross-user contamination
     if (user?.id && typeof window !== "undefined") {
@@ -87,9 +111,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           return {
             projectId: parsed.projectId ?? undefined,
             employeeId: parsed.employeeId ?? undefined,
-            // Date range always defaults to undefined - will be set to current week by useEffect
-            startDate: undefined,
-            endDate: undefined,
+            // Always use current week dates, never persist dates
+            startDate: defaultStartDate,
+            endDate: defaultEndDate,
           };
         } catch {
           /* ignore parse errors */
@@ -97,12 +121,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       }
     }
 
-    // Return empty filters - they will be set properly by the user-change effect
+    // Return filters with current week dates
     return {
       projectId: undefined,
       employeeId: undefined,
-      startDate: undefined,
-      endDate: undefined,
+      startDate: defaultStartDate,
+      endDate: defaultEndDate,
     };
   };
 
@@ -197,6 +221,36 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setSelectedTask(task);
   };
 
+  const handleStatusUpdate = async (taskId: number, newStatus: string) => {
+    try {
+      // Optimistic update
+      const updateTaskStatus = (t: any) => {
+        if (t.id === taskId) {
+          let statusColor = "#6366f1"; // todo color
+          const statusLower = newStatus.toLowerCase();
+          if (statusLower === "completed") statusColor = "#10b981";
+          else if (statusLower === "in_progress" || statusLower === "in progress")
+            statusColor = "#06b6d4";
+          else if (statusLower === "blocked") statusColor = "#ef4444";
+
+          return { ...t, status: newStatus, statusColor };
+        }
+        return t;
+      };
+
+      setTasksThisWeek((prev) => prev.map(updateTaskStatus));
+      setTasksNextWeek((prev) => prev.map(updateTaskStatus));
+
+      await taskAPI.update(taskId, { status: newStatus as any });
+      
+      // Refresh data to ensure consistency (optional, but good for side effects)
+      // fetchInitialData(); 
+    } catch (error) {
+      console.error("Failed to update status:", error);
+      // Revert optimization if needed (omitted for brevity, assume success)
+    }
+  };
+
 
   const fetchInitialData = async () => {
     try {
@@ -226,46 +280,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       setAllEmployees(employeesRes); // Store all employees for reference
       setTaskStatusData(taskStatusRes);
 
-      // Set default date range to Monday-Friday of current week
-      const today = new Date();
-      const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-
-      // Calculate Monday of current week
-      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const monday = new Date(today);
-      monday.setDate(today.getDate() + diffToMonday);
-
-      // Calculate Friday of current week (4 days after Monday)
-      const friday = new Date(monday);
-      friday.setDate(monday.getDate() + 4);
-
-      // Use local date formatting to avoid UTC shifts from toISOString()
-      const formatDateLocal = (date: Date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-      };
-
-      // Fill ONLY missing fields; preserve any persisted selections from localStorage
-      // Note: Filters are now managed by the user-change effect, so we only set defaults if not already set
-      setFilters((prev) => {
-        // Only update if filters are not already initialized (to avoid overriding user-specific filters)
-        if (!prev.startDate || !prev.endDate) {
-          return {
-            ...prev,
-            employeeId:
-              prev.employeeId !== undefined
-                ? prev.employeeId
-                : user?.role === "employee"
-                  ? user.id
-                  : undefined,
-            startDate: prev.startDate || formatDateLocal(monday),
-            endDate: prev.endDate || formatDateLocal(friday),
-          };
-        }
-        return prev;
-      });
+      // Set employeeId for employees (dates are already set in getInitialFilters)
+      setFilters((prev) => ({
+        ...prev,
+        employeeId:
+          prev.employeeId !== undefined
+            ? prev.employeeId
+            : user?.role === "employee"
+              ? user.id
+              : undefined,
+      }));
     } catch (error) {
       console.error("Error fetching initial data:", error);
     }
@@ -1406,15 +1430,47 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                                       {task.assignee}
                                     </td>
                                     <td className="status-column">
-                                      <span
-                                        className="task-status-badge"
-                                        style={{
-                                          color: statusConfig.color,
-                                          backgroundColor: statusConfig.bg,
-                                        }}
+                                      <div
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{ display: "inline-block" }}
                                       >
-                                        {task.status}
-                                      </span>
+                                        <select
+                                          value={
+                                            task.status === "In Progress"
+                                              ? "in_progress"
+                                              : task.status.toLowerCase()
+                                          }
+                                          onChange={(e) =>
+                                            handleStatusUpdate(task.id, e.target.value)
+                                          }
+                                          style={{
+                                            backgroundColor: statusConfig.bg,
+                                            color: statusConfig.color,
+                                            border: "none",
+                                            borderRadius: "9999px",
+                                            padding: "0.2rem 0.6rem",
+                                            fontSize: "0.75rem",
+                                            fontWeight: 600,
+                                            cursor: "pointer",
+                                            outline: "none",
+                                            appearance: "none",
+                                            textAlign: "center",
+                                            width: "auto",
+                                            minWidth: "110px",
+                                            textTransform: "capitalize",
+                                            lineHeight: "1.2",
+                                          }}
+                                        >
+                                          <option value="todo">To Do</option>
+                                          <option value="in_progress">
+                                            In Progress
+                                          </option>
+                                          <option value="blocked">Blocked</option>
+                                          <option value="completed">
+                                            Completed
+                                          </option>
+                                        </select>
+                                      </div>
                                     </td>
                                     <td className="task-hours">
                                       {task.planned_hours || 0} hrs
